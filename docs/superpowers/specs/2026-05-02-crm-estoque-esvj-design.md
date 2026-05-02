@@ -210,7 +210,7 @@ Não existe registro independente de movimentação: toda movimentação é cons
   - Usuário com menos de 3 caracteres → "Mínimo de 3 caracteres."
   - Usuário já existente (case-insensitive) → "Este nome de usuário já está em uso."
   - Senhas não coincidem → "As senhas não coincidem."
-- Botão laranja **"Criar conta"** → login automático como viewer (sessão em `sessionStorage`, sem "Lembrar-me" na tela de registro) → Dashboard
+- Botão laranja **"Criar conta"** → login automático como viewer (sessão salva em `sessionStorage` com chave `crm_sessao_temp`, sem "Lembrar-me" na tela de registro) → Dashboard
 - Link **"Já tenho conta"** → Login
 
 ### 7.3 Dashboard
@@ -285,12 +285,12 @@ Filtro de período em botões agrupados: `Hoje` | `7 dias` | `14 dias` | `30 dia
 
 **Agrupamento do gráfico por período:**
 
-| Filtro | Granularidade | Número de barras |
-|---|---|---|
-| Hoje | Por hora | 24 barras |
-| 7 dias | Por dia | 7 barras |
-| 14 dias | Por dia | 14 barras |
-| 30 dias | Blocos de 6 dias | 5 barras (janela rolante: hoje − 30 dias, dividida em 5 blocos de 6 dias cada; rótulo de cada barra: "DD/MM – DD/MM" do intervalo) |
+| Filtro | Janela | Granularidade | Barras | Rótulo do eixo X |
+|---|---|---|---|---|
+| Hoje | Dia calendário atual: 00:00–23:59 (hora local) | Por hora | 24 barras | "00h", "01h", ..., "23h" |
+| 7 dias | Janela rolante: hoje − 7 dias até agora | Por dia | 7 barras | "DD/MM" |
+| 14 dias | Janela rolante: hoje − 14 dias até agora | Por dia | 14 barras | "DD/MM" |
+| 30 dias | Janela rolante: hoje − 30 dias até agora | Blocos de 6 dias | 5 barras | "DD/MM – DD/MM" do intervalo |
 
 - **Gráfico SVG de barras agrupadas:** Entradas (laranja `#f97316`) vs Saídas (cinza `#6b7280`) no período selecionado, com rótulos de valor acima das barras e legenda abaixo. Barras ordenadas da esquerda (mais antiga) para a direita (mais recente).  
 - **Estado vazio do gráfico:** se não há movimentações no período, exibir mensagem centralizada "Sem movimentações neste período." no lugar do SVG.
