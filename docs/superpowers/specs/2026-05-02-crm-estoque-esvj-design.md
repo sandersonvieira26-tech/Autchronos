@@ -156,7 +156,7 @@ qtd < (estoqueMinimo * 0.5)                       → Crítico
 
 Não existe registro independente de movimentação: toda movimentação é consequência de uma edição de quantidade. Uma correção de erro de digitação também gera movimentação; isso é aceito como limitação do sistema (sem back-end real).
 
-**Dados mockados na primeira carga:** ~25 registros distribuídos nos últimos 30 dias, referenciando apenas `materialId`s existentes na lista de materiais mockados. Ao menos um registro de cada tipo (`entrada` e `saída`) deve cair no dia corrente (horário local) para que o filtro "Hoje" exiba barras no gráfico. Os demais registros podem ser distribuídos livremente nos 29 dias anteriores.
+**Sem dados mockados:** a lista de movimentações começa vazia. O histórico e o gráfico exibirão os estados vazios definidos na seção 7.3 até que o admin cadastre materiais e realize edições de quantidade.
 
 ---
 
@@ -279,24 +279,12 @@ No EasyPanel: criar novo serviço → App → Git repository → build automáti
 
 ---
 
-## 10. Dados Mockados de Materiais
+## 10. Estado Inicial do Sistema
 
-Pré-populados na primeira carga (10 itens, garantindo ao menos 3 em status Baixo/Crítico):
-
-| ID | Nome | Categoria | Qtd | Unidade | Est. Mínimo | Valor Unit. (R$) | Status calculado |
-|---|---|---|---|---|---|---|---|
-| 1 | Cabo de Cobre 4mm | Elétrico | 150 | m | 50 | 8,50 | OK |
-| 2 | Disjuntor 20A | Elétrico | 8 | un | 20 | 35,00 | Crítico |
-| 3 | Tubo PVC 50mm | Hidráulico | 60 | m | 30 | 12,00 | OK |
-| 4 | Joelho PVC 50mm | Hidráulico | 12 | un | 30 | 4,50 | Baixo |
-| 5 | Cimento CP-II | Civil | 5 | sc | 15 | 32,00 | Crítico |
-| 6 | Areia Média | Civil | 2000 | kg | 500 | 0,18 | OK |
-| 7 | Chave de Fenda Phillips | Ferramentas | 4 | un | 10 | 18,90 | Baixo |
-| 8 | Alicate Universal | Ferramentas | 15 | un | 10 | 42,00 | OK |
-| 9 | Capacete de Segurança | EPI | 3 | un | 10 | 28,00 | Crítico |
-| 10 | Luva de Proteção | EPI | 25 | par | 20 | 9,90 | OK |
-
-Valor Total do Estoque calculado com esses dados: R$ 2.568,80 (determinístico).
+**Materiais:** lista vazia. O admin cadastrará os itens com base no estoque físico atual.  
+**Movimentações:** lista vazia. Registros gerados conforme edições de quantidade pelo admin.  
+**Cards de resumo:** exibem zeros na primeira carga (Total de Itens: 0, Itens em Baixo Estoque: 0, Valor Total: R$ 0,00, Entradas do Mês: 0).  
+**Gráfico e tabela de histórico:** exibem os estados vazios definidos na seção 7.3.
 
 Categorias disponíveis (inicializam o dropdown): Elétrico, Hidráulico, Civil, Ferramentas, EPI.
 
