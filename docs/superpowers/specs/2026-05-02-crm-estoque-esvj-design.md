@@ -98,6 +98,8 @@ Novos usuários registrados recebem papel `viewer` automaticamente.
 ]
 ```
 
+**Geração de ID:** `Math.max(0, ...usuarios.map(u => u.id)) + 1`.
+
 ### 6.2 Sessão atual (`crm_sessao` ou `crm_sessao_temp`)
 
 Quando "Lembrar-me" está **marcado**: sessão salva em `localStorage` com a chave `crm_sessao` (persiste ao fechar o navegador).  
@@ -127,6 +129,8 @@ O JS deve verificar `localStorage.getItem('crm_sessao')` e depois `sessionStorag
   }
 ]
 ```
+
+**Geração de ID:** `Math.max(0, ...materiais.map(m => m.id)) + 1`.
 
 **Regras de validação dos campos:**
 - `nome`: obrigatório, não vazio.
@@ -166,14 +170,14 @@ Lista simples de strings. Pré-carregada com 5 categorias padrão na primeira ca
     "materialId": 1,
     "materialNome": "Cabo de Cobre 4mm",
     "tipo": "entrada",
-    "quantidade": 50,
+    "quantidade": 50.5,
     "data": "2026-04-28T10:30:00.000Z",
     "registradoPor": "admin"
   }
 ]
 ```
 
-**Semântica:** Movimentações são derivadas automaticamente da diferença de quantidade ao editar um material.  
+**Semântica:** Movimentações são derivadas automaticamente da diferença de quantidade ao editar um material. O campo `quantidade` da movimentação é um decimal com a mesma precisão da diferença calculada (ex: se a quantidade do material mudou de 10,5 para 12,0, a movimentação registra `1.5`).  
 - Quantidade aumentou → registra `entrada` com a diferença positiva  
 - Quantidade diminuiu → registra `saída` com a diferença absoluta  
 
@@ -202,7 +206,7 @@ Não existe registro independente de movimentação: toda movimentação é cons
 - **Regras do campo Usuário:** mínimo 3 caracteres, máximo 30, aceita apenas letras (com ou sem acento), números, underscore `_` e hífen `-`. Espaços não permitidos. Comparação de duplicatas é case-insensitive (`admin` = `Admin`).
 - Validações e mensagens de erro inline:
   - Campo vazio → "Este campo é obrigatório."
-  - Usuário com caracteres inválidos → "Use apenas letras, números, _ ou -."
+  - Usuário com caracteres inválidos → "Use apenas letras (inclusive acentuadas), números, _ ou -."
   - Usuário com menos de 3 caracteres → "Mínimo de 3 caracteres."
   - Usuário já existente (case-insensitive) → "Este nome de usuário já está em uso."
   - Senhas não coincidem → "As senhas não coincidem."
@@ -223,7 +227,7 @@ Não existe registro independente de movimentação: toda movimentação é cons
 | Total de Itens | `materiais.length` |
 | Itens em Baixo Estoque | Materiais com status `Baixo` ou `Crítico` |
 | Valor Total do Estoque | `Σ (quantidade × valorUnitario)` formatado em R$ |
-| Entradas do Mês | Soma das `quantidade` das movimentações do tipo `entrada` no mês corrente (mês calendário: do dia 1 ao último dia do mês atual) |
+| Entradas do Mês | Soma das `quantidade` das movimentações do tipo `entrada` no mês corrente (mês calendário: do dia 1 ao último dia do mês atual, usando data local do navegador) |
 
 > O card "Entradas do Mês" exibe a **soma numérica** das quantidades que entraram no mês calendário corrente (ex: 320), sem rótulo de unidade — os materiais têm unidades diferentes (m, kg, un), portanto a soma é exibida como número puro. Não há card equivalente para saídas; o balanço detalhado está na seção de Movimentações.
 
@@ -286,7 +290,7 @@ Filtro de período em botões agrupados: `Hoje` | `7 dias` | `14 dias` | `30 dia
 | Hoje | Por hora | 24 barras |
 | 7 dias | Por dia | 7 barras |
 | 14 dias | Por dia | 14 barras |
-| 30 dias | Blocos de 6 dias | 5 barras (janela rolante: hoje − 30 dias, dividida em 5 blocos de 6 dias cada) |
+| 30 dias | Blocos de 6 dias | 5 barras (janela rolante: hoje − 30 dias, dividida em 5 blocos de 6 dias cada; rótulo de cada barra: "DD/MM – DD/MM" do intervalo) |
 
 - **Gráfico SVG de barras agrupadas:** Entradas (laranja `#f97316`) vs Saídas (cinza `#6b7280`) no período selecionado, com rótulos de valor acima das barras e legenda abaixo. Barras ordenadas da esquerda (mais antiga) para a direita (mais recente).  
 - **Estado vazio do gráfico:** se não há movimentações no período, exibir mensagem centralizada "Sem movimentações neste período." no lugar do SVG.
