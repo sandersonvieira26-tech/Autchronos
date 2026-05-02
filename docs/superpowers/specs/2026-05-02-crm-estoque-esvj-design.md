@@ -76,7 +76,7 @@ Três `<div>` raiz no HTML, alternados via `display: none / block` por JavaScrip
 | Adicionar material | ✅ | ❌ |
 | Editar material | ✅ | ❌ |
 | Excluir material | ✅ | ❌ |
-| Gerenciar categorias | ✅ | ❌ |
+| Gerenciar Categorias | ✅ | ❌ |
 
 Credenciais pré-semeadas no `localStorage` na primeira carga: `admin / 1234` com papel `admin`.  
 Novos usuários registrados recebem papel `viewer` automaticamente.
@@ -140,7 +140,13 @@ qtd < (estoqueMinimo * 0.5)                       → Crítico
 ```json
 ["Elétrico", "Hidráulico", "Civil", "Ferramentas", "EPI"]
 ```
-Lista simples de strings. Pré-carregada com 5 categorias padrão na primeira carga, mas o admin pode adicionar, renomear e excluir livremente. Ao renomear uma categoria, os materiais que a usam **não** são atualizados automaticamente (o nome antigo permanece nos materiais já cadastrados — o admin deve editar cada material se desejar atualizar). Ao excluir uma categoria em uso, exibir aviso: "X material(is) usa(m) esta categoria. Deseja excluir mesmo assim?" — se confirmado, a categoria é removida da lista; os materiais existentes mantêm o nome antigo como string orphã.
+Lista simples de strings. Pré-carregada com 5 categorias padrão na primeira carga, mas o admin pode adicionar, renomear e excluir livremente.
+
+**Renomear:** ao renomear uma categoria, todos os materiais que usam o nome antigo são atualizados automaticamente para o novo nome (cascade via localStorage). A operação é imediata ao confirmar o campo de texto.
+
+**Excluir:** ao excluir uma categoria em uso, exibir confirmação: "X material(is) usa(m) esta categoria. Deseja excluir mesmo assim?" — se confirmado, a categoria é removida da lista e os materiais que a usavam ficam com o nome antigo como texto livre (não vinculado à lista).
+
+**Mínimo de categorias:** não é permitido excluir a última categoria restante. Botão Excluir fica desabilitado quando há apenas 1 categoria, com tooltip "É necessário manter ao menos uma categoria."
 
 ### 6.5 Movimentações (`crm_movimentacoes`)
 ```json
@@ -218,21 +224,31 @@ Botões **Editar** / **Excluir** na coluna Ações — visíveis apenas para adm
 **Estado vazio:** quando nenhum material corresponde aos filtros, exibir linha única com texto "Nenhum material encontrado."
 
 #### Modal Adicionar/Editar Material (admin)
-Campos: Nome, Categoria (dropdown com lista de `crm_categorias`), Quantidade, Unidade, Estoque Mínimo, Valor Unitário
+Campos: Nome, Categoria (dropdown com lista de `crm_categorias` em ordem alfabética), Quantidade, Unidade, Estoque Mínimo, Valor Unitário
+
+> Se o admin precisar de uma categoria ainda não existente durante o cadastro de um material, deve: fechar o modal, clicar em "Gerenciar Categorias", adicionar a categoria e reabrir o modal. Esta limitação é aceita e documentada na seção 11.
 
 Ao salvar uma **edição**: a diferença de quantidade é registrada como movimentação automaticamente.  
 Ao salvar um **novo** material: nenhuma movimentação é gerada (quantidade inicial não é considerada entrada).
 
 #### Modal Gerenciar Categorias (admin)
 Acessado pelo botão "Gerenciar Categorias" acima da tabela.  
-Exibe a lista atual de categorias, cada uma com:
-- Campo de texto editável com o nome da categoria (permite renomear inline)
-- Botão **Excluir** ao lado
+Exibe a lista atual de categorias em ordem alfabética, cada uma com:
+- Campo de texto editável com o nome da categoria (renomeação imediata ao sair do campo / `blur`)
+- Botão **Excluir** ao lado (desabilitado se for a última categoria)
 
-Ação de adicionar: campo de texto vazio + botão **"Adicionar"** ao final da lista.  
-Ao excluir categoria **sem** materiais vinculados: remove diretamente.  
-Ao excluir categoria **com** materiais vinculados: exibir confirmação "X material(is) usa(m) esta categoria. Deseja excluir mesmo assim?" — se confirmado, remove da lista; materiais existentes mantêm o nome antigo como texto livre.  
-Botão **"Fechar"** salva todas as alterações de renomeação pendentes e fecha o modal.
+**Validações de renomear e adicionar:**
+- Nome vazio ou somente espaços → rejeitado silenciosamente (campo restaura valor anterior)
+- Nome duplicado (case-insensitive) → exibir erro inline: "Esta categoria já existe."
+- Renomear aciona cascade automático em todos os materiais que usam o nome antigo
+
+**Ação de adicionar:** campo de texto vazio + botão **"Adicionar"** ao final da lista. Ao confirmar: nome validado, categoria inserida e lista reordenada alfabeticamente.
+
+**Excluir sem materiais vinculados:** remove diretamente.  
+**Excluir com materiais vinculados:** exibir confirmação "X material(is) usa(m) esta categoria. Deseja excluir mesmo assim?" — se confirmado, remove da lista; materiais mantêm o nome antigo como texto livre.  
+**Excluir última categoria:** botão desabilitado com tooltip "É necessário manter ao menos uma categoria."
+
+Botão **"Fechar"** encerra o modal. Todas as alterações já foram aplicadas imediatamente; não há desfazer.
 
 #### Seção Movimentações
 
@@ -296,13 +312,11 @@ No EasyPanel: criar novo serviço → App → Git repository → build automáti
 
 ## 10. Estado Inicial do Sistema
 
-**Categorias:** pré-carregadas com 5 padrões (Elétrico, Hidráulico, Civil, Ferramentas, EPI) — editáveis pelo admin via modal "Gerenciar Categorias".  
+**Categorias (`crm_categorias`):** pré-carregadas com `["Elétrico", "Hidráulico", "Civil", "Ferramentas", "EPI"]` — editáveis pelo admin via modal "Gerenciar Categorias".  
 **Materiais:** lista vazia. O admin cadastrará os itens com base no estoque físico atual.  
 **Movimentações:** lista vazia. Registros gerados conforme edições de quantidade pelo admin.  
 **Cards de resumo:** exibem zeros na primeira carga (Total de Itens: 0, Itens em Baixo Estoque: 0, Valor Total: R$ 0,00, Entradas do Mês: 0).  
 **Gráfico e tabela de histórico:** exibem os estados vazios definidos na seção 7.3.
-
-Categorias disponíveis (inicializam o dropdown): Elétrico, Hidráulico, Civil, Ferramentas, EPI.
 
 ---
 
@@ -312,5 +326,6 @@ Categorias disponíveis (inicializam o dropdown): Elétrico, Hidráulico, Civil,
 - Backend / API real
 - Autenticação segura (senhas em texto plano no localStorage — apenas simulação)
 - Registro independente de movimentação (movimentações são derivadas de edições de quantidade)
+- Criação de categoria diretamente dentro do modal de material (requer navegar ao modal "Gerenciar Categorias" separado)
 - Paginação da tabela de materiais
 - Exportação de dados (PDF/Excel)
