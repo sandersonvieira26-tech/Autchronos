@@ -99,9 +99,9 @@ Novos usuários registrados recebem papel `viewer` automaticamente.
 
 ### 6.2 Sessão atual (`crm_sessao` ou `crm_sessao_temp`)
 
-Quando "Lembrar-me" está **marcado**: sessão salva em `localStorage` (persiste ao fechar o navegador).  
-Quando "Lembrar-me" está **desmarcado**: sessão salva em `sessionStorage` (apagada ao fechar a aba).  
-O JS deve verificar ambos na carga da página.
+Quando "Lembrar-me" está **marcado**: sessão salva em `localStorage` com a chave `crm_sessao` (persiste ao fechar o navegador).  
+Quando "Lembrar-me" está **desmarcado**: sessão salva em `sessionStorage` com a chave `crm_sessao_temp` (apagada ao fechar a aba).  
+O JS deve verificar `localStorage.getItem('crm_sessao')` e depois `sessionStorage.getItem('crm_sessao_temp')` na carga da página.
 
 ```json
 {
@@ -156,7 +156,7 @@ qtd < (estoqueMinimo * 0.5)                       → Crítico
 
 Não existe registro independente de movimentação: toda movimentação é consequência de uma edição de quantidade. Uma correção de erro de digitação também gera movimentação; isso é aceito como limitação do sistema (sem back-end real).
 
-**Dados mockados na primeira carga:** ~25 registros distribuídos aleatoriamente nos últimos 30 dias, referenciando apenas `materialId`s existentes na lista de materiais mockados. Garante que o gráfico e a tabela de histórico estejam populados em todos os períodos do filtro.
+**Dados mockados na primeira carga:** ~25 registros distribuídos nos últimos 30 dias, referenciando apenas `materialId`s existentes na lista de materiais mockados. Ao menos um registro de cada tipo (`entrada` e `saída`) deve cair no dia corrente (horário local) para que o filtro "Hoje" exiba barras no gráfico. Os demais registros podem ser distribuídos livremente nos 29 dias anteriores.
 
 ---
 
@@ -188,7 +188,7 @@ Não existe registro independente de movimentação: toda movimentação é cons
 #### Header
 - Fundo `#1f2937`, logo ESVJ à esquerda
 - À direita: avatar circular laranja com iniciais + nome do usuário + botão "Sair"
-- **Iniciais do avatar:** primeiras letras de cada palavra do `nomeCompleto`, limitado a 2 caracteres (ex: "João Silva" → "JS", "Administrador" → "AD")
+- **Iniciais do avatar:** primeiras letras de cada palavra do `nomeCompleto`, limitado a 2 caracteres. Se o nome tiver apenas uma palavra, usar as duas primeiras letras dessa palavra. (ex: "João Silva" → "JS", "Administrador" → "AD")
 
 #### Cards de resumo (4 cards)
 
@@ -283,20 +283,20 @@ No EasyPanel: criar novo serviço → App → Git repository → build automáti
 
 Pré-populados na primeira carga (10 itens, garantindo ao menos 3 em status Baixo/Crítico):
 
-| ID | Nome | Categoria | Qtd | Unidade | Est. Mínimo | Status calculado |
-|---|---|---|---|---|---|---|
-| 1 | Cabo de Cobre 4mm | Elétrico | 150 | m | 50 | OK |
-| 2 | Disjuntor 20A | Elétrico | 8 | un | 20 | Crítico |
-| 3 | Tubo PVC 50mm | Hidráulico | 60 | m | 30 | OK |
-| 4 | Joelho PVC 50mm | Hidráulico | 12 | un | 30 | Baixo |
-| 5 | Cimento CP-II | Civil | 5 | sc | 15 | Crítico |
-| 6 | Areia Média | Civil | 2000 | kg | 500 | OK |
-| 7 | Chave de Fenda Phillips | Ferramentas | 4 | un | 10 | Baixo |
-| 8 | Alicate Universal | Ferramentas | 15 | un | 10 | OK |
-| 9 | Capacete de Segurança | EPI | 3 | un | 10 | Crítico |
-| 10 | Luva de Proteção | EPI | 25 | par | 20 | OK |
+| ID | Nome | Categoria | Qtd | Unidade | Est. Mínimo | Valor Unit. (R$) | Status calculado |
+|---|---|---|---|---|---|---|---|
+| 1 | Cabo de Cobre 4mm | Elétrico | 150 | m | 50 | 8,50 | OK |
+| 2 | Disjuntor 20A | Elétrico | 8 | un | 20 | 35,00 | Crítico |
+| 3 | Tubo PVC 50mm | Hidráulico | 60 | m | 30 | 12,00 | OK |
+| 4 | Joelho PVC 50mm | Hidráulico | 12 | un | 30 | 4,50 | Baixo |
+| 5 | Cimento CP-II | Civil | 5 | sc | 15 | 32,00 | Crítico |
+| 6 | Areia Média | Civil | 2000 | kg | 500 | 0,18 | OK |
+| 7 | Chave de Fenda Phillips | Ferramentas | 4 | un | 10 | 18,90 | Baixo |
+| 8 | Alicate Universal | Ferramentas | 15 | un | 10 | 42,00 | OK |
+| 9 | Capacete de Segurança | EPI | 3 | un | 10 | 28,00 | Crítico |
+| 10 | Luva de Proteção | EPI | 25 | par | 20 | 9,90 | OK |
 
-Todos com `valorUnitario` atribuído (ex: Cabo de Cobre = R$ 8,50/m, Disjuntor = R$ 35,00/un, etc.).
+Valor Total do Estoque calculado com esses dados: R$ 2.568,80 (determinístico).
 
 Categorias disponíveis (inicializam o dropdown): Elétrico, Hidráulico, Civil, Ferramentas, EPI.
 
