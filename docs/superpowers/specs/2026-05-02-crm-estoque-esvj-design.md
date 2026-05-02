@@ -76,6 +76,7 @@ Três `<div>` raiz no HTML, alternados via `display: none / block` por JavaScrip
 | Adicionar material | ✅ | ❌ |
 | Editar material | ✅ | ❌ |
 | Excluir material | ✅ | ❌ |
+| Gerenciar categorias | ✅ | ❌ |
 
 Credenciais pré-semeadas no `localStorage` na primeira carga: `admin / 1234` com papel `admin`.  
 Novos usuários registrados recebem papel `viewer` automaticamente.
@@ -135,7 +136,13 @@ qtd >= (estoqueMinimo * 0.5) AND qtd < estoqueMinimo → Baixo
 qtd < (estoqueMinimo * 0.5)                       → Crítico
 ```
 
-### 6.4 Movimentações (`crm_movimentacoes`)
+### 6.4 Categorias (`crm_categorias`)
+```json
+["Elétrico", "Hidráulico", "Civil", "Ferramentas", "EPI"]
+```
+Lista simples de strings. Pré-carregada com 5 categorias padrão na primeira carga, mas o admin pode adicionar, renomear e excluir livremente. Ao renomear uma categoria, os materiais que a usam **não** são atualizados automaticamente (o nome antigo permanece nos materiais já cadastrados — o admin deve editar cada material se desejar atualizar). Ao excluir uma categoria em uso, exibir aviso: "X material(is) usa(m) esta categoria. Deseja excluir mesmo assim?" — se confirmado, a categoria é removida da lista; os materiais existentes mantêm o nome antigo como string orphã.
+
+### 6.5 Movimentações (`crm_movimentacoes`)
 ```json
 [
   {
@@ -206,18 +213,26 @@ Layout: 4 colunas no desktop, 2×2 no tablet, 1 coluna no mobile.
 #### Tabela de Materiais
 Colunas: ID, Nome, Categoria, Quantidade, Unidade, Estoque Mínimo, Status, Ações  
 Filtros acima da tabela: busca por nome (text input) + dropdown Categoria + dropdown Status  
-Botão **"Adicionar Material"** acima da tabela — visível apenas para admin  
+Botões acima da tabela (visíveis apenas para admin): **"Adicionar Material"** e **"Gerenciar Categorias"**  
 Botões **Editar** / **Excluir** na coluna Ações — visíveis apenas para admin  
 **Estado vazio:** quando nenhum material corresponde aos filtros, exibir linha única com texto "Nenhum material encontrado."
 
-#### Modal Adicionar/Editar (admin)
-Campos: Nome, Categoria, Quantidade, Unidade, Estoque Mínimo, Valor Unitário
-
-**Campo Categoria:** dropdown com categorias existentes + opção `"+ Nova categoria"` no final da lista.  
-Ao selecionar `"+ Nova categoria"`: um campo de texto aparece imediatamente abaixo do dropdown para digitar o nome da nova categoria. Ao salvar o modal, a nova categoria é adicionada à lista global de categorias disponíveis.
+#### Modal Adicionar/Editar Material (admin)
+Campos: Nome, Categoria (dropdown com lista de `crm_categorias`), Quantidade, Unidade, Estoque Mínimo, Valor Unitário
 
 Ao salvar uma **edição**: a diferença de quantidade é registrada como movimentação automaticamente.  
 Ao salvar um **novo** material: nenhuma movimentação é gerada (quantidade inicial não é considerada entrada).
+
+#### Modal Gerenciar Categorias (admin)
+Acessado pelo botão "Gerenciar Categorias" acima da tabela.  
+Exibe a lista atual de categorias, cada uma com:
+- Campo de texto editável com o nome da categoria (permite renomear inline)
+- Botão **Excluir** ao lado
+
+Ação de adicionar: campo de texto vazio + botão **"Adicionar"** ao final da lista.  
+Ao excluir categoria **sem** materiais vinculados: remove diretamente.  
+Ao excluir categoria **com** materiais vinculados: exibir confirmação "X material(is) usa(m) esta categoria. Deseja excluir mesmo assim?" — se confirmado, remove da lista; materiais existentes mantêm o nome antigo como texto livre.  
+Botão **"Fechar"** salva todas as alterações de renomeação pendentes e fecha o modal.
 
 #### Seção Movimentações
 
@@ -281,6 +296,7 @@ No EasyPanel: criar novo serviço → App → Git repository → build automáti
 
 ## 10. Estado Inicial do Sistema
 
+**Categorias:** pré-carregadas com 5 padrões (Elétrico, Hidráulico, Civil, Ferramentas, EPI) — editáveis pelo admin via modal "Gerenciar Categorias".  
 **Materiais:** lista vazia. O admin cadastrará os itens com base no estoque físico atual.  
 **Movimentações:** lista vazia. Registros gerados conforme edições de quantidade pelo admin.  
 **Cards de resumo:** exibem zeros na primeira carga (Total de Itens: 0, Itens em Baixo Estoque: 0, Valor Total: R$ 0,00, Entradas do Mês: 0).  
