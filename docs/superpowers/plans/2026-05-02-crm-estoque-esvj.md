@@ -1,0 +1,1603 @@
+# CRM Estoque ESVJ Engenharia — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a complete single-file HTML + CSS + JS inventory CRM for ESVJ Engenharia with login, registration, admin/viewer roles, materials CRUD, category management, stock movement tracking, and SVG bar chart.
+
+**Architecture:** Single `index.html` containing all HTML, `<style>`, and `<script>`. Three screen `<div>`s toggled via `display:none/block`. Two modal overlays always in DOM. All state in localStorage/sessionStorage. Dockerfile + nginx.conf for EasyPanel deployment.
+
+**Tech Stack:** HTML5, CSS3 (Grid, Flexbox, CSS Variables), Vanilla JS ES6+, SVG (inline, JS-generated), localStorage, sessionStorage, `crypto.randomUUID()`, `Intl.NumberFormat('pt-BR')`
+
+**Spec:** `docs/superpowers/specs/2026-05-02-crm-estoque-esvj-design.md`
+
+---
+
+## File Map
+
+| File | Responsibility |
+|---|---|
+| `index.html` | Entire app — HTML structure, CSS variables/styles, JS logic |
+| `Dockerfile` | nginx:alpine container for EasyPanel |
+| `nginx.conf` | Minimal nginx config, port 80 |
+
+All tasks modify `index.html` incrementally. Each task appends or replaces clearly marked sections.
+
+---
+
+## Task 1: Deploy Files + HTML Skeleton
+
+**Files:**
+- Create: `Dockerfile`
+- Create: `nginx.conf`
+- Create: `index.html`
+
+- [ ] **Step 1: Create `Dockerfile`**
+
+```dockerfile
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY index.html /usr/share/nginx/html/index.html
+EXPOSE 80
+```
+
+- [ ] **Step 2: Create `nginx.conf`**
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+- [ ] **Step 3: Create `index.html` with skeleton**
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESVJ Engenharia — Gestão de Estoque</title>
+  <style>
+    /* === TASK 2: CSS will go here === */
+  </style>
+</head>
+<body>
+
+  <!-- Screen: Login -->
+  <div id="screen-login" style="display:none"></div>
+
+  <!-- Screen: Registro -->
+  <div id="screen-register" style="display:none"></div>
+
+  <!-- Screen: Dashboard -->
+  <div id="screen-dashboard" style="display:none"></div>
+
+  <!-- Modal: Adicionar/Editar Material -->
+  <div id="modal-material" class="modal-overlay" style="display:none"></div>
+
+  <!-- Modal: Gerenciar Categorias -->
+  <div id="modal-categorias" class="modal-overlay" style="display:none"></div>
+
+  <script>
+    /* === TASK 3+: JS will go here === */
+    window.addEventListener('DOMContentLoaded', () => {
+      document.body.innerHTML += '<p style="padding:2rem">Skeleton OK</p>';
+    });
+  </script>
+</body>
+</html>
+```
+
+- [ ] **Step 4: Verify skeleton**
+
+Open `index.html` in browser. Expected: white page showing "Skeleton OK". No console errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add index.html Dockerfile nginx.conf
+git commit -m "feat: project scaffold with deploy files and HTML skeleton"
+```
+
+---
+
+## Task 2: CSS Foundation
+
+**Files:**
+- Modify: `index.html` — replace the `<style>` block
+
+- [ ] **Step 1: Replace the `<style>` block with full CSS foundation**
+
+```css
+/* === RESET & BASE === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; background: #f3f4f6; }
+button { cursor: pointer; font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+
+/* === CSS VARIABLES === */
+:root {
+  --orange: #f97316;
+  --orange-dark: #ea580c;
+  --gray-900: #111827;
+  --gray-800: #1f2937;
+  --gray-600: #6b7280;
+  --gray-200: #e5e7eb;
+  --gray-100: #f3f4f6;
+  --white: #ffffff;
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+/* === AUTH SCREENS === */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gray-100);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 20px,
+    rgba(249,115,22,0.04) 20px,
+    rgba(249,115,22,0.04) 21px
+  );
+}
+.auth-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+}
+.auth-logo { text-align: center; margin-bottom: 1.5rem; }
+.auth-title { font-size: 1.25rem; font-weight: 600; color: var(--gray-900); margin-bottom: 1.5rem; text-align: center; }
+
+/* === FORM ELEMENTS === */
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--gray-900); margin-bottom: 0.375rem; }
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  color: var(--gray-900);
+  background: var(--white);
+  transition: border-color 0.15s;
+}
+.form-group input:focus,
+.form-group select:focus { outline: none; border-color: var(--orange); }
+.form-error { font-size: 0.8125rem; color: var(--red); margin-top: 0.25rem; display: none; }
+.form-error.visible { display: block; }
+.checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem; }
+.checkbox-row input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--orange); }
+
+/* === BUTTONS === */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.625rem 1.25rem; border-radius: var(--radius); font-size: 0.9375rem; font-weight: 500; border: none; transition: background 0.15s, transform 0.1s; }
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--orange); color: var(--white); width: 100%; }
+.btn-primary:hover { background: var(--orange-dark); }
+.btn-secondary { background: var(--gray-100); color: var(--gray-900); border: 1px solid var(--gray-200); }
+.btn-secondary:hover { background: var(--gray-200); }
+.btn-danger { background: var(--red); color: var(--white); }
+.btn-danger:hover { background: #b91c1c; }
+.btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+.btn-icon { background: none; border: none; padding: 0.25rem; color: var(--gray-600); border-radius: 4px; }
+.btn-icon:hover { background: var(--gray-100); color: var(--gray-900); }
+.auth-links { text-align: center; margin-top: 1rem; font-size: 0.875rem; color: var(--gray-600); }
+.auth-links a { color: var(--orange); text-decoration: none; font-weight: 500; }
+.auth-links a:hover { text-decoration: underline; }
+.auth-error { background: #fee2e2; color: var(--red); border-radius: var(--radius); padding: 0.625rem 0.875rem; font-size: 0.875rem; margin-bottom: 1rem; display: none; }
+.auth-error.visible { display: block; }
+
+/* === HEADER === */
+.dashboard-header {
+  background: var(--gray-800);
+  padding: 0 1.5rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-left { display: flex; align-items: center; }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.user-info { display: flex; align-items: center; gap: 0.625rem; color: var(--white); font-size: 0.875rem; }
+.avatar {
+  width: 36px; height: 36px;
+  background: var(--orange);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.875rem; color: var(--white);
+  flex-shrink: 0;
+}
+.btn-logout { background: rgba(255,255,255,0.1); color: var(--white); border: 1px solid rgba(255,255,255,0.2); padding: 0.375rem 0.875rem; border-radius: var(--radius); font-size: 0.875rem; }
+.btn-logout:hover { background: rgba(255,255,255,0.2); }
+
+/* === DASHBOARD LAYOUT === */
+.dashboard-body { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+.section-title { font-size: 1.125rem; font-weight: 600; color: var(--gray-900); margin-bottom: 1rem; }
+
+/* === SUMMARY CARDS === */
+.cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; }
+.card-label { font-size: 0.8125rem; color: var(--gray-600); margin-bottom: 0.5rem; font-weight: 500; }
+.card-value { font-size: 1.75rem; font-weight: 700; color: var(--gray-900); }
+.card-value.orange { color: var(--orange); }
+.card-value.red { color: var(--red); }
+
+/* === TABLE SECTION === */
+.table-section { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 2rem; overflow: hidden; }
+.table-toolbar { padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; border-bottom: 1px solid var(--gray-200); }
+.table-toolbar .search-input { flex: 1; min-width: 160px; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; }
+.table-toolbar .search-input:focus { outline: none; border-color: var(--orange); }
+.table-toolbar select { padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; background: var(--white); }
+.table-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--gray-100); padding: 0.75rem 1rem; text-align: left; font-size: 0.8125rem; font-weight: 600; color: var(--gray-600); white-space: nowrap; }
+td { padding: 0.75rem 1rem; font-size: 0.875rem; color: var(--gray-900); border-top: 1px solid var(--gray-200); }
+tr:hover td { background: #fafafa; }
+.empty-row td { text-align: center; color: var(--gray-600); padding: 2rem; }
+
+/* === STATUS BADGES === */
+.badge { display: inline-flex; align-items: center; padding: 0.25rem 0.625rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.badge-ok { background: #dcfce7; color: var(--green); }
+.badge-baixo { background: #fef3c7; color: var(--amber); }
+.badge-critico { background: #fee2e2; color: var(--red); }
+.badge-entrada { background: #fff7ed; color: var(--orange); }
+.badge-saida { background: var(--gray-100); color: var(--gray-600); }
+
+/* === MODAL === */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  padding: 1rem;
+}
+.modal-box {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--gray-200); }
+.modal-header h2 { font-size: 1.0625rem; font-weight: 600; }
+.modal-body { padding: 1.5rem; }
+.modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 0.75rem; }
+.modal-close { background: none; border: none; font-size: 1.25rem; color: var(--gray-600); cursor: pointer; line-height: 1; }
+.modal-close:hover { color: var(--gray-900); }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+
+/* === CATEGORY MODAL === */
+.cat-list { display: flex; flex-direction: column; gap: 0.625rem; margin-bottom: 1rem; }
+.cat-item { display: flex; align-items: center; gap: 0.5rem; }
+.cat-item input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; }
+.cat-item input:focus { outline: none; border-color: var(--orange); }
+.cat-item input.error { border-color: var(--red); }
+.cat-item-error { font-size: 0.75rem; color: var(--red); margin-top: 0.125rem; }
+.cat-add-row { display: flex; gap: 0.5rem; }
+.cat-add-row input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; }
+.cat-add-row input:focus { outline: none; border-color: var(--orange); }
+
+/* === MOVEMENTS SECTION === */
+.movements-section { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); }
+.period-filter { display: flex; gap: 0.5rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--gray-200); }
+.period-btn { padding: 0.375rem 1rem; border-radius: 20px; border: 1px solid var(--gray-200); background: var(--white); font-size: 0.875rem; color: var(--gray-600); }
+.period-btn.active { background: var(--orange); color: var(--white); border-color: var(--orange); }
+.chart-container { padding: 1.25rem; border-bottom: 1px solid var(--gray-200); min-height: 120px; display: flex; align-items: center; justify-content: center; }
+.chart-empty { color: var(--gray-600); font-size: 0.9375rem; }
+.chart-container svg { width: 100%; height: auto; }
+
+/* === LOGO SVG === */
+.logo-svg { display: flex; align-items: center; gap: 0; }
+
+/* === RESPONSIVE === */
+@media (max-width: 1023px) {
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 767px) {
+  .cards-grid { grid-template-columns: 1fr; }
+  .dashboard-body { padding: 1rem; }
+  .modal-box { max-width: 100%; }
+  .modal-grid { grid-template-columns: 1fr; }
+  .table-actions { margin-left: 0; width: 100%; }
+  .table-toolbar { flex-direction: column; align-items: stretch; }
+  .table-toolbar .search-input, .table-toolbar select { width: 100%; }
+  .period-filter { flex-wrap: wrap; }
+  .header-right .user-name { display: none; }
+}
+```
+
+- [ ] **Step 2: Remove the placeholder `DOMContentLoaded` script from Task 1**
+
+In `index.html`, replace the entire `<script>` block content with just a comment:
+```javascript
+/* JS — added in Tasks 3-12 */
+```
+
+- [ ] **Step 3: Verify CSS loads**
+
+Open `index.html` in browser. Expected: white page, no errors in console, CSS variables visible in DevTools.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add CSS foundation with color palette, layout, and component styles"
+```
+
+---
+
+## Task 3: Data Layer
+
+**Files:**
+- Modify: `index.html` — add JS data layer inside `<script>`
+
+- [ ] **Step 1: Add storage keys, getters, setters, and seed function**
+
+Replace `/* JS — added in Tasks 3-12 */` with:
+
+```javascript
+// === STORAGE KEYS ===
+const KEYS = {
+  usuarios: 'crm_usuarios',
+  sessao: 'crm_sessao',
+  sessaoTemp: 'crm_sessao_temp',
+  materiais: 'crm_materiais',
+  categorias: 'crm_categorias',
+  movimentacoes: 'crm_movimentacoes'
+};
+
+// === GETTERS / SETTERS ===
+const getUsuarios = () => JSON.parse(localStorage.getItem(KEYS.usuarios) || '[]');
+const saveUsuarios = d => localStorage.setItem(KEYS.usuarios, JSON.stringify(d));
+const getMateriais = () => JSON.parse(localStorage.getItem(KEYS.materiais) || '[]');
+const saveMateriais = d => localStorage.setItem(KEYS.materiais, JSON.stringify(d));
+const getCategorias = () => JSON.parse(localStorage.getItem(KEYS.categorias) || '[]');
+const saveCategorias = d => localStorage.setItem(KEYS.categorias, JSON.stringify(d));
+const getMovimentacoes = () => JSON.parse(localStorage.getItem(KEYS.movimentacoes) || '[]');
+const saveMovimentacoes = d => localStorage.setItem(KEYS.movimentacoes, JSON.stringify(d));
+
+// === SESSION ===
+function getSession() {
+  const ls = localStorage.getItem(KEYS.sessao);
+  const ss = sessionStorage.getItem(KEYS.sessaoTemp);
+  return ls ? JSON.parse(ls) : ss ? JSON.parse(ss) : null;
+}
+function saveSession(data, lembrarMe) {
+  if (lembrarMe) localStorage.setItem(KEYS.sessao, JSON.stringify(data));
+  else sessionStorage.setItem(KEYS.sessaoTemp, JSON.stringify(data));
+}
+function clearSession() {
+  localStorage.removeItem(KEYS.sessao);
+  sessionStorage.removeItem(KEYS.sessaoTemp);
+}
+
+// === ID GENERATORS ===
+const nextUserId = () => Math.max(0, ...getUsuarios().map(u => u.id)) + 1;
+const nextMaterialId = () => Math.max(0, ...getMateriais().map(m => m.id)) + 1;
+
+// === SEED ===
+function initStorage() {
+  if (!localStorage.getItem(KEYS.usuarios)) {
+    saveUsuarios([{ id: 1, nomeCompleto: 'Administrador', usuario: 'admin', senha: '1234', papel: 'admin' }]);
+  }
+  if (!localStorage.getItem(KEYS.categorias)) {
+    saveCategorias(['Elétrico', 'Hidráulico', 'Civil', 'Ferramentas', 'EPI']);
+  }
+  if (!localStorage.getItem(KEYS.materiais)) saveMateriais([]);
+  if (!localStorage.getItem(KEYS.movimentacoes)) saveMovimentacoes([]);
+}
+
+// === HELPERS ===
+const parseDecimal = str => parseFloat(String(str).replace(',', '.')) || 0;
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatBRL = v => brl.format(v);
+
+function calcStatus(quantidade, estoqueMinimo) {
+  if (quantidade >= estoqueMinimo) return 'OK';
+  if (quantidade >= estoqueMinimo * 0.5) return 'Baixo';
+  return 'Crítico';
+}
+
+function getInitials(nomeCompleto) {
+  const words = nomeCompleto.trim().split(/\s+/);
+  if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor) {
+  const diff = qtdNova - qtdAnterior;
+  if (diff === 0) return;
+  const movs = getMovimentacoes();
+  movs.push({
+    id: crypto.randomUUID(),
+    materialId,
+    materialNome,
+    tipo: diff > 0 ? 'entrada' : 'saída',
+    quantidade: Math.abs(diff),
+    data: new Date().toISOString(),
+    registradoPor
+  });
+  saveMovimentacoes(movs);
+}
+
+// === SCREEN ROUTER ===
+function showScreen(name) {
+  document.getElementById('screen-login').style.display = name === 'login' ? 'flex' : 'none';
+  document.getElementById('screen-register').style.display = name === 'register' ? 'flex' : 'none';
+  document.getElementById('screen-dashboard').style.display = name === 'dashboard' ? 'block' : 'none';
+}
+
+// === INIT ===
+window.addEventListener('DOMContentLoaded', () => {
+  initStorage();
+  const session = getSession();
+  if (session) {
+    renderDashboard(session);
+    showScreen('dashboard');
+  } else {
+    renderLogin();
+    showScreen('login');
+  }
+});
+```
+
+- [ ] **Step 2: Verify data layer in browser console**
+
+Open `index.html`. Open DevTools → Console. Run:
+```javascript
+initStorage();
+console.log(getUsuarios());       // [{id:1, usuario:'admin', ...}]
+console.log(getCategorias());     // ['Elétrico', 'Hidráulico', ...]
+console.log(calcStatus(10, 20));  // 'Baixo'
+console.log(calcStatus(5, 20));   // 'Crítico'
+console.log(calcStatus(20, 20));  // 'OK'
+console.log(getInitials('João Silva'));     // 'JS'
+console.log(getInitials('Administrador')); // 'AD'
+console.log(formatBRL(1234.56)); // 'R$ 1.234,56'
+```
+
+Expected: all values match comments. No console errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add localStorage data layer with seed, helpers, and session management"
+```
+
+---
+
+## Task 4: Logo SVG + Login Screen
+
+**Files:**
+- Modify: `index.html` — add login HTML and JS
+
+- [ ] **Step 1: Add the reusable logo SVG function and login screen HTML**
+
+Add after `showScreen()` function and before the `window.addEventListener`:
+
+```javascript
+// === LOGO SVG ===
+function logoSVG(size = 32) {
+  return `<svg width="${size * 4}" height="${size}" viewBox="0 0 128 32" xmlns="http://www.w3.org/2000/svg">
+    <text x="0" y="26" font-family="Arial Black, sans-serif" font-weight="900" font-size="28" fill="#f97316">ESVJ</text>
+    <text x="72" y="24" font-family="Arial, sans-serif" font-weight="400" font-size="14" fill="#9ca3af">Engenharia</text>
+  </svg>`;
+}
+
+// === LOGIN SCREEN ===
+function renderLogin() {
+  document.getElementById('screen-login').className = 'auth-screen';
+  document.getElementById('screen-login').innerHTML = `
+    <div class="auth-card">
+      <div class="auth-logo">${logoSVG(28)}</div>
+      <div class="auth-title">Acesso ao Sistema</div>
+      <div class="auth-error" id="login-error">Usuário ou senha incorretos.</div>
+      <div class="form-group">
+        <label for="login-usuario">Usuário</label>
+        <input type="text" id="login-usuario" autocomplete="username" placeholder="Digite seu usuário">
+      </div>
+      <div class="form-group">
+        <label for="login-senha">Senha</label>
+        <input type="password" id="login-senha" autocomplete="current-password" placeholder="Digite sua senha">
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="login-lembrar">
+        <label for="login-lembrar">Lembrar-me</label>
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+      <div class="auth-links" style="margin-top:0.75rem">
+        <a href="#" onclick="alert('Funcionalidade indisponível. Entre em contato com o administrador do sistema.');return false">Esqueci minha senha</a>
+      </div>
+      <div class="auth-links">
+        Não tem conta? <a href="#" onclick="renderRegister();showScreen('register');return false">Criar conta</a>
+      </div>
+    </div>
+  `;
+  document.getElementById('login-senha').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+}
+
+function doLogin() {
+  const usuario = document.getElementById('login-usuario').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const lembrar = document.getElementById('login-lembrar').checked;
+  const err = document.getElementById('login-error');
+  err.classList.remove('visible');
+
+  const user = getUsuarios().find(u => u.usuario.toLowerCase() === usuario.toLowerCase() && u.senha === senha);
+  if (!user) { err.classList.add('visible'); return; }
+
+  saveSession({ usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel }, lembrar);
+  renderDashboard({ usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel });
+  showScreen('dashboard');
+}
+```
+
+- [ ] **Step 2: Verify login screen**
+
+Open `index.html`. Expected:
+- Login card appears centered on gray background with geometric pattern
+- Logo "ESVJ Engenharia" visible at top
+- Form has Usuário + Senha fields and "Lembrar-me" checkbox
+- Click "Entrar" with wrong credentials → red error "Usuário ou senha incorretos."
+- "Esqueci minha senha" → alert dialog with correct text
+- Console has `renderDashboard is not defined` error (expected — not built yet)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add login screen with credential validation and logo SVG"
+```
+
+---
+
+## Task 5: Registration Screen
+
+**Files:**
+- Modify: `index.html` — add registration HTML and JS
+
+- [ ] **Step 1: Add registration screen after `doLogin()` function**
+
+```javascript
+// === REGISTER SCREEN ===
+function renderRegister() {
+  document.getElementById('screen-register').className = 'auth-screen';
+  document.getElementById('screen-register').innerHTML = `
+    <div class="auth-card">
+      <div class="auth-logo">${logoSVG(28)}</div>
+      <div class="auth-title">Criar Conta</div>
+      <div class="form-group">
+        <label for="reg-nome">Nome completo</label>
+        <input type="text" id="reg-nome" placeholder="Seu nome completo">
+        <div class="form-error" id="err-nome"></div>
+      </div>
+      <div class="form-group">
+        <label for="reg-usuario">Usuário</label>
+        <input type="text" id="reg-usuario" placeholder="Mínimo 3 caracteres" autocomplete="username">
+        <div class="form-error" id="err-usuario"></div>
+      </div>
+      <div class="form-group">
+        <label for="reg-senha">Senha</label>
+        <input type="password" id="reg-senha" autocomplete="new-password">
+        <div class="form-error" id="err-senha"></div>
+      </div>
+      <div class="form-group">
+        <label for="reg-confirma">Confirmar senha</label>
+        <input type="password" id="reg-confirma" autocomplete="new-password">
+        <div class="form-error" id="err-confirma"></div>
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()">Criar conta</button>
+      <div class="auth-links">
+        Já tem conta? <a href="#" onclick="renderLogin();showScreen('login');return false">Entrar</a>
+      </div>
+    </div>
+  `;
+}
+
+const USUARIO_REGEX = /^[\p{L}0-9_-]+$/u;
+
+function showFieldError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function clearFieldError(id) {
+  const el = document.getElementById(id);
+  el.textContent = '';
+  el.classList.remove('visible');
+}
+
+function doRegister() {
+  const nome = document.getElementById('reg-nome').value.trim();
+  const usuario = document.getElementById('reg-usuario').value.trim();
+  const senha = document.getElementById('reg-senha').value;
+  const confirma = document.getElementById('reg-confirma').value;
+  let valid = true;
+
+  ['err-nome','err-usuario','err-senha','err-confirma'].forEach(clearFieldError);
+
+  if (!nome) { showFieldError('err-nome', 'Este campo é obrigatório.'); valid = false; }
+
+  if (!usuario) {
+    showFieldError('err-usuario', 'Este campo é obrigatório.'); valid = false;
+  } else if (usuario.length < 3) {
+    showFieldError('err-usuario', 'Mínimo de 3 caracteres.'); valid = false;
+  } else if (usuario.length > 30) {
+    showFieldError('err-usuario', 'Máximo de 30 caracteres.'); valid = false;
+  } else if (!USUARIO_REGEX.test(usuario)) {
+    showFieldError('err-usuario', 'Use apenas letras (inclusive acentuadas), números, _ ou -.'); valid = false;
+  } else {
+    const exists = getUsuarios().some(u => u.usuario.toLowerCase() === usuario.toLowerCase());
+    if (exists) { showFieldError('err-usuario', 'Este nome de usuário já está em uso.'); valid = false; }
+  }
+
+  if (!senha) { showFieldError('err-senha', 'Este campo é obrigatório.'); valid = false; }
+  if (!confirma) { showFieldError('err-confirma', 'Este campo é obrigatório.'); valid = false; }
+  else if (senha && senha !== confirma) { showFieldError('err-confirma', 'As senhas não coincidem.'); valid = false; }
+
+  if (!valid) return;
+
+  const newUser = { id: nextUserId(), nomeCompleto: nome, usuario, senha, papel: 'viewer' };
+  const users = getUsuarios();
+  users.push(newUser);
+  saveUsuarios(users);
+
+  const session = { usuarioId: newUser.id, usuario: newUser.usuario, nomeCompleto: newUser.nomeCompleto, papel: 'viewer' };
+  saveSession(session, false); // sessionStorage for auto-login
+  renderDashboard(session);
+  showScreen('dashboard');
+}
+```
+
+- [ ] **Step 2: Verify registration screen**
+
+Open `index.html` → "Criar conta" link.
+- Empty form → submit → all four "Este campo é obrigatório." errors visible
+- Username "ab" → "Mínimo de 3 caracteres."
+- Username "admin" → "Este nome de usuário já está em uso."
+- Username "user 1" (with space) → "Use apenas letras..."
+- Valid form → `renderDashboard is not defined` (expected — not built yet)
+- "Já tenho conta" → navigates to login
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add registration screen with full username and password validation"
+```
+
+---
+
+## Task 6: Dashboard Shell + Header
+
+**Files:**
+- Modify: `index.html` — add dashboard HTML structure and header JS
+
+- [ ] **Step 1: Add `renderDashboard()` and `renderHeader()` after `doRegister()`**
+
+```javascript
+// === DASHBOARD ===
+let currentSession = null;
+let currentPeriod = 'hoje';
+
+function renderDashboard(session) {
+  currentSession = session;
+  const isAdmin = session.papel === 'admin';
+
+  document.getElementById('screen-dashboard').innerHTML = `
+    <header class="dashboard-header">
+      <div class="header-left">${logoSVG(22)}</div>
+      <div class="header-right">
+        <div class="user-info">
+          <div class="avatar">${getInitials(session.nomeCompleto)}</div>
+          <span class="user-name">${session.nomeCompleto}</span>
+        </div>
+        <button class="btn-logout" onclick="doLogout()">Sair</button>
+      </div>
+    </header>
+    <div class="dashboard-body">
+      <div id="cards-grid" class="cards-grid"></div>
+      <div class="table-section">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" id="filter-nome" placeholder="Buscar por nome..." oninput="renderMaterialsTable()">
+          <select id="filter-cat" onchange="renderMaterialsTable()">
+            <option value="">Todas as categorias</option>
+          </select>
+          <select id="filter-status" onchange="renderMaterialsTable()">
+            <option value="">Todos os status</option>
+            <option value="OK">OK</option>
+            <option value="Baixo">Baixo</option>
+            <option value="Crítico">Crítico</option>
+          </select>
+          ${isAdmin ? `
+          <div class="table-actions">
+            <button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Gerenciar Categorias</button>
+            <button class="btn btn-primary btn-sm" onclick="openMaterialModal()">+ Adicionar Material</button>
+          </div>` : ''}
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Nome</th><th>Categoria</th>
+                <th>Quantidade</th><th>Unidade</th><th>Est. Mínimo</th>
+                <th>Status</th>${isAdmin ? '<th>Ações</th>' : ''}
+              </tr>
+            </thead>
+            <tbody id="materials-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="movements-section">
+        <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--gray-200)">
+          <div class="section-title" style="margin-bottom:0.75rem">Movimentações de Estoque</div>
+          <div class="period-filter">
+            <button class="period-btn active" id="btn-hoje" onclick="setPeriod('hoje')">Hoje</button>
+            <button class="period-btn" id="btn-7d" onclick="setPeriod('7d')">7 dias</button>
+            <button class="period-btn" id="btn-14d" onclick="setPeriod('14d')">14 dias</button>
+            <button class="period-btn" id="btn-30d" onclick="setPeriod('30d')">30 dias</button>
+          </div>
+        </div>
+        <div class="chart-container" id="chart-container"></div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Data/Hora</th><th>Material</th><th>Tipo</th><th>Quantidade</th><th>Registrado por</th></tr>
+            </thead>
+            <tbody id="movements-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  refreshAllSections();
+}
+
+function doLogout() {
+  clearSession();
+  currentSession = null;
+  renderLogin();
+  showScreen('login');
+}
+```
+
+- [ ] **Step 2: Add `refreshAllSections()` stub (will be filled in later tasks)**
+
+```javascript
+function refreshAllSections() {
+  renderCards();
+  renderMaterialsTable();
+  renderMovements();
+}
+```
+
+- [ ] **Step 3: Add placeholder stubs for functions not yet built**
+
+```javascript
+function renderCards() { document.getElementById('cards-grid').innerHTML = '<p style="padding:1rem;color:#6b7280">Cards — Task 7</p>'; }
+function renderMaterialsTable() { document.getElementById('materials-tbody').innerHTML = '<tr class="empty-row"><td colspan="8">Nenhum material encontrado.</td></tr>'; }
+function renderMovements() { document.getElementById('chart-container').innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>'; document.getElementById('movements-tbody').innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>'; }
+function openMaterialModal() {}
+function openCategoryModal() {}
+function setPeriod(p) {
+  currentPeriod = p;
+  ['hoje','7d','14d','30d'].forEach(k => document.getElementById('btn-'+k).classList.toggle('active', k===p));
+  renderMovements();
+}
+```
+
+- [ ] **Step 4: Verify dashboard shell**
+
+Login with `admin / 1234`. Expected:
+- Dark header with ESVJ logo, avatar "AD", name "Administrador", "Sair" button
+- Dashboard body shows placeholder "Cards — Task 7"
+- Empty materials table row "Nenhum material encontrado."
+- Movements section with 4 period filter buttons, empty chart and table
+- "Sair" button → returns to login screen
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add dashboard shell with header, layout, logout, and section placeholders"
+```
+
+---
+
+## Task 7: Summary Cards
+
+**Files:**
+- Modify: `index.html` — replace `renderCards()` stub
+
+- [ ] **Step 1: Replace the `renderCards()` stub with real implementation**
+
+```javascript
+function renderCards() {
+  const materiais = getMateriais();
+  const movs = getMovimentacoes();
+  const now = new Date();
+  const mesStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const mesEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const totalItens = materiais.length;
+  const baixoEstoque = materiais.filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK').length;
+  const valorTotal = materiais.reduce((s, m) => s + m.quantidade * m.valorUnitario, 0);
+  const entradasMes = movs
+    .filter(m => m.tipo === 'entrada' && new Date(m.data) >= mesStart && new Date(m.data) <= mesEnd)
+    .reduce((s, m) => s + m.quantidade, 0);
+
+  document.getElementById('cards-grid').innerHTML = `
+    <div class="card">
+      <div class="card-label">Total de Itens</div>
+      <div class="card-value">${totalItens}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Itens em Baixo Estoque</div>
+      <div class="card-value ${baixoEstoque > 0 ? 'red' : ''}">${baixoEstoque}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Valor Total do Estoque</div>
+      <div class="card-value orange" style="font-size:1.35rem">${formatBRL(valorTotal)}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Entradas do Mês</div>
+      <div class="card-value">${entradasMes % 1 === 0 ? entradasMes : entradasMes.toFixed(2)}</div>
+    </div>
+  `;
+}
+```
+
+- [ ] **Step 2: Verify cards**
+
+Login as admin. Expected:
+- 4 cards visible in a row: "0", "0", "R$ 0,00", "0"
+- "Itens em Baixo Estoque" is NOT red when 0
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add summary cards with live calculation from localStorage"
+```
+
+---
+
+## Task 8: Materials Table + Filters
+
+**Files:**
+- Modify: `index.html` — replace `renderMaterialsTable()` stub
+
+- [ ] **Step 1: Replace `renderMaterialsTable()` stub**
+
+```javascript
+function renderMaterialsTable() {
+  const materiais = getMateriais();
+  const categorias = getCategorias();
+  const isAdmin = currentSession && currentSession.papel === 'admin';
+
+  // Update category dropdown
+  const catSelect = document.getElementById('filter-cat');
+  if (catSelect) {
+    const current = catSelect.value;
+    catSelect.innerHTML = '<option value="">Todas as categorias</option>' +
+      categorias.map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  }
+
+  const filterNome = (document.getElementById('filter-nome')?.value || '').toLowerCase();
+  const filterCat = document.getElementById('filter-cat')?.value || '';
+  const filterStatus = document.getElementById('filter-status')?.value || '';
+
+  const filtered = materiais.filter(m => {
+    const status = calcStatus(m.quantidade, m.estoqueMinimo);
+    return (
+      (!filterNome || m.nome.toLowerCase().includes(filterNome)) &&
+      (!filterCat || m.categoria === filterCat) &&
+      (!filterStatus || status === filterStatus)
+    );
+  });
+
+  const tbody = document.getElementById('materials-tbody');
+  const colSpan = isAdmin ? 8 : 7;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">Nenhum material encontrado.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(m => {
+    const status = calcStatus(m.quantidade, m.estoqueMinimo);
+    const badgeClass = { OK: 'badge-ok', Baixo: 'badge-baixo', Crítico: 'badge-critico' }[status];
+    return `<tr>
+      <td>${m.id}</td>
+      <td>${esc(m.nome)}</td>
+      <td>${esc(m.categoria)}</td>
+      <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
+      <td>${esc(m.unidade)}</td>
+      <td>${m.estoqueMinimo % 1 === 0 ? m.estoqueMinimo : m.estoqueMinimo.toFixed(2)}</td>
+      <td><span class="badge ${badgeClass}">${status}</span></td>
+      ${isAdmin ? `<td>
+        <button class="btn btn-secondary btn-sm" onclick="openMaterialModal(${m.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMaterial(${m.id})">Excluir</button>
+      </td>` : ''}
+    </tr>`;
+  }).join('');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+```
+
+- [ ] **Step 2: Verify table**
+
+Login as admin. Expected:
+- Empty state: "Nenhum material encontrado."
+- Category dropdown populated with 5 categories
+- Status dropdown with OK / Baixo / Crítico
+- Admin sees "Gerenciar Categorias" and "+ Adicionar Material" buttons
+- Login as a registered viewer (register first) — buttons hidden, no Ações column
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add materials table with name/category/status filters and role-based actions"
+```
+
+---
+
+## Task 9: Add/Edit Material Modal
+
+**Files:**
+- Modify: `index.html` — add modal HTML and replace `openMaterialModal()` stub
+
+- [ ] **Step 1: Add modal HTML inside `#modal-material` div**
+
+Replace `<div id="modal-material" class="modal-overlay" style="display:none"></div>` with:
+
+```html
+<div id="modal-material" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="modal-material-title">Adicionar Material</h2>
+      <button class="modal-close" onclick="closeMaterialModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid">
+        <div class="form-group" style="grid-column:1/-1">
+          <label for="m-nome">Nome *</label>
+          <input type="text" id="m-nome">
+          <div class="form-error" id="err-m-nome"></div>
+        </div>
+        <div class="form-group">
+          <label for="m-cat">Categoria *</label>
+          <select id="m-cat">
+            <option value="">Selecione...</option>
+          </select>
+          <div class="form-error" id="err-m-cat"></div>
+        </div>
+        <div class="form-group">
+          <label for="m-unidade">Unidade *</label>
+          <input type="text" id="m-unidade" placeholder="ex: m, kg, un">
+          <div class="form-error" id="err-m-unidade"></div>
+        </div>
+        <div class="form-group">
+          <label for="m-qtd">Quantidade *</label>
+          <input type="text" id="m-qtd" placeholder="0">
+          <div class="form-error" id="err-m-qtd"></div>
+        </div>
+        <div class="form-group">
+          <label for="m-min">Estoque Mínimo *</label>
+          <input type="text" id="m-min" placeholder="0">
+          <div class="form-error" id="err-m-min"></div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label for="m-valor">Valor Unitário (R$)</label>
+          <input type="text" id="m-valor" placeholder="0,00">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMaterialModal()">Cancelar</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveMaterial()">Salvar</button>
+    </div>
+  </div>
+</div>
+```
+
+- [ ] **Step 2: Replace `openMaterialModal()` stub with full implementation**
+
+```javascript
+let editingMaterialId = null;
+
+function openMaterialModal(id = null) {
+  editingMaterialId = id;
+  const modal = document.getElementById('modal-material');
+  const material = id ? getMateriais().find(m => m.id === id) : null;
+
+  document.getElementById('modal-material-title').textContent = id ? 'Editar Material' : 'Adicionar Material';
+
+  // Populate category dropdown
+  const cats = getCategorias().slice().sort();
+  document.getElementById('m-cat').innerHTML = '<option value="">Selecione...</option>' +
+    cats.map(c => `<option value="${esc(c)}" ${material && material.categoria === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+
+  // Fill fields
+  document.getElementById('m-nome').value = material ? material.nome : '';
+  document.getElementById('m-unidade').value = material ? material.unidade : '';
+  document.getElementById('m-qtd').value = material ? material.quantidade : '';
+  document.getElementById('m-min').value = material ? material.estoqueMinimo : '';
+  document.getElementById('m-valor').value = material ? String(material.valorUnitario).replace('.', ',') : '';
+
+  // Clear errors
+  ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min'].forEach(clearFieldError);
+
+  modal.style.display = 'flex';
+}
+
+function closeMaterialModal() {
+  document.getElementById('modal-material').style.display = 'none';
+  editingMaterialId = null;
+}
+
+function validateDecimalField(value, id) {
+  const num = parseDecimal(value);
+  if (value.trim() === '' || isNaN(num) || num < 0) {
+    showFieldError(id, 'Informe um número válido ≥ 0.');
+    return null;
+  }
+  return num;
+}
+
+function saveMaterial() {
+  const nome = document.getElementById('m-nome').value.trim();
+  const cat = document.getElementById('m-cat').value;
+  const unidade = document.getElementById('m-unidade').value.trim();
+  const qtdRaw = document.getElementById('m-qtd').value;
+  const minRaw = document.getElementById('m-min').value;
+  const valorRaw = document.getElementById('m-valor').value;
+  let valid = true;
+
+  ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min'].forEach(clearFieldError);
+
+  if (!nome) { showFieldError('err-m-nome', 'Este campo é obrigatório.'); valid = false; }
+  if (!cat) { showFieldError('err-m-cat', 'Selecione uma categoria.'); valid = false; }
+  if (!unidade) { showFieldError('err-m-unidade', 'Este campo é obrigatório.'); valid = false; }
+
+  const qtd = validateDecimalField(qtdRaw, 'err-m-qtd');
+  if (qtd === null) valid = false;
+  const min = validateDecimalField(minRaw, 'err-m-min');
+  if (min === null) valid = false;
+
+  const valorStr = valorRaw.trim();
+  const valor = valorStr === '' ? 0 : parseDecimal(valorStr);
+  if (valorStr !== '' && (isNaN(valor) || valor < 0)) { valid = false; } // no inline error — optional field
+
+  if (!valid) return;
+
+  const materiais = getMateriais();
+  if (editingMaterialId) {
+    const idx = materiais.findIndex(m => m.id === editingMaterialId);
+    const old = materiais[idx];
+    recordMovimento(old.id, old.nome, old.quantidade, qtd, currentSession.usuario);
+    materiais[idx] = { ...old, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor };
+  } else {
+    materiais.push({ id: nextMaterialId(), nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor });
+  }
+  saveMateriais(materiais);
+  closeMaterialModal();
+  refreshAllSections();
+}
+```
+
+- [ ] **Step 3: Verify modal**
+
+Login as admin. Click "+ Adicionar Material":
+- Modal opens with empty fields and category dropdown populated
+- Submit empty → errors appear on required fields
+- Fill valid data → save → material appears in table, cards update
+- Click "Editar" on existing material → fields pre-filled
+- Change quantity by +5 → save → movement recorded (check DevTools: `getMovimentacoes()`)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add material add/edit modal with validation and automatic movement recording"
+```
+
+---
+
+## Task 10: Delete Material
+
+**Files:**
+- Modify: `index.html` — replace `deleteMaterial()` stub
+
+- [ ] **Step 1: Replace `deleteMaterial()` stub with implementation**
+
+```javascript
+function deleteMaterial(id) {
+  const materiais = getMateriais();
+  const material = materiais.find(m => m.id === id);
+  if (!material) return;
+
+  if (!confirm(`Deseja excluir o material '${material.nome}'? Esta ação não pode ser desfeita.`)) return;
+
+  saveMateriais(materiais.filter(m => m.id !== id));
+  saveMovimentacoes(getMovimentacoes().filter(m => m.materialId !== id));
+  refreshAllSections();
+}
+```
+
+- [ ] **Step 2: Verify delete**
+
+Login as admin. Add a material. Click "Excluir":
+- Confirmation dialog appears with material name
+- Cancel → nothing changes
+- Confirm → material removed from table, cards update, associated movements removed
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add material delete with confirmation and cascade movement cleanup"
+```
+
+---
+
+## Task 11: Category Management Modal
+
+**Files:**
+- Modify: `index.html` — add category modal HTML and replace `openCategoryModal()` stub
+
+- [ ] **Step 1: Replace `<div id="modal-categorias">` with full HTML**
+
+```html
+<div id="modal-categorias" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <h2>Gerenciar Categorias</h2>
+      <button class="modal-close" onclick="closeCategoryModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="cat-list" id="cat-list"></div>
+      <div class="cat-add-row">
+        <input type="text" id="cat-new-input" placeholder="Nova categoria...">
+        <button class="btn btn-primary btn-sm" onclick="addCategory()">Adicionar</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCategoryModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+```
+
+- [ ] **Step 2: Replace `openCategoryModal()` stub with implementation**
+
+```javascript
+function openCategoryModal() {
+  document.getElementById('modal-categorias').style.display = 'flex';
+  renderCategoryList();
+}
+
+function closeCategoryModal() {
+  document.getElementById('modal-categorias').style.display = 'none';
+  renderMaterialsTable(); // re-render table in case of cascade renames
+}
+
+function renderCategoryList() {
+  const cats = getCategorias().slice().sort();
+  const isLast = cats.length === 1;
+  document.getElementById('cat-list').innerHTML = cats.map((c, i) => `
+    <div class="cat-item" id="cat-item-${i}">
+      <input type="text" value="${esc(c)}" data-original="${esc(c)}"
+        onblur="renameCategory(this, '${esc(c)}')"
+        onkeydown="if(event.key==='Enter')this.blur()">
+      <button class="btn btn-danger btn-sm" onclick="deleteCategory('${esc(c)}')"
+        ${isLast ? 'disabled title="É necessário manter ao menos uma categoria."' : ''}>
+        Excluir
+      </button>
+    </div>
+    <div class="cat-item-error" id="cat-err-${esc(c)}" style="display:none;color:var(--red);font-size:0.75rem"></div>
+  `).join('');
+  document.getElementById('cat-new-input').value = '';
+}
+
+function renameCategory(input, oldName) {
+  const newName = input.value.trim();
+  const errId = `cat-err-${oldName}`;
+  const errEl = document.getElementById(errId);
+
+  if (!newName) { input.value = oldName; return; }
+  if (newName === oldName) return;
+
+  const cats = getCategorias();
+  const isDuplicate = cats.some(c => c.toLowerCase() === newName.toLowerCase() && c !== oldName);
+  if (isDuplicate) {
+    input.value = oldName;
+    if (errEl) { errEl.textContent = 'Esta categoria já existe.'; errEl.style.display = 'block'; setTimeout(() => { errEl.style.display = 'none'; }, 3000); }
+    return;
+  }
+
+  // Cascade: update all materials using this category
+  const materiais = getMateriais().map(m => m.categoria === oldName ? { ...m, categoria: newName } : m);
+  saveMateriais(materiais);
+
+  // Update category list
+  saveCategorias(cats.map(c => c === oldName ? newName : c));
+  renderCategoryList();
+}
+
+function addCategory() {
+  const input = document.getElementById('cat-new-input');
+  const name = input.value.trim();
+  if (!name) return;
+
+  const cats = getCategorias();
+  if (cats.some(c => c.toLowerCase() === name.toLowerCase())) {
+    input.style.borderColor = 'var(--red)';
+    setTimeout(() => { input.style.borderColor = ''; }, 2000);
+    return;
+  }
+  cats.push(name);
+  saveCategorias(cats);
+  renderCategoryList();
+}
+
+function deleteCategory(name) {
+  const materiais = getMateriais();
+  const count = materiais.filter(m => m.categoria === name).length;
+
+  if (count > 0 && !confirm(`${count} material(is) usa(m) esta categoria. Deseja excluir mesmo assim?`)) return;
+
+  const cats = getCategorias().filter(c => c !== name);
+  saveCategorias(cats);
+  renderCategoryList();
+}
+```
+
+- [ ] **Step 3: Verify category modal**
+
+Login as admin. Click "Gerenciar Categorias":
+- 5 categories listed alphabetically with rename fields and Excluir buttons
+- Rename "Elétrico" to "Eletrico" → blur → name updates, cascade applies to any existing materials
+- Try renaming to an existing category name → error flashes, value restores
+- Add "Mecânico" → appears in list and in material modal dropdown
+- Delete a category in use → confirmation dialog with count
+- When only 1 category remains → Excluir button disabled with tooltip
+- Close → materials table refreshes
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add category management modal with cascade rename, add, and delete"
+```
+
+---
+
+## Task 12: Movements History Table
+
+**Files:**
+- Modify: `index.html` — replace `renderMovements()` stub
+
+- [ ] **Step 1: Add date/period filter utilities and replace `renderMovements()`**
+
+```javascript
+function getFilterWindow(period) {
+  const now = new Date();
+  if (period === 'hoje') {
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  const days = { '7d': 7, '14d': 14, '30d': 30 }[period];
+  const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  return { start, end: now };
+}
+
+function renderMovements() {
+  const allMovs = getMovimentacoes();
+  const { start, end } = getFilterWindow(currentPeriod);
+  const movs = allMovs
+    .filter(m => { const d = new Date(m.data); return d >= start && d <= end; })
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  // Chart
+  renderChart(document.getElementById('chart-container'), allMovs, currentPeriod);
+
+  // History table
+  const tbody = document.getElementById('movements-tbody');
+  if (movs.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = movs.map(m => {
+    const d = new Date(m.data);
+    const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const badgeClass = m.tipo === 'entrada' ? 'badge-entrada' : 'badge-saida';
+    const label = m.tipo === 'entrada' ? 'Entrada' : 'Saída';
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${esc(m.materialNome)}</td>
+      <td><span class="badge ${badgeClass}">${label}</span></td>
+      <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
+      <td>${esc(m.registradoPor)}</td>
+    </tr>`;
+  }).join('');
+}
+```
+
+- [ ] **Step 2: Verify movements table**
+
+Login as admin. Add a material, edit its quantity (increase by 10, then decrease by 3).
+- History table shows 2 rows: one "Entrada" badge, one "Saída" badge
+- Date/time correct, material name correct, registrado por = "admin"
+- Switch to "7 dias" filter → same rows visible
+- Empty state: "Nenhuma movimentação encontrada neste período." when no movements in period
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add movements history table with period filtering and entry/exit badges"
+```
+
+---
+
+## Task 13: SVG Bar Chart
+
+**Files:**
+- Modify: `index.html` — add `renderChart()` function
+
+- [ ] **Step 1: Add `getBuckets()` and `renderChart()` after `renderMovements()`**
+
+```javascript
+function getBuckets(period) {
+  const now = new Date();
+  const buckets = [];
+  const pad2 = n => String(n).padStart(2, '0');
+  const fmtDay = d => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
+
+  if (period === 'hoje') {
+    for (let h = 0; h < 24; h++) {
+      const start = new Date(now); start.setHours(h, 0, 0, 0);
+      const end = new Date(now); end.setHours(h, 59, 59, 999);
+      buckets.push({ label: `${pad2(h)}h`, start, end });
+    }
+  } else if (period === '7d' || period === '14d') {
+    const days = period === '7d' ? 7 : 14;
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const start = new Date(d); start.setHours(0, 0, 0, 0);
+      const end = new Date(d); end.setHours(23, 59, 59, 999);
+      buckets.push({ label: fmtDay(d), start, end });
+    }
+  } else { // 30d — 5 blocks of 6 days, oldest first
+    for (let i = 4; i >= 0; i--) {
+      const endMs = now.getTime() - i * 6 * 86400000;
+      const startMs = endMs - 5 * 86400000;
+      const startD = new Date(startMs); startD.setHours(0, 0, 0, 0);
+      const endD = new Date(endMs); endD.setHours(23, 59, 59, 999);
+      buckets.push({ label: `${fmtDay(startD)}–${fmtDay(endD)}`, start: startD, end: endD });
+    }
+  }
+  return buckets;
+}
+
+function renderChart(container, allMovs, period) {
+  const { start, end } = getFilterWindow(period);
+  const movs = allMovs.filter(m => { const d = new Date(m.data); return d >= start && d <= end; });
+
+  const buckets = getBuckets(period);
+  const data = buckets.map(b => {
+    const inBucket = movs.filter(m => { const d = new Date(m.data); return d >= b.start && d <= b.end; });
+    return {
+      label: b.label,
+      entradas: inBucket.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.quantidade, 0),
+      saidas: inBucket.filter(m => m.tipo === 'saída').reduce((s, m) => s + m.quantidade, 0)
+    };
+  });
+
+  const hasData = data.some(d => d.entradas > 0 || d.saidas > 0);
+  if (!hasData) {
+    container.innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>';
+    return;
+  }
+
+  const maxVal = Math.max(...data.flatMap(d => [d.entradas, d.saidas]), 1);
+  const W = container.offsetWidth || 700;
+  const H = 280;
+  const PAD = { top: 28, right: 16, bottom: 56, left: 36 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+  const groupW = chartW / data.length;
+  const barW = Math.max(Math.min(groupW * 0.32, 22), 4);
+  const gap = barW * 0.25;
+  const fmtN = n => n % 1 === 0 ? n : n.toFixed(1);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">`;
+  svg += `<g transform="translate(${PAD.left},${PAD.top})">`;
+
+  // Y gridlines (4 lines)
+  for (let i = 1; i <= 4; i++) {
+    const y = chartH - (i / 4) * chartH;
+    const val = ((i / 4) * maxVal);
+    svg += `<line x1="0" y1="${y}" x2="${chartW}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+    svg += `<text x="-4" y="${y + 4}" text-anchor="end" font-size="9" fill="#9ca3af">${fmtN(val)}</text>`;
+  }
+
+  data.forEach((d, i) => {
+    const cx = i * groupW + groupW / 2;
+    const xE = cx - barW - gap / 2;
+    const xS = cx + gap / 2;
+    const hE = (d.entradas / maxVal) * chartH;
+    const hS = (d.saidas / maxVal) * chartH;
+
+    if (hE > 0) {
+      svg += `<rect x="${xE}" y="${chartH - hE}" width="${barW}" height="${hE}" fill="#f97316" rx="2"/>`;
+      svg += `<text x="${xE + barW/2}" y="${chartH - hE - 3}" text-anchor="middle" font-size="9" fill="#111827">${fmtN(d.entradas)}</text>`;
+    }
+    if (hS > 0) {
+      svg += `<rect x="${xS}" y="${chartH - hS}" width="${barW}" height="${hS}" fill="#6b7280" rx="2"/>`;
+      svg += `<text x="${xS + barW/2}" y="${chartH - hS - 3}" text-anchor="middle" font-size="9" fill="#111827">${fmtN(d.saidas)}</text>`;
+    }
+
+    // X label — rotate long labels (30d)
+    const labelY = chartH + 14;
+    const rotate = period === '30d' ? ` transform="rotate(-25,${cx},${labelY})"` : '';
+    svg += `<text x="${cx}" y="${labelY}" text-anchor="middle" font-size="9" fill="#6b7280"${rotate}>${d.label}</text>`;
+  });
+
+  // X axis
+  svg += `<line x1="0" y1="${chartH}" x2="${chartW}" y2="${chartH}" stroke="#d1d5db" stroke-width="1"/>`;
+
+  // Legend
+  const ly = chartH + (period === '30d' ? 42 : 36);
+  const lx = chartW / 2;
+  svg += `<rect x="${lx - 80}" y="${ly}" width="10" height="10" fill="#f97316" rx="2"/>`;
+  svg += `<text x="${lx - 67}" y="${ly + 9}" font-size="10" fill="#374151">Entradas</text>`;
+  svg += `<rect x="${lx + 10}" y="${ly}" width="10" height="10" fill="#6b7280" rx="2"/>`;
+  svg += `<text x="${lx + 23}" y="${ly + 9}" font-size="10" fill="#374151">Saídas</text>`;
+
+  svg += `</g></svg>`;
+  container.innerHTML = svg;
+}
+```
+
+- [ ] **Step 2: Verify SVG chart**
+
+Login as admin. Add a material. Edit quantity multiple times (increase and decrease).
+- Chart shows grouped orange (Entradas) and gray (Saídas) bars
+- Labels appear above bars with quantities
+- X axis shows correct time labels for each filter:
+  - "Hoje" → "00h", "01h", ..., "23h"
+  - "7 dias" → last 7 days as "DD/MM"
+  - "14 dias" → last 14 days as "DD/MM"
+  - "30 dias" → 5 blocks "DD/MM–DD/MM" with rotated labels
+- Empty period → "Sem movimentações neste período."
+- Chart resizes with browser window
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add SVG bar chart with grouped entries/exits for all 4 period filters"
+```
+
+---
+
+## Task 14: Final Polish + Integration Verification
+
+**Files:**
+- Modify: `index.html` — minor polish and ensure viewer role hides all admin UI
+
+- [ ] **Step 1: Verify full admin flow**
+
+Login as `admin / 1234`:
+- [ ] Cards show zeros on empty state
+- [ ] Add 3 materials across different categories
+- [ ] Cards update: Total de Itens = 3, Valor Total calculated correctly
+- [ ] Edit quantity of one material → movement appears in table and chart
+- [ ] Delete one material → movement history also removed, card updates
+- [ ] Filter by category → only matching items shown
+- [ ] Filter by status → works correctly
+- [ ] Gerenciar Categorias → add, rename (cascade), delete with confirmation
+- [ ] Period filter "Hoje" → chart shows hourly bars
+
+- [ ] **Step 2: Verify full viewer flow**
+
+Register a new account:
+- [ ] Auto-redirects to dashboard
+- [ ] "Gerenciar Categorias" button NOT visible
+- [ ] "+ Adicionar Material" button NOT visible
+- [ ] No "Ações" column in materials table
+- [ ] Cards, table data, chart, and history all visible and correct
+- [ ] Logout → login screen
+
+- [ ] **Step 3: Verify session persistence**
+
+- [ ] Login with "Lembrar-me" checked → close and reopen browser tab → still logged in (localStorage)
+- [ ] Login with "Lembrar-me" unchecked → close tab → session gone (sessionStorage)
+- [ ] Register → close tab → session gone (sessionStorage)
+
+- [ ] **Step 4: Verify responsive layout**
+
+Resize browser:
+- [ ] ≥ 1024px → 4 cards in a row
+- [ ] 768–1023px → 2×2 card grid
+- [ ] < 768px → 1 card per row, table scrolls horizontally, modals full-width
+
+- [ ] **Step 5: Final commit**
+
+```bash
+git add index.html
+git commit -m "feat: complete CRM estoque ESVJ Engenharia — all features implemented"
+```
+
+---
+
+## Self-Review: Spec Coverage Checklist
+
+| Spec Requirement | Task |
+|---|---|
+| Login screen with credential validation | Task 4 |
+| "Lembrar-me" → localStorage vs sessionStorage | Task 3, 4 |
+| "Esqueci minha senha" alert | Task 4 |
+| Registration with username rules and auto-login | Task 5 |
+| Three screens toggled via display | Task 6 |
+| Admin pre-seeded (admin/1234) | Task 3 |
+| Categories pre-seeded, editable | Task 3, 11 |
+| Dashboard header: logo, avatar, initials, logout | Task 6 |
+| 4 summary cards with correct calculations | Task 7 |
+| "Entradas do Mês" = calendar month, local date | Task 7 |
+| Materials table: all 8 columns | Task 8 |
+| Filters: name, category, status | Task 8 |
+| Status badges: OK / Baixo / Crítico with correct thresholds | Task 8 |
+| Admin-only action buttons (Editar, Excluir, Adicionar, Gerenciar) | Task 8 |
+| Add/Edit modal with full validation | Task 9 |
+| Automatic movement on quantity edit | Task 9 |
+| No movement on new material creation | Task 9 |
+| Delete material + cascade movement cleanup | Task 10 |
+| Category modal: add, rename (cascade), delete | Task 11 |
+| Last-category delete blocked | Task 11 |
+| Rename cascade to materials | Task 11 |
+| Period filter: Hoje/7d/14d/30d | Task 12 |
+| Movements history table with badges | Task 12 |
+| SVG bar chart, all 4 groupings | Task 13 |
+| Chart bar labels correct per period | Task 13 |
+| Empty states for chart and table | Task 12, 13 |
+| Responsive: 3 breakpoints | Task 2 (CSS), Task 14 (verify) |
+| Dockerfile + nginx.conf for EasyPanel | Task 1 |
+| lang=pt-BR, charset=UTF-8 | Task 1 |
+| crypto.randomUUID() for movement IDs | Task 3 |
+| Intl.NumberFormat for currency | Task 3 |
+| Math.max ID generation for users and materials | Task 3 |
