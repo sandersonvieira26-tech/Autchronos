@@ -180,7 +180,7 @@ Não existe registro independente de movimentação: toda movimentação é cons
   - Campo vazio → "Este campo é obrigatório."
   - Usuário já existente → "Este nome de usuário já está em uso."
   - Senhas não coincidem → "As senhas não coincidem."
-- Botão laranja **"Criar conta"** → login automático como viewer (sessão em `localStorage`) → Dashboard
+- Botão laranja **"Criar conta"** → login automático como viewer (sessão em `sessionStorage`, sem "Lembrar-me" na tela de registro) → Dashboard
 - Link **"Já tenho conta"** → Login
 
 ### 7.3 Dashboard
@@ -199,7 +199,7 @@ Não existe registro independente de movimentação: toda movimentação é cons
 | Valor Total do Estoque | `Σ (quantidade × valorUnitario)` formatado em R$ |
 | Entradas do Mês | Soma das `quantidade` das movimentações do tipo `entrada` no mês corrente |
 
-> O card "Entradas do Mês" exibe a soma das **unidades** de material que entraram no mês (ex: 320 m), não a contagem de registros. Não há card equivalente para saídas — o balanço detalhado está na seção de Movimentações.
+> O card "Entradas do Mês" exibe a **soma numérica** das quantidades que entraram no mês (ex: 320), sem rótulo de unidade — os materiais têm unidades diferentes (m, kg, un), portanto a soma é exibida como número puro. Não há card equivalente para saídas; o balanço detalhado está na seção de Movimentações.
 
 Layout: 4 colunas no desktop, 2×2 no tablet, 1 coluna no mobile.
 
@@ -230,7 +230,7 @@ Filtro de período em botões agrupados: `Hoje` | `7 dias` | `14 dias` | `30 dia
 | Hoje | Por hora | 24 barras |
 | 7 dias | Por dia | 7 barras |
 | 14 dias | Por dia | 14 barras |
-| 30 dias | Por semana | 5 barras (semanas do mês) |
+| 30 dias | Blocos de 6 dias | 5 barras (janela rolante: hoje − 30 dias, dividida em 5 blocos de 6 dias cada) |
 
 - **Gráfico SVG de barras agrupadas:** Entradas (laranja `#f97316`) vs Saídas (cinza `#6b7280`) no período selecionado, com rótulos de valor acima das barras e legenda abaixo.  
 - **Estado vazio do gráfico:** se não há movimentações no período, exibir mensagem centralizada "Sem movimentações neste período." no lugar do SVG.
@@ -279,14 +279,26 @@ No EasyPanel: criar novo serviço → App → Git repository → build automáti
 
 ---
 
-## 10. Categorias de Materiais Mockadas
+## 10. Dados Mockados de Materiais
 
-Pré-populadas para demonstração:
-- Elétrico
-- Hidráulico
-- Civil
-- Ferramentas
-- EPI
+Pré-populados na primeira carga (10 itens, garantindo ao menos 3 em status Baixo/Crítico):
+
+| ID | Nome | Categoria | Qtd | Unidade | Est. Mínimo | Status calculado |
+|---|---|---|---|---|---|---|
+| 1 | Cabo de Cobre 4mm | Elétrico | 150 | m | 50 | OK |
+| 2 | Disjuntor 20A | Elétrico | 8 | un | 20 | Crítico |
+| 3 | Tubo PVC 50mm | Hidráulico | 60 | m | 30 | OK |
+| 4 | Joelho PVC 50mm | Hidráulico | 12 | un | 30 | Baixo |
+| 5 | Cimento CP-II | Civil | 5 | sc | 15 | Crítico |
+| 6 | Areia Média | Civil | 2000 | kg | 500 | OK |
+| 7 | Chave de Fenda Phillips | Ferramentas | 4 | un | 10 | Baixo |
+| 8 | Alicate Universal | Ferramentas | 15 | un | 10 | OK |
+| 9 | Capacete de Segurança | EPI | 3 | un | 10 | Crítico |
+| 10 | Luva de Proteção | EPI | 25 | par | 20 | OK |
+
+Todos com `valorUnitario` atribuído (ex: Cabo de Cobre = R$ 8,50/m, Disjuntor = R$ 35,00/un, etc.).
+
+Categorias disponíveis (inicializam o dropdown): Elétrico, Hidráulico, Civil, Ferramentas, EPI.
 
 ---
 
