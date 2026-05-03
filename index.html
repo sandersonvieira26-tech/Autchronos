@@ -743,7 +743,49 @@ function renderMaterialsTable() {
     </tr>`;
   }).join('');
 }
-function renderMovements() { document.getElementById('chart-container').innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>'; document.getElementById('movements-tbody').innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>'; }
+function getFilterWindow(period) {
+  const now = new Date();
+  if (period === 'hoje') {
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  const days = { '7d': 7, '14d': 14, '30d': 30 }[period];
+  const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  return { start, end: now };
+}
+
+function renderMovements() {
+  const allMovs = getMovimentacoes();
+  const { start, end } = getFilterWindow(currentPeriod);
+  const movs = allMovs
+    .filter(m => { const d = new Date(m.data); return d >= start && d <= end; })
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  // Chart
+  renderChart(document.getElementById('chart-container'), allMovs, currentPeriod);
+
+  // History table
+  const tbody = document.getElementById('movements-tbody');
+  if (movs.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = movs.map(m => {
+    const d = new Date(m.data);
+    const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const badgeClass = m.tipo === 'entrada' ? 'badge-entrada' : 'badge-saida';
+    const label = m.tipo === 'entrada' ? 'Entrada' : 'Saída';
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${esc(m.materialNome)}</td>
+      <td><span class="badge ${badgeClass}">${label}</span></td>
+      <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
+      <td>${esc(m.registradoPor)}</td>
+    </tr>`;
+  }).join('');
+}
 let editingMaterialId = null;
 
 function openMaterialModal(id = null) {
