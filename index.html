@@ -595,7 +595,39 @@ function refreshAllSections() {
   renderMovements();
 }
 
-function renderCards() { document.getElementById('cards-grid').innerHTML = '<p style="padding:1rem;color:#6b7280">Cards — Task 7</p>'; }
+function renderCards() {
+  const materiais = getMateriais();
+  const movs = getMovimentacoes();
+  const now = new Date();
+  const mesStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const mesEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const totalItens = materiais.length;
+  const baixoEstoque = materiais.filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK').length;
+  const valorTotal = materiais.reduce((s, m) => s + m.quantidade * m.valorUnitario, 0);
+  const entradasMes = movs
+    .filter(m => m.tipo === 'entrada' && new Date(m.data) >= mesStart && new Date(m.data) <= mesEnd)
+    .reduce((s, m) => s + m.quantidade, 0);
+
+  document.getElementById('cards-grid').innerHTML = `
+    <div class="card">
+      <div class="card-label">Total de Itens</div>
+      <div class="card-value">${totalItens}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Itens em Baixo Estoque</div>
+      <div class="card-value ${baixoEstoque > 0 ? 'red' : ''}">${baixoEstoque}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Valor Total do Estoque</div>
+      <div class="card-value orange" style="font-size:1.35rem">${formatBRL(valorTotal)}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Entradas do Mês</div>
+      <div class="card-value">${entradasMes % 1 === 0 ? entradasMes : entradasMes.toFixed(2)}</div>
+    </div>
+  `;
+}
 function renderMaterialsTable() { document.getElementById('materials-tbody').innerHTML = '<tr class="empty-row"><td colspan="8">Nenhum material encontrado.</td></tr>'; }
 function renderMovements() { document.getElementById('chart-container').innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>'; document.getElementById('movements-tbody').innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>'; }
 function openMaterialModal() {}
