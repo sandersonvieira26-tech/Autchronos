@@ -277,6 +277,7 @@ tr:hover td { background: var(--gray-50); }
           <div class="form-group" style="grid-column:1/-1">
             <label for="m-valor">Valor Unitário (R$)</label>
             <input type="text" id="m-valor" placeholder="0,00">
+            <div class="form-error" id="err-m-valor"></div>
           </div>
         </div>
       </div>
@@ -343,9 +344,19 @@ function clearSession() {
   sessionStorage.removeItem(KEYS.sessaoTemp);
 }
 
-// === ID GENERATORS ===
-const nextUserId = () => Math.max(0, ...getUsuarios().map(u => u.id).filter(Number.isFinite)) + 1;
-const nextMaterialId = () => Math.max(0, ...getMateriais().map(m => m.id).filter(Number.isFinite)) + 1;
+// === ID GENERATORS (monotonically increasing counters) ===
+function nextUserId() {
+  const k = 'crm_seq_usuario';
+  const n = (parseInt(localStorage.getItem(k)) || 0) + 1;
+  localStorage.setItem(k, n);
+  return n;
+}
+function nextMaterialId() {
+  const k = 'crm_seq_material';
+  const n = (parseInt(localStorage.getItem(k)) || 0) + 1;
+  localStorage.setItem(k, n);
+  return n;
+}
 
 // === SEED ===
 function initStorage() {
@@ -357,6 +368,13 @@ function initStorage() {
   }
   if (!localStorage.getItem(KEYS.materiais)) saveMateriais([]);
   if (!localStorage.getItem(KEYS.movimentacoes)) saveMovimentacoes([]);
+  // Seed sequence counters from existing data (runs once on first launch after upgrade)
+  if (!localStorage.getItem('crm_seq_usuario')) {
+    localStorage.setItem('crm_seq_usuario', Math.max(0, ...getUsuarios().map(u => u.id).filter(Number.isFinite)));
+  }
+  if (!localStorage.getItem('crm_seq_material')) {
+    localStorage.setItem('crm_seq_material', Math.max(0, ...getMateriais().map(m => m.id).filter(Number.isFinite)));
+  }
 }
 
 // === HELPERS ===
@@ -380,6 +398,10 @@ function getInitials(nomeCompleto) {
 // === HTML ESCAPE ===
 function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function guardAdmin() {
+  return !!(currentSession && currentSession.papel === 'admin');
 }
 
 function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor) {
@@ -513,6 +535,7 @@ function doRegister() {
   saveSession(session, false);
   renderDashboard(session);
   showScreen('dashboard');
+  refreshAllSections();
 }
 
 // === LOGIN SCREEN ===
@@ -565,6 +588,7 @@ function doLogin() {
   saveSession(session, lembrar);
   renderDashboard(session);
   showScreen('dashboard');
+  refreshAllSections();
 }
 
 // === DASHBOARD ===
@@ -641,7 +665,8 @@ function renderDashboard(session) {
       </div>
     </div>
   `;
-  refreshAllSections();
+  // refreshAllSections() is called by the caller AFTER showScreen() so the dashboard
+  // is visible and chart container has a valid offsetWidth.
 }
 
 function doLogout() {
@@ -700,7 +725,9 @@ function renderMaterialsTable() {
   const catSelect = document.getElementById('filter-cat');
   if (catSelect) {
     const current = catSelect.value;
+    const hasUncategorized = materiais.some(m => !m.categoria);
     catSelect.innerHTML = '<option value="">Todas as categorias</option>' +
+      (hasUncategorized ? '<option value="__none__">Sem categoria</option>' : '') +
       categorias.map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
   }
 
@@ -710,9 +737,10 @@ function renderMaterialsTable() {
 
   const filtered = materiais.filter(m => {
     const status = calcStatus(m.quantidade, m.estoqueMinimo);
+    const catMatch = !filterCat || (filterCat === '__none__' ? !m.categoria : m.categoria === filterCat);
     return (
       (!filterNome || m.nome.toLowerCase().includes(filterNome)) &&
-      (!filterCat || m.categoria === filterCat) &&
+      catMatch &&
       (!filterStatus || status === filterStatus)
     );
   });
@@ -731,7 +759,7 @@ function renderMaterialsTable() {
     return `<tr>
       <td>${m.id}</td>
       <td>${esc(m.nome)}</td>
-      <td>${esc(m.categoria)}</td>
+      <td>${esc(m.categoria) || '—'}</td>
       <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
       <td>${esc(m.unidade)}</td>
       <td>${m.estoqueMinimo % 1 === 0 ? m.estoqueMinimo : m.estoqueMinimo.toFixed(2)}</td>
@@ -902,6 +930,7 @@ function renderChart(container, allMovs, period) {
 let editingMaterialId = null;
 
 function openMaterialModal(id = null) {
+  if (!guardAdmin()) return;
   editingMaterialId = id;
   const modal = document.getElementById('modal-material');
   const material = id ? getMateriais().find(m => m.id === id) : null;
@@ -932,6 +961,7 @@ function closeMaterialModal() {
 }
 
 function deleteMaterial(id) {
+  if (!guardAdmin()) return;
   const materiais = getMateriais();
   const material = materiais.find(m => m.id === id);
   if (!material) return;
@@ -954,6 +984,7 @@ function validateDecimalField(value, id) {
 }
 
 function saveMaterial() {
+  if (!guardAdmin()) return;
   const nome = document.getElementById('m-nome').value.trim();
   const cat = document.getElementById('m-cat').value;
   const unidade = document.getElementById('m-unidade').value.trim();
@@ -962,7 +993,7 @@ function saveMaterial() {
   const valorRaw = document.getElementById('m-valor').value;
   let valid = true;
 
-  ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min'].forEach(clearFieldError);
+  ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min','err-m-valor'].forEach(clearFieldError);
 
   if (!nome) { showFieldError('err-m-nome', 'Este campo é obrigatório.'); valid = false; }
   if (!cat) { showFieldError('err-m-cat', 'Selecione uma categoria.'); valid = false; }
@@ -975,6 +1006,10 @@ function saveMaterial() {
 
   const valorStr = valorRaw.trim();
   const valor = valorStr === '' ? 0 : parseDecimal(valorStr);
+  if (!isFinite(valor)) {
+    showFieldError('err-m-valor', 'Informe um valor numérico válido.');
+    valid = false;
+  }
 
   if (!valid) return;
 
@@ -998,6 +1033,7 @@ function saveMaterial() {
   refreshAllSections();
 }
 function openCategoryModal() {
+  if (!guardAdmin()) return;
   document.getElementById('modal-categorias').style.display = 'flex';
   renderCategoryList();
 }
@@ -1015,7 +1051,7 @@ function renderCategoryList() {
       <input type="text" value="${esc(c)}" data-original="${esc(c)}"
         onblur="renameCategory(this, ${i})"
         onkeydown="if(event.key==='Enter')this.blur()">
-      <button class="btn btn-danger btn-sm" onclick="deleteCategory('${esc(c)}')"
+      <button class="btn btn-danger btn-sm" onclick="deleteCategoryByIndex(${i})"
         ${isLast ? 'disabled title="É necessário manter ao menos uma categoria."' : ''}>
         Excluir
       </button>
@@ -1026,6 +1062,7 @@ function renderCategoryList() {
 }
 
 function renameCategory(input, idx) {
+  if (!guardAdmin()) return;
   const oldName = input.dataset.original;
   const newName = input.value.trim();
   const errEl = document.getElementById(`cat-err-${idx}`);
@@ -1050,6 +1087,7 @@ function renameCategory(input, idx) {
 }
 
 function addCategory() {
+  if (!guardAdmin()) return;
   const input = document.getElementById('cat-new-input');
   const name = input.value.trim();
   if (!name) return;
@@ -1066,6 +1104,7 @@ function addCategory() {
 }
 
 function deleteCategory(name) {
+  if (!guardAdmin()) return;
   if (getCategorias().length <= 1) return;
   const materiais = getMateriais();
   const count = materiais.filter(m => m.categoria === name).length;
@@ -1081,6 +1120,11 @@ function deleteCategory(name) {
   }
   renderCategoryList();
 }
+function deleteCategoryByIndex(idx) {
+  const cats = getCategorias().slice().sort();
+  if (idx >= 0 && idx < cats.length) deleteCategory(cats[idx]);
+}
+
 function setPeriod(p) {
   currentPeriod = p;
   ['hoje','7d','14d','30d'].forEach(k => document.getElementById('btn-'+k).classList.toggle('active', k===p));
@@ -1094,6 +1138,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (session) {
     renderDashboard(session);
     showScreen('dashboard');
+    refreshAllSections();
   } else {
     renderLogin();
     showScreen('login');
