@@ -345,8 +345,94 @@ function logoSVG(size = 32) {
   </svg>`;
 }
 
-// === REGISTER SCREEN (stub — replaced in Task 5) ===
-function renderRegister() {}
+// === REGISTER SCREEN ===
+function renderRegister() {
+  document.getElementById('screen-register').classList.add('auth-screen');
+  document.getElementById('screen-register').innerHTML = `
+    <div class="auth-card">
+      <div class="auth-logo">${logoSVG(28)}</div>
+      <div class="auth-title">Criar Conta</div>
+      <div class="form-group">
+        <label for="reg-nome">Nome completo</label>
+        <input type="text" id="reg-nome" placeholder="Seu nome completo">
+        <div class="form-error" id="err-nome"></div>
+      </div>
+      <div class="form-group">
+        <label for="reg-usuario">Usuário</label>
+        <input type="text" id="reg-usuario" placeholder="Mínimo 3 caracteres" autocomplete="username">
+        <div class="form-error" id="err-usuario"></div>
+      </div>
+      <div class="form-group">
+        <label for="reg-senha">Senha</label>
+        <input type="password" id="reg-senha" autocomplete="new-password">
+        <div class="form-error" id="err-senha"></div>
+      </div>
+      <div class="form-group">
+        <label for="reg-confirma">Confirmar senha</label>
+        <input type="password" id="reg-confirma" autocomplete="new-password">
+        <div class="form-error" id="err-confirma"></div>
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()">Criar conta</button>
+      <div class="auth-links">
+        Já tem conta? <a href="#" onclick="renderLogin();showScreen('login');return false">Entrar</a>
+      </div>
+    </div>
+  `;
+}
+
+const USUARIO_REGEX = /^[\p{L}0-9_-]+$/u;
+
+function showFieldError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function clearFieldError(id) {
+  const el = document.getElementById(id);
+  el.textContent = '';
+  el.classList.remove('visible');
+}
+
+function doRegister() {
+  const nome = document.getElementById('reg-nome').value.trim();
+  const usuario = document.getElementById('reg-usuario').value.trim();
+  const senha = document.getElementById('reg-senha').value;
+  const confirma = document.getElementById('reg-confirma').value;
+  let valid = true;
+
+  ['err-nome','err-usuario','err-senha','err-confirma'].forEach(clearFieldError);
+
+  if (!nome) { showFieldError('err-nome', 'Este campo é obrigatório.'); valid = false; }
+
+  if (!usuario) {
+    showFieldError('err-usuario', 'Este campo é obrigatório.'); valid = false;
+  } else if (usuario.length < 3) {
+    showFieldError('err-usuario', 'Mínimo de 3 caracteres.'); valid = false;
+  } else if (usuario.length > 30) {
+    showFieldError('err-usuario', 'Máximo de 30 caracteres.'); valid = false;
+  } else if (!USUARIO_REGEX.test(usuario)) {
+    showFieldError('err-usuario', 'Use apenas letras (inclusive acentuadas), números, _ ou -.'); valid = false;
+  } else {
+    const exists = getUsuarios().some(u => u.usuario.toLowerCase() === usuario.toLowerCase());
+    if (exists) { showFieldError('err-usuario', 'Este nome de usuário já está em uso.'); valid = false; }
+  }
+
+  if (!senha) { showFieldError('err-senha', 'Este campo é obrigatório.'); valid = false; }
+  if (!confirma) { showFieldError('err-confirma', 'Este campo é obrigatório.'); valid = false; }
+  else if (senha && senha !== confirma) { showFieldError('err-confirma', 'As senhas não coincidem.'); valid = false; }
+
+  if (!valid) return;
+
+  const newUser = { id: nextUserId(), nomeCompleto: nome, usuario, senha, papel: 'viewer' };
+  const users = getUsuarios();
+  users.push(newUser);
+  saveUsuarios(users);
+
+  const session = { usuarioId: newUser.id, usuario: newUser.usuario, nomeCompleto: newUser.nomeCompleto, papel: 'viewer' };
+  saveSession(session, false);
+  renderDashboard(session);
+  showScreen('dashboard');
+}
 
 // === LOGIN SCREEN ===
 function renderLogin() {
