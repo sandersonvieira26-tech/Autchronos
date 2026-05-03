@@ -786,6 +786,118 @@ function renderMovements() {
     </tr>`;
   }).join('');
 }
+
+function getBuckets(period) {
+  const now = new Date();
+  const buckets = [];
+  const pad2 = n => String(n).padStart(2, '0');
+  const fmtDay = d => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
+
+  if (period === 'hoje') {
+    for (let h = 0; h < 24; h++) {
+      const start = new Date(now); start.setHours(h, 0, 0, 0);
+      const end = new Date(now); end.setHours(h, 59, 59, 999);
+      buckets.push({ label: `${pad2(h)}h`, start, end });
+    }
+  } else if (period === '7d' || period === '14d') {
+    const days = period === '7d' ? 7 : 14;
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const start = new Date(d); start.setHours(0, 0, 0, 0);
+      const end = new Date(d); end.setHours(23, 59, 59, 999);
+      buckets.push({ label: fmtDay(d), start, end });
+    }
+  } else { // 30d — 5 blocks of 6 days, oldest first
+    for (let i = 4; i >= 0; i--) {
+      const endMs = now.getTime() - i * 6 * 86400000;
+      const startMs = endMs - 5 * 86400000;
+      const startD = new Date(startMs); startD.setHours(0, 0, 0, 0);
+      const endD = new Date(endMs); endD.setHours(23, 59, 59, 999);
+      buckets.push({ label: `${fmtDay(startD)}–${fmtDay(endD)}`, start: startD, end: endD });
+    }
+  }
+  return buckets;
+}
+
+function renderChart(container, allMovs, period) {
+  const { start, end } = getFilterWindow(period);
+  const movs = allMovs.filter(m => { const d = new Date(m.data); return d >= start && d <= end; });
+
+  const buckets = getBuckets(period);
+  const data = buckets.map(b => {
+    const inBucket = movs.filter(m => { const d = new Date(m.data); return d >= b.start && d <= b.end; });
+    return {
+      label: b.label,
+      entradas: inBucket.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.quantidade, 0),
+      saidas: inBucket.filter(m => m.tipo === 'saída').reduce((s, m) => s + m.quantidade, 0)
+    };
+  });
+
+  const hasData = data.some(d => d.entradas > 0 || d.saidas > 0);
+  if (!hasData) {
+    container.innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>';
+    return;
+  }
+
+  const maxVal = Math.max(...data.flatMap(d => [d.entradas, d.saidas]), 1);
+  const W = container.offsetWidth || 700;
+  const H = 280;
+  const PAD = { top: 28, right: 16, bottom: 56, left: 36 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+  const groupW = chartW / data.length;
+  const barW = Math.max(Math.min(groupW * 0.32, 22), 4);
+  const gap = barW * 0.25;
+  const fmtN = n => n % 1 === 0 ? n : n.toFixed(1);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">`;
+  svg += `<g transform="translate(${PAD.left},${PAD.top})">`;
+
+  // Y gridlines (4 lines)
+  for (let i = 1; i <= 4; i++) {
+    const y = chartH - (i / 4) * chartH;
+    const val = ((i / 4) * maxVal);
+    svg += `<line x1="0" y1="${y}" x2="${chartW}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+    svg += `<text x="-4" y="${y + 4}" text-anchor="end" font-size="9" fill="#9ca3af">${fmtN(val)}</text>`;
+  }
+
+  data.forEach((d, i) => {
+    const cx = i * groupW + groupW / 2;
+    const xE = cx - barW - gap / 2;
+    const xS = cx + gap / 2;
+    const hE = (d.entradas / maxVal) * chartH;
+    const hS = (d.saidas / maxVal) * chartH;
+
+    if (hE > 0) {
+      svg += `<rect x="${xE}" y="${chartH - hE}" width="${barW}" height="${hE}" fill="#f97316" rx="2"/>`;
+      svg += `<text x="${xE + barW/2}" y="${chartH - hE - 3}" text-anchor="middle" font-size="9" fill="#111827">${fmtN(d.entradas)}</text>`;
+    }
+    if (hS > 0) {
+      svg += `<rect x="${xS}" y="${chartH - hS}" width="${barW}" height="${hS}" fill="#6b7280" rx="2"/>`;
+      svg += `<text x="${xS + barW/2}" y="${chartH - hS - 3}" text-anchor="middle" font-size="9" fill="#111827">${fmtN(d.saidas)}</text>`;
+    }
+
+    // X label — rotate long labels (30d)
+    const labelY = chartH + 14;
+    const rotate = period === '30d' ? ` transform="rotate(-25,${cx},${labelY})"` : '';
+    svg += `<text x="${cx}" y="${labelY}" text-anchor="middle" font-size="9" fill="#6b7280"${rotate}>${d.label}</text>`;
+  });
+
+  // X axis
+  svg += `<line x1="0" y1="${chartH}" x2="${chartW}" y2="${chartH}" stroke="#d1d5db" stroke-width="1"/>`;
+
+  // Legend
+  const ly = chartH + (period === '30d' ? 42 : 36);
+  const lx = chartW / 2;
+  svg += `<rect x="${lx - 80}" y="${ly}" width="10" height="10" fill="#f97316" rx="2"/>`;
+  svg += `<text x="${lx - 67}" y="${ly + 9}" font-size="10" fill="#374151">Entradas</text>`;
+  svg += `<rect x="${lx + 10}" y="${ly}" width="10" height="10" fill="#6b7280" rx="2"/>`;
+  svg += `<text x="${lx + 23}" y="${ly + 9}" font-size="10" fill="#374151">Saídas</text>`;
+
+  svg += `</g></svg>`;
+  container.innerHTML = svg;
+}
+
 let editingMaterialId = null;
 
 function openMaterialModal(id = null) {
