@@ -239,7 +239,53 @@ tr:hover td { background: var(--gray-50); }
   <div id="screen-dashboard" style="display:none"></div>
 
   <!-- Modal: Adicionar/Editar Material -->
-  <div id="modal-material" class="modal-overlay" style="display:none"></div>
+  <div id="modal-material" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="modal-material-title">Adicionar Material</h2>
+        <button class="modal-close" onclick="closeMaterialModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-grid">
+          <div class="form-group" style="grid-column:1/-1">
+            <label for="m-nome">Nome *</label>
+            <input type="text" id="m-nome">
+            <div class="form-error" id="err-m-nome"></div>
+          </div>
+          <div class="form-group">
+            <label for="m-cat">Categoria *</label>
+            <select id="m-cat">
+              <option value="">Selecione...</option>
+            </select>
+            <div class="form-error" id="err-m-cat"></div>
+          </div>
+          <div class="form-group">
+            <label for="m-unidade">Unidade *</label>
+            <input type="text" id="m-unidade" placeholder="ex: m, kg, un">
+            <div class="form-error" id="err-m-unidade"></div>
+          </div>
+          <div class="form-group">
+            <label for="m-qtd">Quantidade *</label>
+            <input type="text" id="m-qtd" placeholder="0">
+            <div class="form-error" id="err-m-qtd"></div>
+          </div>
+          <div class="form-group">
+            <label for="m-min">Estoque Mínimo *</label>
+            <input type="text" id="m-min" placeholder="0">
+            <div class="form-error" id="err-m-min"></div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label for="m-valor">Valor Unitário (R$)</label>
+            <input type="text" id="m-valor" placeholder="0,00">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeMaterialModal()">Cancelar</button>
+        <button class="btn btn-primary" style="width:auto" onclick="saveMaterial()">Salvar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal: Gerenciar Categorias -->
   <div id="modal-categorias" class="modal-overlay" style="display:none"></div>
@@ -681,7 +727,85 @@ function renderMaterialsTable() {
   }).join('');
 }
 function renderMovements() { document.getElementById('chart-container').innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>'; document.getElementById('movements-tbody').innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>'; }
-function openMaterialModal() {}
+let editingMaterialId = null;
+
+function openMaterialModal(id = null) {
+  editingMaterialId = id;
+  const modal = document.getElementById('modal-material');
+  const material = id ? getMateriais().find(m => m.id === id) : null;
+
+  document.getElementById('modal-material-title').textContent = id ? 'Editar Material' : 'Adicionar Material';
+
+  // Populate category dropdown
+  const cats = getCategorias().slice().sort();
+  document.getElementById('m-cat').innerHTML = '<option value="">Selecione...</option>' +
+    cats.map(c => `<option value="${esc(c)}" ${material && material.categoria === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+
+  // Fill fields
+  document.getElementById('m-nome').value = material ? material.nome : '';
+  document.getElementById('m-unidade').value = material ? material.unidade : '';
+  document.getElementById('m-qtd').value = material ? material.quantidade : '';
+  document.getElementById('m-min').value = material ? material.estoqueMinimo : '';
+  document.getElementById('m-valor').value = material ? String(material.valorUnitario).replace('.', ',') : '';
+
+  // Clear errors
+  ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min'].forEach(clearFieldError);
+
+  modal.style.display = 'flex';
+}
+
+function closeMaterialModal() {
+  document.getElementById('modal-material').style.display = 'none';
+  editingMaterialId = null;
+}
+
+function validateDecimalField(value, id) {
+  const num = parseDecimal(value);
+  if (value.trim() === '' || isNaN(num) || num < 0) {
+    showFieldError(id, 'Informe um número válido ≥ 0.');
+    return null;
+  }
+  return num;
+}
+
+function saveMaterial() {
+  const nome = document.getElementById('m-nome').value.trim();
+  const cat = document.getElementById('m-cat').value;
+  const unidade = document.getElementById('m-unidade').value.trim();
+  const qtdRaw = document.getElementById('m-qtd').value;
+  const minRaw = document.getElementById('m-min').value;
+  const valorRaw = document.getElementById('m-valor').value;
+  let valid = true;
+
+  ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min'].forEach(clearFieldError);
+
+  if (!nome) { showFieldError('err-m-nome', 'Este campo é obrigatório.'); valid = false; }
+  if (!cat) { showFieldError('err-m-cat', 'Selecione uma categoria.'); valid = false; }
+  if (!unidade) { showFieldError('err-m-unidade', 'Este campo é obrigatório.'); valid = false; }
+
+  const qtd = validateDecimalField(qtdRaw, 'err-m-qtd');
+  if (qtd === null) valid = false;
+  const min = validateDecimalField(minRaw, 'err-m-min');
+  if (min === null) valid = false;
+
+  const valorStr = valorRaw.trim();
+  const valor = valorStr === '' ? 0 : parseDecimal(valorStr);
+
+  if (!valid) return;
+
+  const materiais = getMateriais();
+  if (editingMaterialId) {
+    const idx = materiais.findIndex(m => m.id === editingMaterialId);
+    const old = materiais[idx];
+    recordMovimento(old.id, old.nome, old.quantidade, qtd, currentSession.usuario);
+    materiais[idx] = { ...old, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor };
+  } else {
+    materiais.push({ id: Math.max(0, ...materiais.map(m => m.id).filter(Number.isFinite)) + 1, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor });
+  }
+  saveMateriais(materiais);
+  closeMaterialModal();
+  refreshAllSections();
+}
 function openCategoryModal() {}
 function setPeriod(p) {
   currentPeriod = p;
