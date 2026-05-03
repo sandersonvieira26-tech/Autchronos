@@ -288,7 +288,24 @@ tr:hover td { background: var(--gray-50); }
   </div>
 
   <!-- Modal: Gerenciar Categorias -->
-  <div id="modal-categorias" class="modal-overlay" style="display:none"></div>
+  <div id="modal-categorias" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:440px">
+      <div class="modal-header">
+        <h2>Gerenciar Categorias</h2>
+        <button class="modal-close" onclick="closeCategoryModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="cat-list" id="cat-list"></div>
+        <div class="cat-add-row">
+          <input type="text" id="cat-new-input" placeholder="Nova categoria...">
+          <button class="btn btn-primary btn-sm" style="width:auto" onclick="addCategory()">Adicionar</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCategoryModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
 
   <script>
 // === STORAGE KEYS ===
@@ -825,7 +842,83 @@ function saveMaterial() {
   closeMaterialModal();
   refreshAllSections();
 }
-function openCategoryModal() {}
+function openCategoryModal() {
+  document.getElementById('modal-categorias').style.display = 'flex';
+  renderCategoryList();
+}
+
+function closeCategoryModal() {
+  document.getElementById('modal-categorias').style.display = 'none';
+  renderMaterialsTable();
+}
+
+function renderCategoryList() {
+  const cats = getCategorias().slice().sort();
+  const isLast = cats.length === 1;
+  document.getElementById('cat-list').innerHTML = cats.map((c, i) => `
+    <div class="cat-item" id="cat-item-${i}">
+      <input type="text" value="${esc(c)}" data-original="${esc(c)}"
+        onblur="renameCategory(this, '${esc(c)}')"
+        onkeydown="if(event.key==='Enter')this.blur()">
+      <button class="btn btn-danger btn-sm" onclick="deleteCategory('${esc(c)}')"
+        ${isLast ? 'disabled title="É necessário manter ao menos uma categoria."' : ''}>
+        Excluir
+      </button>
+    </div>
+    <div class="cat-item-error" id="cat-err-${esc(c)}" style="display:none;color:var(--red);font-size:0.75rem"></div>
+  `).join('');
+  document.getElementById('cat-new-input').value = '';
+}
+
+function renameCategory(input, oldName) {
+  const newName = input.value.trim();
+  const errId = `cat-err-${oldName}`;
+  const errEl = document.getElementById(errId);
+
+  if (!newName) { input.value = oldName; return; }
+  if (newName === oldName) return;
+
+  const cats = getCategorias();
+  const isDuplicate = cats.some(c => c.toLowerCase() === newName.toLowerCase() && c !== oldName);
+  if (isDuplicate) {
+    input.value = oldName;
+    if (errEl) { errEl.textContent = 'Esta categoria já existe.'; errEl.style.display = 'block'; setTimeout(() => { errEl.style.display = 'none'; }, 3000); }
+    return;
+  }
+
+  const materiais = getMateriais().map(m => m.categoria === oldName ? { ...m, categoria: newName } : m);
+  saveMateriais(materiais);
+
+  saveCategorias(cats.map(c => c === oldName ? newName : c));
+  renderCategoryList();
+}
+
+function addCategory() {
+  const input = document.getElementById('cat-new-input');
+  const name = input.value.trim();
+  if (!name) return;
+
+  const cats = getCategorias();
+  if (cats.some(c => c.toLowerCase() === name.toLowerCase())) {
+    input.style.borderColor = 'var(--red)';
+    setTimeout(() => { input.style.borderColor = ''; }, 2000);
+    return;
+  }
+  cats.push(name);
+  saveCategorias(cats);
+  renderCategoryList();
+}
+
+function deleteCategory(name) {
+  const materiais = getMateriais();
+  const count = materiais.filter(m => m.categoria === name).length;
+
+  if (count > 0 && !confirm(`${count} material(is) usa(m) esta categoria. Deseja excluir mesmo assim?`)) return;
+
+  const cats = getCategorias().filter(c => c !== name);
+  saveCategorias(cats);
+  renderCategoryList();
+}
 function setPeriod(p) {
   currentPeriod = p;
   ['hoje','7d','14d','30d'].forEach(k => document.getElementById('btn-'+k).classList.toggle('active', k===p));
