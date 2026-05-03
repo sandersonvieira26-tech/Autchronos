@@ -249,7 +249,7 @@ tr:hover td { background: var(--gray-50); }
         <div class="modal-grid">
           <div class="form-group" style="grid-column:1/-1">
             <label for="m-nome">Nome *</label>
-            <input type="text" id="m-nome">
+            <input type="text" id="m-nome" maxlength="120">
             <div class="form-error" id="err-m-nome"></div>
           </div>
           <div class="form-group">
@@ -261,7 +261,7 @@ tr:hover td { background: var(--gray-50); }
           </div>
           <div class="form-group">
             <label for="m-unidade">Unidade *</label>
-            <input type="text" id="m-unidade" placeholder="ex: m, kg, un">
+            <input type="text" id="m-unidade" placeholder="ex: m, kg, un" maxlength="20">
             <div class="form-error" id="err-m-unidade"></div>
           </div>
           <div class="form-group">
@@ -298,7 +298,7 @@ tr:hover td { background: var(--gray-50); }
       <div class="modal-body">
         <div class="cat-list" id="cat-list"></div>
         <div class="cat-add-row">
-          <input type="text" id="cat-new-input" placeholder="Nova categoria..." maxlength="60">
+          <input type="text" id="cat-new-input" placeholder="Nova categoria..." maxlength="60" onkeydown="if(event.key==='Enter')addCategory()">
           <button class="btn btn-primary btn-sm" style="width:auto" onclick="addCategory()">Adicionar</button>
         </div>
       </div>
@@ -320,20 +320,22 @@ const KEYS = {
 };
 
 // === GETTERS / SETTERS ===
-const getUsuarios = () => JSON.parse(localStorage.getItem(KEYS.usuarios) || '[]');
+function safeGet(storage, key, fallback) {
+  try { const v = storage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+const getUsuarios = () => safeGet(localStorage, KEYS.usuarios, []);
 const saveUsuarios = d => localStorage.setItem(KEYS.usuarios, JSON.stringify(d));
-const getMateriais = () => JSON.parse(localStorage.getItem(KEYS.materiais) || '[]');
+const getMateriais = () => safeGet(localStorage, KEYS.materiais, []);
 const saveMateriais = d => localStorage.setItem(KEYS.materiais, JSON.stringify(d));
-const getCategorias = () => JSON.parse(localStorage.getItem(KEYS.categorias) || '[]');
+const getCategorias = () => safeGet(localStorage, KEYS.categorias, []);
 const saveCategorias = d => localStorage.setItem(KEYS.categorias, JSON.stringify(d));
-const getMovimentacoes = () => JSON.parse(localStorage.getItem(KEYS.movimentacoes) || '[]');
+const getMovimentacoes = () => safeGet(localStorage, KEYS.movimentacoes, []);
 const saveMovimentacoes = d => localStorage.setItem(KEYS.movimentacoes, JSON.stringify(d));
 
 // === SESSION ===
 function getSession() {
-  const ls = localStorage.getItem(KEYS.sessao);
-  const ss = sessionStorage.getItem(KEYS.sessaoTemp);
-  return ls ? JSON.parse(ls) : ss ? JSON.parse(ss) : null;
+  return safeGet(localStorage, KEYS.sessao, null) || safeGet(sessionStorage, KEYS.sessaoTemp, null);
 }
 function saveSession(data, lembrarMe) {
   if (lembrarMe) localStorage.setItem(KEYS.sessao, JSON.stringify(data));
@@ -378,7 +380,12 @@ function initStorage() {
 }
 
 // === HELPERS ===
-const parseDecimal = str => parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+function parseDecimal(str) {
+  const s = String(str).trim();
+  // pt-BR format (comma as decimal separator): strip thousand-separator dots first
+  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
+  return parseFloat(normalized) || 0;
+}
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatBRL = v => brl.format(v);
 
@@ -527,7 +534,7 @@ function doRegister() {
   if (!valid) return;
 
   const users = getUsuarios();
-  const newUser = { id: Math.max(0, ...users.map(u => u.id).filter(Number.isFinite)) + 1, nomeCompleto: nome, usuario, senha, papel: 'viewer' };
+  const newUser = { id: nextUserId(), nomeCompleto: nome, usuario, senha, papel: 'viewer' };
   users.push(newUser);
   saveUsuarios(users);
 
@@ -604,7 +611,7 @@ function renderDashboard(session) {
       <div class="header-left">${logoSVG(22)}</div>
       <div class="header-right">
         <div class="user-info">
-          <div class="avatar">${getInitials(session.nomeCompleto)}</div>
+          <div class="avatar">${esc(getInitials(session.nomeCompleto))}</div>
           <span class="user-name">${esc(session.nomeCompleto)}</span>
         </div>
         <button class="btn-logout" onclick="doLogout()">Sair</button>
@@ -721,14 +728,17 @@ function renderMaterialsTable() {
   const categorias = getCategorias();
   const isAdmin = currentSession && currentSession.papel === 'admin';
 
-  // Update category dropdown
+  // Update category dropdown — include any orphaned category names from deleted categories
   const catSelect = document.getElementById('filter-cat');
   if (catSelect) {
     const current = catSelect.value;
-    const hasUncategorized = materiais.some(m => !m.categoria);
+    const knownSet = new Set(categorias);
+    const orphaned = [...new Set(materiais.map(m => m.categoria).filter(c => c && !knownSet.has(c)))].sort();
     catSelect.innerHTML = '<option value="">Todas as categorias</option>' +
-      (hasUncategorized ? '<option value="__none__">Sem categoria</option>' : '') +
-      categorias.map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
+      categorias.map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('') +
+      (orphaned.length ? '<optgroup label="Categorias removidas">' +
+        orphaned.map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('') +
+        '</optgroup>' : '');
   }
 
   const filterNome = (document.getElementById('filter-nome')?.value || '').toLowerCase();
@@ -737,10 +747,9 @@ function renderMaterialsTable() {
 
   const filtered = materiais.filter(m => {
     const status = calcStatus(m.quantidade, m.estoqueMinimo);
-    const catMatch = !filterCat || (filterCat === '__none__' ? !m.categoria : m.categoria === filterCat);
     return (
       (!filterNome || m.nome.toLowerCase().includes(filterNome)) &&
-      catMatch &&
+      (!filterCat || m.categoria === filterCat) &&
       (!filterStatus || status === filterStatus)
     );
   });
@@ -759,7 +768,7 @@ function renderMaterialsTable() {
     return `<tr>
       <td>${m.id}</td>
       <td>${esc(m.nome)}</td>
-      <td>${esc(m.categoria) || '—'}</td>
+      <td>${esc(m.categoria)}</td>
       <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
       <td>${esc(m.unidade)}</td>
       <td>${m.estoqueMinimo % 1 === 0 ? m.estoqueMinimo : m.estoqueMinimo.toFixed(2)}</td>
@@ -1046,26 +1055,28 @@ function closeCategoryModal() {
 function renderCategoryList() {
   const cats = getCategorias().slice().sort();
   const isLast = cats.length === 1;
-  document.getElementById('cat-list').innerHTML = cats.map((c, i) => `
-    <div class="cat-item" id="cat-item-${i}">
-      <input type="text" value="${esc(c)}" data-original="${esc(c)}"
-        onblur="renameCategory(this, ${i})"
+  document.getElementById('cat-list').innerHTML = cats.map((c, i) => {
+    const errId = 'cat-err-' + btoa(encodeURIComponent(c)).replace(/[^a-zA-Z0-9]/g, '_');
+    return `
+    <div class="cat-item">
+      <input type="text" value="${esc(c)}" data-original="${esc(c)}" data-errid="${errId}"
+        onblur="renameCategory(this)"
         onkeydown="if(event.key==='Enter')this.blur()">
       <button class="btn btn-danger btn-sm" onclick="deleteCategoryByIndex(${i})"
         ${isLast ? 'disabled title="É necessário manter ao menos uma categoria."' : ''}>
         Excluir
       </button>
     </div>
-    <div class="cat-item-error" id="cat-err-${i}" style="display:none;color:var(--red);font-size:0.75rem"></div>
-  `).join('');
+    <div class="cat-item-error" id="${errId}" style="display:none;color:var(--red);font-size:0.75rem"></div>`;
+  }).join('');
   document.getElementById('cat-new-input').value = '';
 }
 
-function renameCategory(input, idx) {
+function renameCategory(input) {
   if (!guardAdmin()) return;
   const oldName = input.dataset.original;
   const newName = input.value.trim();
-  const errEl = document.getElementById(`cat-err-${idx}`);
+  const errEl = input.dataset.errid ? document.getElementById(input.dataset.errid) : null;
 
   if (!newName) { input.value = oldName; return; }
   if (newName === oldName) return;
@@ -1113,8 +1124,8 @@ function deleteCategory(name) {
 
   const cats = getCategorias().filter(c => c !== name);
   saveCategorias(cats);
+  // Materials keep the old category name as free text (spec §6.4) — no mutation needed.
   if (count > 0) {
-    saveMateriais(materiais.map(m => m.categoria === name ? { ...m, categoria: '' } : m));
     renderCards();
     renderMaterialsTable();
   }
