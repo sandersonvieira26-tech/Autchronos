@@ -281,8 +281,8 @@ function clearSession() {
 }
 
 // === ID GENERATORS ===
-const nextUserId = () => Math.max(0, ...getUsuarios().map(u => u.id)) + 1;
-const nextMaterialId = () => Math.max(0, ...getMateriais().map(m => m.id)) + 1;
+const nextUserId = () => Math.max(0, ...getUsuarios().map(u => u.id).filter(Number.isFinite)) + 1;
+const nextMaterialId = () => Math.max(0, ...getMateriais().map(m => m.id).filter(Number.isFinite)) + 1;
 
 // === SEED ===
 function initStorage() {
@@ -297,7 +297,7 @@ function initStorage() {
 }
 
 // === HELPERS ===
-const parseDecimal = str => parseFloat(String(str).replace(',', '.')) || 0;
+const parseDecimal = str => parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatBRL = v => brl.format(v);
 
@@ -308,7 +308,8 @@ function calcStatus(quantidade, estoqueMinimo) {
 }
 
 function getInitials(nomeCompleto) {
-  const words = nomeCompleto.trim().split(/\s+/);
+  const words = (nomeCompleto || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '??';
   if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
   return (words[0][0] + words[1][0]).toUpperCase();
 }
