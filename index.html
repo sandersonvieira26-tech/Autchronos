@@ -820,16 +820,16 @@ function getBuckets(period) {
 }
 
 function renderChart(container, allMovs, period) {
-  const { start, end } = getFilterWindow(period);
-  const movs = allMovs.filter(m => { const d = new Date(m.data); return d >= start && d <= end; });
-
   const buckets = getBuckets(period);
+  const rangeStart = buckets[0].start;
+  const rangeEnd = buckets[buckets.length - 1].end;
+  const movs = allMovs.filter(m => { const d = new Date(m.data); return d >= rangeStart && d <= rangeEnd; });
   const data = buckets.map(b => {
     const inBucket = movs.filter(m => { const d = new Date(m.data); return d >= b.start && d <= b.end; });
     return {
       label: b.label,
-      entradas: inBucket.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.quantidade, 0),
-      saidas: inBucket.filter(m => m.tipo === 'saída').reduce((s, m) => s + m.quantidade, 0)
+      entradas: inBucket.filter(m => m.tipo === 'entrada').reduce((s, m) => s + (Number(m.quantidade) || 0), 0),
+      saidas: inBucket.filter(m => m.tipo === 'saída').reduce((s, m) => s + (Number(m.quantidade) || 0), 0)
     };
   });
 
