@@ -345,14 +345,17 @@ function logoSVG(size = 32) {
   </svg>`;
 }
 
+// === REGISTER SCREEN (stub — replaced in Task 5) ===
+function renderRegister() {}
+
 // === LOGIN SCREEN ===
 function renderLogin() {
-  document.getElementById('screen-login').className = 'auth-screen';
+  document.getElementById('screen-login').classList.add('auth-screen');
   document.getElementById('screen-login').innerHTML = `
     <div class="auth-card">
       <div class="auth-logo">${logoSVG(28)}</div>
       <div class="auth-title">Acesso ao Sistema</div>
-      <div class="auth-error" id="login-error">Usuário ou senha incorretos.</div>
+      <div class="auth-error" id="login-error"></div>
       <div class="form-group">
         <label for="login-usuario">Usuário</label>
         <input type="text" id="login-usuario" autocomplete="username" placeholder="Digite seu usuário">
@@ -385,10 +388,15 @@ function doLogin() {
   err.classList.remove('visible');
 
   const user = getUsuarios().find(u => u.usuario.toLowerCase() === usuario.toLowerCase() && u.senha === senha);
-  if (!user) { err.classList.add('visible'); return; }
+  if (!user) {
+    err.textContent = 'Usuário ou senha incorretos.';
+    err.classList.add('visible');
+    return;
+  }
 
-  saveSession({ usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel }, lembrar);
-  renderDashboard({ usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel });
+  const session = { usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel };
+  saveSession(session, lembrar);
+  renderDashboard(session);
   showScreen('dashboard');
 }
 
