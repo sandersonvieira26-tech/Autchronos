@@ -245,7 +245,109 @@ tr:hover td { background: var(--gray-50); }
   <div id="modal-categorias" class="modal-overlay" style="display:none"></div>
 
   <script>
-/* JS — added in Tasks 3-12 */
+// === STORAGE KEYS ===
+const KEYS = {
+  usuarios: 'crm_usuarios',
+  sessao: 'crm_sessao',
+  sessaoTemp: 'crm_sessao_temp',
+  materiais: 'crm_materiais',
+  categorias: 'crm_categorias',
+  movimentacoes: 'crm_movimentacoes'
+};
+
+// === GETTERS / SETTERS ===
+const getUsuarios = () => JSON.parse(localStorage.getItem(KEYS.usuarios) || '[]');
+const saveUsuarios = d => localStorage.setItem(KEYS.usuarios, JSON.stringify(d));
+const getMateriais = () => JSON.parse(localStorage.getItem(KEYS.materiais) || '[]');
+const saveMateriais = d => localStorage.setItem(KEYS.materiais, JSON.stringify(d));
+const getCategorias = () => JSON.parse(localStorage.getItem(KEYS.categorias) || '[]');
+const saveCategorias = d => localStorage.setItem(KEYS.categorias, JSON.stringify(d));
+const getMovimentacoes = () => JSON.parse(localStorage.getItem(KEYS.movimentacoes) || '[]');
+const saveMovimentacoes = d => localStorage.setItem(KEYS.movimentacoes, JSON.stringify(d));
+
+// === SESSION ===
+function getSession() {
+  const ls = localStorage.getItem(KEYS.sessao);
+  const ss = sessionStorage.getItem(KEYS.sessaoTemp);
+  return ls ? JSON.parse(ls) : ss ? JSON.parse(ss) : null;
+}
+function saveSession(data, lembrarMe) {
+  if (lembrarMe) localStorage.setItem(KEYS.sessao, JSON.stringify(data));
+  else sessionStorage.setItem(KEYS.sessaoTemp, JSON.stringify(data));
+}
+function clearSession() {
+  localStorage.removeItem(KEYS.sessao);
+  sessionStorage.removeItem(KEYS.sessaoTemp);
+}
+
+// === ID GENERATORS ===
+const nextUserId = () => Math.max(0, ...getUsuarios().map(u => u.id)) + 1;
+const nextMaterialId = () => Math.max(0, ...getMateriais().map(m => m.id)) + 1;
+
+// === SEED ===
+function initStorage() {
+  if (!localStorage.getItem(KEYS.usuarios)) {
+    saveUsuarios([{ id: 1, nomeCompleto: 'Administrador', usuario: 'admin', senha: '1234', papel: 'admin' }]);
+  }
+  if (!localStorage.getItem(KEYS.categorias)) {
+    saveCategorias(['Elétrico', 'Hidráulico', 'Civil', 'Ferramentas', 'EPI']);
+  }
+  if (!localStorage.getItem(KEYS.materiais)) saveMateriais([]);
+  if (!localStorage.getItem(KEYS.movimentacoes)) saveMovimentacoes([]);
+}
+
+// === HELPERS ===
+const parseDecimal = str => parseFloat(String(str).replace(',', '.')) || 0;
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatBRL = v => brl.format(v);
+
+function calcStatus(quantidade, estoqueMinimo) {
+  if (quantidade >= estoqueMinimo) return 'OK';
+  if (quantidade >= estoqueMinimo * 0.5) return 'Baixo';
+  return 'Crítico';
+}
+
+function getInitials(nomeCompleto) {
+  const words = nomeCompleto.trim().split(/\s+/);
+  if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor) {
+  const diff = qtdNova - qtdAnterior;
+  if (diff === 0) return;
+  const movs = getMovimentacoes();
+  movs.push({
+    id: crypto.randomUUID(),
+    materialId,
+    materialNome,
+    tipo: diff > 0 ? 'entrada' : 'saída',
+    quantidade: Math.abs(diff),
+    data: new Date().toISOString(),
+    registradoPor
+  });
+  saveMovimentacoes(movs);
+}
+
+// === SCREEN ROUTER ===
+function showScreen(name) {
+  document.getElementById('screen-login').style.display = name === 'login' ? 'flex' : 'none';
+  document.getElementById('screen-register').style.display = name === 'register' ? 'flex' : 'none';
+  document.getElementById('screen-dashboard').style.display = name === 'dashboard' ? 'block' : 'none';
+}
+
+// === INIT ===
+window.addEventListener('DOMContentLoaded', () => {
+  initStorage();
+  const session = getSession();
+  if (session) {
+    renderDashboard(session);
+    showScreen('dashboard');
+  } else {
+    renderLogin();
+    showScreen('login');
+  }
+});
   </script>
 </body>
 </html>
