@@ -759,6 +759,18 @@ function closeMaterialModal() {
   editingMaterialId = null;
 }
 
+function deleteMaterial(id) {
+  const materiais = getMateriais();
+  const material = materiais.find(m => m.id === id);
+  if (!material) return;
+
+  if (!confirm(`Deseja excluir o material '${material.nome}'? Esta ação não pode ser desfeita.`)) return;
+
+  saveMateriais(materiais.filter(m => m.id !== id));
+  saveMovimentacoes(getMovimentacoes().filter(m => m.materialId !== id));
+  refreshAllSections();
+}
+
 function validateDecimalField(value, id) {
   const raw = String(value).replace(/\./g, '').replace(',', '.');
   const num = parseFloat(raw);
