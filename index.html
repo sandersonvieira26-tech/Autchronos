@@ -628,7 +628,58 @@ function renderCards() {
     </div>
   `;
 }
-function renderMaterialsTable() { document.getElementById('materials-tbody').innerHTML = '<tr class="empty-row"><td colspan="8">Nenhum material encontrado.</td></tr>'; }
+function renderMaterialsTable() {
+  const materiais = getMateriais();
+  const categorias = getCategorias();
+  const isAdmin = currentSession && currentSession.papel === 'admin';
+
+  // Update category dropdown
+  const catSelect = document.getElementById('filter-cat');
+  if (catSelect) {
+    const current = catSelect.value;
+    catSelect.innerHTML = '<option value="">Todas as categorias</option>' +
+      categorias.map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  }
+
+  const filterNome = (document.getElementById('filter-nome')?.value || '').toLowerCase();
+  const filterCat = document.getElementById('filter-cat')?.value || '';
+  const filterStatus = document.getElementById('filter-status')?.value || '';
+
+  const filtered = materiais.filter(m => {
+    const status = calcStatus(m.quantidade, m.estoqueMinimo);
+    return (
+      (!filterNome || m.nome.toLowerCase().includes(filterNome)) &&
+      (!filterCat || m.categoria === filterCat) &&
+      (!filterStatus || status === filterStatus)
+    );
+  });
+
+  const tbody = document.getElementById('materials-tbody');
+  const colSpan = isAdmin ? 8 : 7;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">Nenhum material encontrado.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(m => {
+    const status = calcStatus(m.quantidade, m.estoqueMinimo);
+    const badgeClass = { OK: 'badge-ok', Baixo: 'badge-baixo', Crítico: 'badge-critico' }[status];
+    return `<tr>
+      <td>${m.id}</td>
+      <td>${esc(m.nome)}</td>
+      <td>${esc(m.categoria)}</td>
+      <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
+      <td>${esc(m.unidade)}</td>
+      <td>${m.estoqueMinimo % 1 === 0 ? m.estoqueMinimo : m.estoqueMinimo.toFixed(2)}</td>
+      <td><span class="badge ${badgeClass}">${status}</span></td>
+      ${isAdmin ? `<td>
+        <button class="btn btn-secondary btn-sm" onclick="openMaterialModal(${m.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMaterial(${m.id})">Excluir</button>
+      </td>` : ''}
+    </tr>`;
+  }).join('');
+}
 function renderMovements() { document.getElementById('chart-container').innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>'; document.getElementById('movements-tbody').innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>'; }
 function openMaterialModal() {}
 function openCategoryModal() {}
