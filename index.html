@@ -499,6 +499,107 @@ function doLogin() {
   showScreen('dashboard');
 }
 
+// === DASHBOARD ===
+let currentSession = null;
+let currentPeriod = 'hoje';
+
+function renderDashboard(session) {
+  currentSession = session;
+  const isAdmin = session.papel === 'admin';
+
+  document.getElementById('screen-dashboard').innerHTML = `
+    <header class="dashboard-header">
+      <div class="header-left">${logoSVG(22)}</div>
+      <div class="header-right">
+        <div class="user-info">
+          <div class="avatar">${getInitials(session.nomeCompleto)}</div>
+          <span class="user-name">${session.nomeCompleto}</span>
+        </div>
+        <button class="btn-logout" onclick="doLogout()">Sair</button>
+      </div>
+    </header>
+    <div class="dashboard-body">
+      <div id="cards-grid" class="cards-grid"></div>
+      <div class="table-section">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" id="filter-nome" placeholder="Buscar por nome..." oninput="renderMaterialsTable()">
+          <select id="filter-cat" onchange="renderMaterialsTable()">
+            <option value="">Todas as categorias</option>
+          </select>
+          <select id="filter-status" onchange="renderMaterialsTable()">
+            <option value="">Todos os status</option>
+            <option value="OK">OK</option>
+            <option value="Baixo">Baixo</option>
+            <option value="Crítico">Crítico</option>
+          </select>
+          ${isAdmin ? `
+          <div class="table-actions">
+            <button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Gerenciar Categorias</button>
+            <button class="btn btn-primary btn-sm" style="width:auto" onclick="openMaterialModal()">+ Adicionar Material</button>
+          </div>` : ''}
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Nome</th><th>Categoria</th>
+                <th>Quantidade</th><th>Unidade</th><th>Est. Mínimo</th>
+                <th>Status</th>${isAdmin ? '<th>Ações</th>' : ''}
+              </tr>
+            </thead>
+            <tbody id="materials-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="movements-section">
+        <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--gray-200)">
+          <div class="section-title" style="margin-bottom:0.75rem">Movimentações de Estoque</div>
+          <div class="period-filter">
+            <button class="period-btn active" id="btn-hoje" onclick="setPeriod('hoje')">Hoje</button>
+            <button class="period-btn" id="btn-7d" onclick="setPeriod('7d')">7 dias</button>
+            <button class="period-btn" id="btn-14d" onclick="setPeriod('14d')">14 dias</button>
+            <button class="period-btn" id="btn-30d" onclick="setPeriod('30d')">30 dias</button>
+          </div>
+        </div>
+        <div class="chart-container" id="chart-container"></div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Data/Hora</th><th>Material</th><th>Tipo</th><th>Quantidade</th><th>Registrado por</th></tr>
+            </thead>
+            <tbody id="movements-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  refreshAllSections();
+}
+
+function doLogout() {
+  clearSession();
+  currentSession = null;
+  renderLogin();
+  showScreen('login');
+}
+
+function refreshAllSections() {
+  renderCards();
+  renderMaterialsTable();
+  renderMovements();
+}
+
+function renderCards() { document.getElementById('cards-grid').innerHTML = '<p style="padding:1rem;color:#6b7280">Cards — Task 7</p>'; }
+function renderMaterialsTable() { document.getElementById('materials-tbody').innerHTML = '<tr class="empty-row"><td colspan="8">Nenhum material encontrado.</td></tr>'; }
+function renderMovements() { document.getElementById('chart-container').innerHTML = '<span class="chart-empty">Sem movimentações neste período.</span>'; document.getElementById('movements-tbody').innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>'; }
+function openMaterialModal() {}
+function openCategoryModal() {}
+function setPeriod(p) {
+  currentPeriod = p;
+  ['hoje','7d','14d','30d'].forEach(k => document.getElementById('btn-'+k).classList.toggle('active', k===p));
+  renderMovements();
+}
+
 // === INIT ===
 window.addEventListener('DOMContentLoaded', () => {
   initStorage();
