@@ -314,6 +314,11 @@ function getInitials(nomeCompleto) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+// === HTML ESCAPE ===
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor) {
   const diff = qtdNova - qtdAnterior;
   if (diff === 0) return;
@@ -513,7 +518,7 @@ function renderDashboard(session) {
       <div class="header-right">
         <div class="user-info">
           <div class="avatar">${getInitials(session.nomeCompleto)}</div>
-          <span class="user-name">${session.nomeCompleto}</span>
+          <span class="user-name">${esc(session.nomeCompleto)}</span>
         </div>
         <button class="btn-logout" onclick="doLogout()">Sair</button>
       </div>
@@ -579,6 +584,7 @@ function renderDashboard(session) {
 function doLogout() {
   clearSession();
   currentSession = null;
+  currentPeriod = 'hoje';
   renderLogin();
   showScreen('login');
 }
