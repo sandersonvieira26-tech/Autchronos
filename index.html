@@ -746,7 +746,7 @@ function openMaterialModal(id = null) {
   document.getElementById('m-unidade').value = material ? material.unidade : '';
   document.getElementById('m-qtd').value = material ? material.quantidade : '';
   document.getElementById('m-min').value = material ? material.estoqueMinimo : '';
-  document.getElementById('m-valor').value = material ? String(material.valorUnitario).replace('.', ',') : '';
+  document.getElementById('m-valor').value = material ? material.valorUnitario.toFixed(2).replace('.', ',') : '';
 
   // Clear errors
   ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min'].forEach(clearFieldError);
@@ -760,7 +760,8 @@ function closeMaterialModal() {
 }
 
 function validateDecimalField(value, id) {
-  const num = parseDecimal(value);
+  const raw = String(value).replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(raw);
   if (value.trim() === '' || isNaN(num) || num < 0) {
     showFieldError(id, 'Informe um número válido ≥ 0.');
     return null;
@@ -796,11 +797,17 @@ function saveMaterial() {
   const materiais = getMateriais();
   if (editingMaterialId) {
     const idx = materiais.findIndex(m => m.id === editingMaterialId);
+    if (idx === -1) {
+      alert('Material não encontrado. Pode ter sido removido em outra aba.');
+      closeMaterialModal();
+      refreshAllSections();
+      return;
+    }
     const old = materiais[idx];
     recordMovimento(old.id, old.nome, old.quantidade, qtd, currentSession.usuario);
     materiais[idx] = { ...old, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor };
   } else {
-    materiais.push({ id: Math.max(0, ...materiais.map(m => m.id).filter(Number.isFinite)) + 1, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor });
+    materiais.push({ id: nextMaterialId(), nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor });
   }
   saveMateriais(materiais);
   closeMaterialModal();
