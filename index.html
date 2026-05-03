@@ -337,6 +337,61 @@ function showScreen(name) {
   document.getElementById('screen-dashboard').style.display = name === 'dashboard' ? 'block' : 'none';
 }
 
+// === LOGO SVG ===
+function logoSVG(size = 32) {
+  return `<svg width="${size * 4}" height="${size}" viewBox="0 0 128 32" xmlns="http://www.w3.org/2000/svg">
+    <text x="0" y="26" font-family="Arial Black, sans-serif" font-weight="900" font-size="28" fill="#f97316">ESVJ</text>
+    <text x="72" y="24" font-family="Arial, sans-serif" font-weight="400" font-size="14" fill="#9ca3af">Engenharia</text>
+  </svg>`;
+}
+
+// === LOGIN SCREEN ===
+function renderLogin() {
+  document.getElementById('screen-login').className = 'auth-screen';
+  document.getElementById('screen-login').innerHTML = `
+    <div class="auth-card">
+      <div class="auth-logo">${logoSVG(28)}</div>
+      <div class="auth-title">Acesso ao Sistema</div>
+      <div class="auth-error" id="login-error">Usuário ou senha incorretos.</div>
+      <div class="form-group">
+        <label for="login-usuario">Usuário</label>
+        <input type="text" id="login-usuario" autocomplete="username" placeholder="Digite seu usuário">
+      </div>
+      <div class="form-group">
+        <label for="login-senha">Senha</label>
+        <input type="password" id="login-senha" autocomplete="current-password" placeholder="Digite sua senha">
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="login-lembrar">
+        <label for="login-lembrar">Lembrar-me</label>
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+      <div class="auth-links" style="margin-top:0.75rem">
+        <a href="#" onclick="alert('Funcionalidade indisponível. Entre em contato com o administrador do sistema.');return false">Esqueci minha senha</a>
+      </div>
+      <div class="auth-links">
+        Não tem conta? <a href="#" onclick="renderRegister();showScreen('register');return false">Criar conta</a>
+      </div>
+    </div>
+  `;
+  document.getElementById('login-senha').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+}
+
+function doLogin() {
+  const usuario = document.getElementById('login-usuario').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const lembrar = document.getElementById('login-lembrar').checked;
+  const err = document.getElementById('login-error');
+  err.classList.remove('visible');
+
+  const user = getUsuarios().find(u => u.usuario.toLowerCase() === usuario.toLowerCase() && u.senha === senha);
+  if (!user) { err.classList.add('visible'); return; }
+
+  saveSession({ usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel }, lembrar);
+  renderDashboard({ usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel });
+  showScreen('dashboard');
+}
+
 // === INIT ===
 window.addEventListener('DOMContentLoaded', () => {
   initStorage();
