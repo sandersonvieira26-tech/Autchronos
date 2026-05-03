@@ -752,6 +752,7 @@ function getFilterWindow(period) {
   }
   const days = { '7d': 7, '14d': 14, '30d': 30 }[period];
   const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  start.setHours(0, 0, 0, 0);
   return { start, end: now };
 }
 
@@ -1045,6 +1046,7 @@ function renameCategory(input, idx) {
 
   saveCategorias(cats.map(c => c === oldName ? newName : c));
   renderCategoryList();
+  renderMaterialsTable();
 }
 
 function addCategory() {
@@ -1074,6 +1076,8 @@ function deleteCategory(name) {
   saveCategorias(cats);
   if (count > 0) {
     saveMateriais(materiais.map(m => m.categoria === name ? { ...m, categoria: '' } : m));
+    renderCards();
+    renderMaterialsTable();
   }
   renderCategoryList();
 }
