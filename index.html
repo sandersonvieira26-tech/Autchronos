@@ -297,7 +297,7 @@ tr:hover td { background: var(--gray-50); }
       <div class="modal-body">
         <div class="cat-list" id="cat-list"></div>
         <div class="cat-add-row">
-          <input type="text" id="cat-new-input" placeholder="Nova categoria...">
+          <input type="text" id="cat-new-input" placeholder="Nova categoria..." maxlength="60">
           <button class="btn btn-primary btn-sm" style="width:auto" onclick="addCategory()">Adicionar</button>
         </div>
       </div>
@@ -379,7 +379,7 @@ function getInitials(nomeCompleto) {
 
 // === HTML ESCAPE ===
 function esc(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor) {
@@ -858,22 +858,22 @@ function renderCategoryList() {
   document.getElementById('cat-list').innerHTML = cats.map((c, i) => `
     <div class="cat-item" id="cat-item-${i}">
       <input type="text" value="${esc(c)}" data-original="${esc(c)}"
-        onblur="renameCategory(this, '${esc(c)}')"
+        onblur="renameCategory(this, ${i})"
         onkeydown="if(event.key==='Enter')this.blur()">
       <button class="btn btn-danger btn-sm" onclick="deleteCategory('${esc(c)}')"
         ${isLast ? 'disabled title="É necessário manter ao menos uma categoria."' : ''}>
         Excluir
       </button>
     </div>
-    <div class="cat-item-error" id="cat-err-${esc(c)}" style="display:none;color:var(--red);font-size:0.75rem"></div>
+    <div class="cat-item-error" id="cat-err-${i}" style="display:none;color:var(--red);font-size:0.75rem"></div>
   `).join('');
   document.getElementById('cat-new-input').value = '';
 }
 
-function renameCategory(input, oldName) {
+function renameCategory(input, idx) {
+  const oldName = input.dataset.original;
   const newName = input.value.trim();
-  const errId = `cat-err-${oldName}`;
-  const errEl = document.getElementById(errId);
+  const errEl = document.getElementById(`cat-err-${idx}`);
 
   if (!newName) { input.value = oldName; return; }
   if (newName === oldName) return;
@@ -910,6 +910,7 @@ function addCategory() {
 }
 
 function deleteCategory(name) {
+  if (getCategorias().length <= 1) return;
   const materiais = getMateriais();
   const count = materiais.filter(m => m.categoria === name).length;
 
@@ -917,6 +918,9 @@ function deleteCategory(name) {
 
   const cats = getCategorias().filter(c => c !== name);
   saveCategorias(cats);
+  if (count > 0) {
+    saveMateriais(materiais.map(m => m.categoria === name ? { ...m, categoria: '' } : m));
+  }
   renderCategoryList();
 }
 function setPeriod(p) {
