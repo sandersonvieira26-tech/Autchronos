@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESVJ Engenharia — Gestão de Estoque</title>
+  <title>Autchronos — Gestão de Estoque</title>
   <style>
 /* === RESET & BASE === */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,6 +17,7 @@ input, select, textarea { font-family: inherit; }
   --orange-dark: #ea580c;
   --gray-900: #111827;
   --gray-800: #1f2937;
+  --gray-700: #374151;
   --gray-600: #6b7280;
   --gray-200: #e5e7eb;
   --gray-100: #f3f4f6;
@@ -150,6 +151,9 @@ input, select, textarea { font-family: inherit; }
 .table-wrapper { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th { background: var(--gray-100); padding: 0.75rem 1rem; text-align: left; font-size: 0.8125rem; font-weight: 600; color: var(--gray-600); white-space: nowrap; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { background: var(--gray-200); color: var(--gray-900); }
+th.sort-active { color: var(--orange); }
 td { padding: 0.75rem 1rem; font-size: 0.875rem; color: var(--gray-900); border-top: 1px solid var(--gray-200); }
 tr:hover td { background: var(--gray-50); }
 .empty-row td { text-align: center; color: var(--gray-600); padding: 2rem; }
@@ -161,6 +165,7 @@ tr:hover td { background: var(--gray-50); }
 .badge-critico { background: var(--red-50); color: var(--red); }
 .badge-entrada { background: #fff7ed; color: var(--orange); }
 .badge-saida { background: var(--gray-100); color: var(--gray-600); }
+.badge-ajuste { background: #ede9fe; color: #7c3aed; }
 
 /* === MODAL === */
 .modal-overlay {
@@ -186,6 +191,18 @@ tr:hover td { background: var(--gray-50); }
 .modal-close { background: none; border: none; font-size: 1.25rem; color: var(--gray-600); cursor: pointer; line-height: 1; }
 .modal-close:hover { color: var(--gray-900); }
 .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+
+/* === MOVIMENTO MODAL === */
+.mov-tipo-group { display: flex; gap: 0.75rem; margin-bottom: 0; }
+.mov-tipo-label {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.625rem; border: 2px solid var(--gray-200); border-radius: var(--radius);
+  font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.mov-tipo-label:has(input:checked) { border-color: var(--orange); background: #fff7ed; }
+.mov-tipo-label input { display: none; }
+.mov-estoque-atual { font-size: 0.8125rem; color: var(--gray-600); margin-bottom: 1rem; }
+.mov-estoque-atual strong { color: var(--gray-900); }
 
 /* === CATEGORY MODAL === */
 .cat-list { display: flex; flex-direction: column; gap: 0.625rem; margin-bottom: 1rem; }
@@ -224,6 +241,78 @@ tr:hover td { background: var(--gray-50); }
   .table-toolbar .search-input, .table-toolbar select { width: 100%; }
   .period-filter { flex-wrap: wrap; }
   .header-right .user-name { display: none; }
+}
+
+/* === DATE RANGE === */
+.date-range-row { display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.date-range-row.visible { display: flex; }
+.date-range-row input[type="date"] { padding: 0.375rem 0.5rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; color: var(--gray-900); }
+.date-range-row input[type="date"]:focus { outline: none; border-color: var(--orange); }
+.date-range-row span { font-size: 0.875rem; color: var(--gray-600); }
+
+/* === ALERTAS === */
+.alertas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.75rem; margin-bottom: 2rem; }
+.alerta-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.25rem; border-left: 4px solid var(--amber); }
+.alerta-card.critico { border-left-color: var(--red); }
+.alerta-nome { font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.25rem; color: var(--gray-900); }
+.alerta-detalhe { font-size: 0.8125rem; color: var(--gray-600); margin-bottom: 0.375rem; }
+.alertas-title { font-size: 1.125rem; font-weight: 600; color: var(--gray-900); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+
+/* === MOV TOOLBAR === */
+.mov-toolbar { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--gray-200); flex-wrap: wrap; }
+.mov-toolbar .search-input { flex: 1; min-width: 140px; }
+.mov-toolbar select { padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; background: var(--white); }
+
+/* === CHART SUMMARY === */
+.chart-summary { display: flex; gap: 2rem; padding: 0.625rem 1.25rem; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); font-size: 0.875rem; flex-wrap: wrap; }
+.chart-summary-entrada { color: var(--orange); font-weight: 700; }
+.chart-summary-saida { color: var(--gray-700); font-weight: 700; }
+
+/* === LOADING SCREEN === */
+#screen-loading {
+  position: fixed;
+  inset: 0;
+  background: var(--gray-800);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  z-index: 999;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+#screen-loading.fade-out { opacity: 0; pointer-events: none; }
+.loading-logo { animation: pulse-logo 1.2s ease-in-out infinite; }
+@keyframes pulse-logo {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.97); }
+}
+.loading-bar-track {
+  width: 180px;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.loading-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--orange);
+  border-radius: 2px;
+  animation: bar-fill 1.4s ease forwards;
+}
+@keyframes bar-fill {
+  0%   { width: 0%; }
+  60%  { width: 80%; }
+  100% { width: 100%; }
+}
+.loading-label {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: -1rem;
 }
   </style>
 </head>
@@ -279,11 +368,121 @@ tr:hover td { background: var(--gray-50); }
             <input type="text" id="m-valor" placeholder="0,00">
             <div class="form-error" id="err-m-valor"></div>
           </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label for="m-local">Localização <span style="font-weight:400;color:var(--gray-600)">(opcional)</span></label>
+            <input type="text" id="m-local" placeholder="Ex: Depósito A, Prateleira 3, Obra SP..." maxlength="80">
+          </div>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeMaterialModal()">Cancelar</button>
         <button class="btn btn-primary" style="width:auto" onclick="saveMaterial()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Gerenciar Usuários -->
+  <div id="modal-usuarios" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:620px">
+      <div class="modal-header">
+        <h2>Gerenciar Usuários</h2>
+        <button class="modal-close" onclick="closeUsuariosModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:0">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Nome</th><th>Usuário</th><th>Papel</th><th>Ações</th></tr></thead>
+            <tbody id="usuarios-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeUsuariosModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Ajuste de Estoque -->
+  <div id="modal-ajuste" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:400px">
+      <div class="modal-header">
+        <h2>Ajuste de Estoque</h2>
+        <button class="modal-close" onclick="closeAjusteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="ajuste-material-nome" style="font-size:1rem;font-weight:600;color:var(--gray-900);margin-bottom:0.25rem"></div>
+        <div style="font-size:0.8125rem;color:var(--gray-600);margin-bottom:1rem">Estoque atual: <strong id="ajuste-estoque-atual">—</strong></div>
+        <div class="form-group">
+          <label for="ajuste-qtd">Nova quantidade real *</label>
+          <input type="text" id="ajuste-qtd" placeholder="Quantidade contada fisicamente" autocomplete="off">
+          <div class="form-error" id="err-ajuste-qtd"></div>
+        </div>
+        <p style="font-size:0.8125rem;color:var(--gray-600);margin-top:-0.5rem">A diferença será registrada como movimentação de ajuste.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAjusteModal()">Cancelar</button>
+        <button class="btn btn-primary" style="width:auto" onclick="saveAjuste()">Aplicar Ajuste</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Histórico do Material -->
+  <div id="modal-historico" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:680px">
+      <div class="modal-header">
+        <h2 id="modal-historico-title">Histórico</h2>
+        <button class="modal-close" onclick="closeHistoricoModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:0">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Data/Hora</th><th>Tipo</th><th>Quantidade</th><th>Registrado por</th><th>Observação</th></tr>
+            </thead>
+            <tbody id="historico-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeHistoricoModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Movimentação -->
+  <div id="modal-movimento" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:400px">
+      <div class="modal-header">
+        <h2 id="modal-mov-title">Registrar Movimentação</h2>
+        <button class="modal-close" onclick="closeMovimentoModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="mov-material-nome" style="font-size:1rem;font-weight:600;color:var(--gray-900);margin-bottom:0.375rem"></div>
+        <div class="mov-estoque-atual">Estoque atual: <strong id="mov-estoque-valor">—</strong></div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <div class="mov-tipo-group">
+            <label class="mov-tipo-label">
+              <input type="radio" name="mov-tipo" value="entrada"> + Entrada
+            </label>
+            <label class="mov-tipo-label">
+              <input type="radio" name="mov-tipo" value="saída"> − Saída
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="mov-qtd">Quantidade *</label>
+          <input type="text" id="mov-qtd" placeholder="0" autocomplete="off">
+          <div class="form-error" id="err-mov-qtd"></div>
+        </div>
+        <div class="form-group">
+          <label for="mov-observacao">Observação <span style="font-weight:400;color:var(--gray-600)">(opcional)</span></label>
+          <input type="text" id="mov-observacao" placeholder="Ex: Obra João Pessoa, devolvido, avaria..." maxlength="120" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeMovimentoModal()">Cancelar</button>
+        <button class="btn btn-primary" style="width:auto" onclick="saveMovimento()">Registrar</button>
       </div>
     </div>
   </div>
@@ -411,7 +610,7 @@ function guardAdmin() {
   return !!(currentSession && currentSession.papel === 'admin');
 }
 
-function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor) {
+function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor, observacao = '') {
   const diff = qtdNova - qtdAnterior;
   if (diff === 0) return;
   const movs = getMovimentacoes();
@@ -422,7 +621,8 @@ function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registr
     tipo: diff > 0 ? 'entrada' : 'saída',
     quantidade: Math.abs(diff),
     data: new Date().toISOString(),
-    registradoPor
+    registradoPor,
+    observacao
   });
   saveMovimentacoes(movs);
 }
@@ -436,9 +636,25 @@ function showScreen(name) {
 
 // === LOGO SVG ===
 function logoSVG(size = 32) {
-  return `<svg width="${size * 4}" height="${size}" viewBox="0 0 128 32" xmlns="http://www.w3.org/2000/svg">
-    <text x="0" y="26" font-family="Arial Black, sans-serif" font-weight="900" font-size="28" fill="#f97316">ESVJ</text>
-    <text x="72" y="24" font-family="Arial, sans-serif" font-weight="400" font-size="14" fill="#9ca3af">Engenharia</text>
+  const scale = size / 34;
+  const w = Math.round(240 * scale);
+  return `<svg width="${w}" height="${size}" viewBox="0 0 240 34" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="#f97316" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="5" width="26" height="23" rx="3"/>
+      <line x1="16" y1="5" x2="16" y2="2"/>
+      <circle cx="16" cy="1" r="1.5" fill="#f97316"/>
+      <rect x="5" y="10" width="7" height="6" rx="1"/>
+      <circle cx="8.5" cy="13" r="1" fill="#f97316"/>
+      <rect x="20" y="10" width="7" height="6" rx="1"/>
+      <circle cx="23.5" cy="13" r="1" fill="#f97316"/>
+      <rect x="6" y="21" width="20" height="4" rx="1"/>
+      <line x1="11" y1="21" x2="11" y2="25"/>
+      <line x1="16" y1="21" x2="16" y2="25"/>
+      <line x1="21" y1="21" x2="21" y2="25"/>
+      <line x1="3" y1="16" x2="1" y2="16"/>
+      <line x1="29" y1="16" x2="31" y2="16"/>
+    </g>
+    <text x="40" y="27" font-family="Arial Black, sans-serif" font-weight="900" font-size="26" fill="#f97316">AUTCHRONOS</text>
   </svg>`;
 }
 
@@ -540,9 +756,7 @@ function doRegister() {
 
   const session = { usuarioId: newUser.id, usuario: newUser.usuario, nomeCompleto: newUser.nomeCompleto, papel: 'viewer' };
   saveSession(session, false);
-  renderDashboard(session);
-  showScreen('dashboard');
-  refreshAllSections();
+  showLoadingScreen(session);
 }
 
 // === LOGIN SCREEN ===
@@ -593,14 +807,17 @@ function doLogin() {
 
   const session = { usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel };
   saveSession(session, lembrar);
-  renderDashboard(session);
-  showScreen('dashboard');
-  refreshAllSections();
+  showLoadingScreen(session);
 }
 
 // === DASHBOARD ===
 let currentSession = null;
 let currentPeriod = 'hoje';
+let currentMovCategory = '';
+let currentMovSearch = '';
+let currentMovTipo = '';
+let currentCustomStart = '';
+let currentCustomEnd = '';
 
 function renderDashboard(session) {
   currentSession = session;
@@ -614,11 +831,17 @@ function renderDashboard(session) {
           <div class="avatar">${esc(getInitials(session.nomeCompleto))}</div>
           <span class="user-name">${esc(session.nomeCompleto)}</span>
         </div>
+        ${isAdmin ? `
+        <button class="btn-logout" onclick="openUsuariosModal()">Usuários</button>
+        <button class="btn-logout" onclick="exportBackup()">Backup</button>
+        <label class="btn-logout" style="cursor:pointer">Restaurar<input type="file" accept=".json" style="display:none" onchange="importBackup(this)"></label>
+        ` : ''}
         <button class="btn-logout" onclick="doLogout()">Sair</button>
       </div>
     </header>
     <div class="dashboard-body">
       <div id="cards-grid" class="cards-grid"></div>
+      <div id="alertas-section"></div>
       <div class="table-section">
         <div class="table-toolbar">
           <input class="search-input" type="text" id="filter-nome" placeholder="Buscar por nome..." oninput="renderMaterialsTable()">
@@ -643,7 +866,7 @@ function renderDashboard(session) {
               <tr>
                 <th>ID</th><th>Nome</th><th>Categoria</th>
                 <th>Quantidade</th><th>Unidade</th><th>Est. Mínimo</th>
-                <th>Status</th>${isAdmin ? '<th>Ações</th>' : ''}
+                <th>Status</th><th>Ações</th>
               </tr>
             </thead>
             <tbody id="materials-tbody"></tbody>
@@ -653,14 +876,38 @@ function renderDashboard(session) {
       <div class="movements-section">
         <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--gray-200)">
           <div class="section-title" style="margin-bottom:0.75rem">Movimentações de Estoque</div>
-          <div class="period-filter">
-            <button class="period-btn active" id="btn-hoje" onclick="setPeriod('hoje')">Hoje</button>
-            <button class="period-btn" id="btn-7d" onclick="setPeriod('7d')">7 dias</button>
-            <button class="period-btn" id="btn-14d" onclick="setPeriod('14d')">14 dias</button>
-            <button class="period-btn" id="btn-30d" onclick="setPeriod('30d')">30 dias</button>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+              <div class="period-filter" style="padding:0;border:none;margin:0">
+                <button class="period-btn active" id="btn-hoje" onclick="setPeriod('hoje')">Hoje</button>
+                <button class="period-btn" id="btn-7d" onclick="setPeriod('7d')">7 dias</button>
+                <button class="period-btn" id="btn-14d" onclick="setPeriod('14d')">14 dias</button>
+                <button class="period-btn" id="btn-30d" onclick="setPeriod('30d')">30 dias</button>
+                <button class="period-btn" id="btn-custom" onclick="setPeriod('custom')">Personalizado</button>
+              </div>
+              <select id="mov-cat-filter" onchange="setMovCategory(this.value)"
+                style="padding:0.375rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white);color:var(--gray-700)">
+                <option value="">Todas as categorias</option>
+              </select>
+            </div>
+            <div class="date-range-row" id="custom-date-range">
+              <input type="date" id="custom-start" onchange="applyCustomPeriod()">
+              <span>até</span>
+              <input type="date" id="custom-end" onchange="applyCustomPeriod()">
+            </div>
           </div>
         </div>
         <div class="chart-container" id="chart-container"></div>
+        <div class="chart-summary" id="chart-summary"></div>
+        <div class="mov-toolbar">
+          <input class="search-input" type="text" id="mov-search" placeholder="Buscar por material..." oninput="setMovSearch(this.value)">
+          <select id="mov-tipo-filter" onchange="setMovTipo(this.value)">
+            <option value="">Entradas e Saídas</option>
+            <option value="entrada">Só Entradas</option>
+            <option value="saída">Só Saídas</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="exportCSV()">&#8595; Exportar CSV</button>
+        </div>
         <div class="table-wrapper">
           <table>
             <thead>
@@ -680,12 +927,18 @@ function doLogout() {
   clearSession();
   currentSession = null;
   currentPeriod = 'hoje';
+  currentMovCategory = '';
+  currentMovSearch = '';
+  currentMovTipo = '';
+  currentCustomStart = '';
+  currentCustomEnd = '';
   renderLogin();
   showScreen('login');
 }
 
 function refreshAllSections() {
   renderCards();
+  renderAlertas();
   renderMaterialsTable();
   renderMovements();
 }
@@ -755,10 +1008,9 @@ function renderMaterialsTable() {
   });
 
   const tbody = document.getElementById('materials-tbody');
-  const colSpan = isAdmin ? 8 : 7;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">Nenhum material encontrado.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Nenhum material encontrado.</td></tr>`;
     return;
   }
 
@@ -767,24 +1019,97 @@ function renderMaterialsTable() {
     const badgeClass = { OK: 'badge-ok', Baixo: 'badge-baixo', Crítico: 'badge-critico' }[status];
     return `<tr>
       <td>${m.id}</td>
-      <td>${esc(m.nome)}</td>
+      <td>
+        ${esc(m.nome)}
+        ${m.localizacao ? `<div style="font-size:0.75rem;color:var(--gray-600);margin-top:0.125rem">${esc(m.localizacao)}</div>` : ''}
+      </td>
       <td>${esc(m.categoria)}</td>
       <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
       <td>${esc(m.unidade)}</td>
       <td>${m.estoqueMinimo % 1 === 0 ? m.estoqueMinimo : m.estoqueMinimo.toFixed(2)}</td>
       <td><span class="badge ${badgeClass}">${status}</span></td>
-      ${isAdmin ? `<td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'entrada')">+ Entrada</button>
+        <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'saída')">− Saída</button>
+        <button class="btn btn-secondary btn-sm" onclick="openHistoricoModal(${m.id})">Histórico</button>
+        ${isAdmin ? `
+        <button class="btn btn-secondary btn-sm" onclick="openAjusteModal(${m.id})">Ajustar</button>
         <button class="btn btn-secondary btn-sm" onclick="openMaterialModal(${m.id})">Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMaterial(${m.id})">Excluir</button>
-      </td>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="deleteMaterial(${m.id})">Excluir</button>` : ''}
+      </td>
     </tr>`;
   }).join('');
 }
+// === MOVIMENTAÇÃO ===
+let movimentoMaterialId = null;
+
+function openMovimentoModal(id, tipo = 'entrada') {
+  movimentoMaterialId = id;
+  const material = getMateriais().find(m => m.id === id);
+  if (!material) return;
+
+  document.getElementById('modal-mov-title').textContent =
+    tipo === 'entrada' ? 'Registrar Entrada' : 'Registrar Saída';
+  document.getElementById('mov-material-nome').textContent = material.nome;
+  const qtdAtual = material.quantidade % 1 === 0 ? material.quantidade : material.quantidade.toFixed(2);
+  document.getElementById('mov-estoque-valor').textContent = `${qtdAtual} ${esc(material.unidade)}`;
+  document.querySelector(`input[name="mov-tipo"][value="${tipo}"]`).checked = true;
+  document.getElementById('mov-qtd').value = '';
+  clearFieldError('err-mov-qtd');
+
+  document.getElementById('modal-movimento').style.display = 'flex';
+  setTimeout(() => document.getElementById('mov-qtd').focus(), 50);
+}
+
+function closeMovimentoModal() {
+  document.getElementById('modal-movimento').style.display = 'none';
+  movimentoMaterialId = null;
+}
+
+function saveMovimento() {
+  const tipo = document.querySelector('input[name="mov-tipo"]:checked').value;
+  const qtdRaw = document.getElementById('mov-qtd').value;
+  clearFieldError('err-mov-qtd');
+
+  const qtd = parseDecimal(qtdRaw);
+  if (!qtdRaw.trim() || isNaN(qtd) || qtd <= 0) {
+    showFieldError('err-mov-qtd', 'Informe uma quantidade válida maior que zero.');
+    return;
+  }
+
+  const materiais = getMateriais();
+  const idx = materiais.findIndex(m => m.id === movimentoMaterialId);
+  if (idx === -1) return;
+
+  const material = materiais[idx];
+  const novaQtd = tipo === 'entrada' ? material.quantidade + qtd : material.quantidade - qtd;
+
+  if (novaQtd < 0) {
+    const atual = material.quantidade % 1 === 0 ? material.quantidade : material.quantidade.toFixed(2);
+    showFieldError('err-mov-qtd', `Estoque insuficiente. Disponível: ${atual} ${material.unidade}.`);
+    return;
+  }
+
+  const observacao = (document.getElementById('mov-observacao')?.value || '').trim();
+  recordMovimento(material.id, material.nome, material.quantidade, novaQtd, currentSession.usuario, observacao);
+  materiais[idx] = { ...material, quantidade: novaQtd };
+  saveMateriais(materiais);
+  closeMovimentoModal();
+  refreshAllSections();
+}
+
 function getFilterWindow(period) {
   const now = new Date();
   if (period === 'hoje') {
     const start = new Date(now); start.setHours(0, 0, 0, 0);
     const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  if (period === 'custom') {
+    const sv = document.getElementById('custom-start')?.value;
+    const ev = document.getElementById('custom-end')?.value;
+    const start = sv ? new Date(sv + 'T00:00:00') : new Date(0);
+    const end   = ev ? new Date(ev + 'T23:59:59.999') : now;
     return { start, end };
   }
   const days = { '7d': 7, '14d': 14, '30d': 30 }[period];
@@ -794,16 +1119,46 @@ function getFilterWindow(period) {
 }
 
 function renderMovements() {
+  updateMovCatFilter();
+
   const allMovs = getMovimentacoes();
+  const catMap = {};
+  getMateriais().forEach(m => { catMap[m.id] = m.categoria; });
+
+  const movsByCat = currentMovCategory
+    ? allMovs.filter(m => catMap[m.materialId] === currentMovCategory)
+    : allMovs;
+
   const { start, end } = getFilterWindow(currentPeriod);
-  const movs = allMovs
-    .filter(m => { const d = new Date(m.data); return d >= start && d <= end; })
-    .sort((a, b) => new Date(b.data) - new Date(a.data));
+  let movs = movsByCat.filter(m => { const d = new Date(m.data); return d >= start && d <= end; });
+
+  // Totalizador (antes dos filtros de busca/tipo)
+  const matValMap = {};
+  getMateriais().forEach(m => { matValMap[m.id] = m.valorUnitario || 0; });
+  const movsEnt = movs.filter(m => m.tipo === 'entrada');
+  const movsSai = movs.filter(m => m.tipo === 'saída');
+  const totEntradas = movsEnt.reduce((s, m) => s + m.quantidade, 0);
+  const totSaidas   = movsSai.reduce((s, m) => s + m.quantidade, 0);
+  const totValEnt   = movsEnt.reduce((s, m) => s + m.quantidade * (matValMap[m.materialId] || 0), 0);
+  const totValSai   = movsSai.reduce((s, m) => s + m.quantidade * (matValMap[m.materialId] || 0), 0);
+  const saldo = totEntradas - totSaidas;
+  const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
+  const summaryEl = document.getElementById('chart-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = movs.length === 0 ? '' :
+      `<span>Entradas: <span class="chart-summary-entrada">${fmt(totEntradas)}</span>${totValEnt > 0 ? ` <span style="font-size:0.8125rem;color:var(--gray-600)">(${formatBRL(totValEnt)})</span>` : ''}</span>
+       <span>Saídas: <span class="chart-summary-saida">${fmt(totSaidas)}</span>${totValSai > 0 ? ` <span style="font-size:0.8125rem;color:var(--gray-600)">(${formatBRL(totValSai)})</span>` : ''}</span>
+       <span>Saldo: <strong style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(saldo)}</strong></span>`;
+  }
 
   // Chart
-  renderChart(document.getElementById('chart-container'), allMovs, currentPeriod);
+  renderChart(document.getElementById('chart-container'), movsByCat, currentPeriod);
 
-  // History table
+  // Filtros de busca e tipo
+  if (currentMovSearch) movs = movs.filter(m => m.materialNome.toLowerCase().includes(currentMovSearch));
+  if (currentMovTipo)   movs = movs.filter(m => m.tipo === currentMovTipo);
+  movs = movs.sort((a, b) => new Date(b.data) - new Date(a.data));
+
   const tbody = document.getElementById('movements-tbody');
   if (movs.length === 0) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>';
@@ -813,13 +1168,16 @@ function renderMovements() {
   tbody.innerHTML = movs.map(m => {
     const d = new Date(m.data);
     const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const badgeClass = m.tipo === 'entrada' ? 'badge-entrada' : 'badge-saida';
-    const label = m.tipo === 'entrada' ? 'Entrada' : 'Saída';
+    const tipoInfo = { entrada:['badge-entrada','Entrada'], saída:['badge-saida','Saída'], ajuste:['badge-ajuste','Ajuste'] };
+    const [badgeClass, label] = tipoInfo[m.tipo] || ['badge-saida', m.tipo];
     return `<tr>
       <td>${dateStr}</td>
-      <td>${esc(m.materialNome)}</td>
+      <td>
+        ${esc(m.materialNome)}
+        ${m.observacao ? `<div style="font-size:0.75rem;color:var(--gray-600);font-style:italic;margin-top:0.125rem">${esc(m.observacao)}</div>` : ''}
+      </td>
       <td><span class="badge ${badgeClass}">${label}</span></td>
-      <td>${m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2)}</td>
+      <td>${fmt(m.quantidade)}</td>
       <td>${esc(m.registradoPor)}</td>
     </tr>`;
   }).join('');
@@ -844,6 +1202,31 @@ function getBuckets(period) {
       const start = new Date(d); start.setHours(0, 0, 0, 0);
       const end = new Date(d); end.setHours(23, 59, 59, 999);
       buckets.push({ label: fmtDay(d), start, end });
+    }
+  } else if (period === 'custom') {
+    const { start: cs, end: ce } = getFilterWindow('custom');
+    const diffDays = Math.max(1, Math.ceil((ce - cs) / 86400000));
+    if (diffDays <= 1) {
+      for (let h = 0; h < 24; h++) {
+        const s = new Date(cs); s.setHours(h, 0, 0, 0);
+        const e = new Date(cs); e.setHours(h, 59, 59, 999);
+        buckets.push({ label: `${pad2(h)}h`, start: s, end: e });
+      }
+    } else if (diffDays <= 31) {
+      for (let i = 0; i < diffDays; i++) {
+        const d = new Date(cs.getTime() + i * 86400000);
+        const s = new Date(d); s.setHours(0, 0, 0, 0);
+        const e = new Date(d); e.setHours(23, 59, 59, 999);
+        buckets.push({ label: fmtDay(d), start: s, end: e });
+      }
+    } else {
+      const weeks = Math.ceil(diffDays / 7);
+      for (let i = 0; i < weeks; i++) {
+        const s = new Date(cs.getTime() + i * 7 * 86400000); s.setHours(0, 0, 0, 0);
+        const eMs = Math.min(cs.getTime() + (i + 1) * 7 * 86400000 - 1, ce.getTime());
+        const e = new Date(eMs); e.setHours(23, 59, 59, 999);
+        buckets.push({ label: `${fmtDay(s)}–${fmtDay(e)}`, start: s, end: e });
+      }
     }
   } else { // 30d — 5 blocks of 6 days, oldest first
     for (let i = 4; i >= 0; i--) {
@@ -957,6 +1340,7 @@ function openMaterialModal(id = null) {
   document.getElementById('m-qtd').value = material ? material.quantidade : '';
   document.getElementById('m-min').value = material ? material.estoqueMinimo : '';
   document.getElementById('m-valor').value = material ? material.valorUnitario.toFixed(2).replace('.', ',') : '';
+  document.getElementById('m-local').value = material ? (material.localizacao || '') : '';
 
   // Clear errors
   ['err-m-nome','err-m-cat','err-m-unidade','err-m-qtd','err-m-min'].forEach(clearFieldError);
@@ -1032,10 +1416,12 @@ function saveMaterial() {
       return;
     }
     const old = materiais[idx];
+    const localizacao = document.getElementById('m-local').value.trim();
     recordMovimento(old.id, old.nome, old.quantidade, qtd, currentSession.usuario);
-    materiais[idx] = { ...old, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor };
+    materiais[idx] = { ...old, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor, localizacao };
   } else {
-    materiais.push({ id: nextMaterialId(), nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor });
+    const localizacao = document.getElementById('m-local').value.trim();
+    materiais.push({ id: nextMaterialId(), nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor, localizacao });
   }
   saveMateriais(materiais);
   closeMaterialModal();
@@ -1138,8 +1524,291 @@ function deleteCategoryByIndex(idx) {
 
 function setPeriod(p) {
   currentPeriod = p;
-  ['hoje','7d','14d','30d'].forEach(k => document.getElementById('btn-'+k).classList.toggle('active', k===p));
+  ['hoje','7d','14d','30d','custom'].forEach(k => {
+    const btn = document.getElementById('btn-' + k);
+    if (btn) btn.classList.toggle('active', k === p);
+  });
+  const dr = document.getElementById('custom-date-range');
+  if (dr) dr.classList.toggle('visible', p === 'custom');
+  if (p !== 'custom') renderMovements();
+}
+
+function applyCustomPeriod() {
   renderMovements();
+}
+
+function setMovCategory(cat) {
+  currentMovCategory = cat;
+  renderMovements();
+}
+
+function setMovSearch(val) {
+  currentMovSearch = val.toLowerCase();
+  renderMovements();
+}
+
+function setMovTipo(val) {
+  currentMovTipo = val;
+  renderMovements();
+}
+
+// === ALERTAS ===
+function renderAlertas() {
+  const el = document.getElementById('alertas-section');
+  if (!el) return;
+  const alertas = getMateriais()
+    .filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK')
+    .sort((a, b) => {
+      const ord = { 'Crítico': 0, 'Baixo': 1 };
+      return ord[calcStatus(a.quantidade, a.estoqueMinimo)] - ord[calcStatus(b.quantidade, b.estoqueMinimo)];
+    });
+  if (alertas.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="alertas-title">&#9888; Alertas de Estoque <span style="font-size:0.875rem;font-weight:400;color:var(--gray-600)">(${alertas.length} item${alertas.length > 1 ? 's' : ''})</span></div>
+    <div class="alertas-grid">
+      ${alertas.map(m => {
+        const status = calcStatus(m.quantidade, m.estoqueMinimo);
+        const fmt = v => v % 1 === 0 ? v : v.toFixed(2);
+        return `<div class="alerta-card ${status === 'Crítico' ? 'critico' : ''}">
+          <div class="alerta-nome">${esc(m.nome)}</div>
+          <div class="alerta-detalhe">Estoque: <strong>${fmt(m.quantidade)} ${esc(m.unidade)}</strong> &nbsp;|&nbsp; Mín: <strong>${fmt(m.estoqueMinimo)}</strong></div>
+          <span class="badge ${status === 'Crítico' ? 'badge-critico' : 'badge-baixo'}">${status}</span>
+          <span style="font-size:0.8125rem;color:var(--gray-600);margin-left:0.375rem">${esc(m.categoria)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// === HISTÓRICO POR MATERIAL ===
+function openHistoricoModal(id) {
+  const material = getMateriais().find(m => m.id === id);
+  document.getElementById('modal-historico-title').textContent =
+    `Histórico — ${material ? esc(material.nome) : '#' + id}`;
+  const movs = getMovimentacoes()
+    .filter(m => m.materialId === id)
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+  const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
+  const tbody = document.getElementById('historico-tbody');
+  tbody.innerHTML = movs.length === 0
+    ? '<tr class="empty-row"><td colspan="5">Nenhuma movimentação registrada.</td></tr>'
+    : movs.map(m => {
+        const d = new Date(m.data);
+        const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const tipoInfo = { entrada:['badge-entrada','Entrada'], saída:['badge-saida','Saída'], ajuste:['badge-ajuste','Ajuste'] };
+        const [badgeClass, label] = tipoInfo[m.tipo] || ['badge-saida', m.tipo];
+        return `<tr>
+          <td>${dateStr}</td>
+          <td><span class="badge ${badgeClass}">${label}</span></td>
+          <td>${fmt(m.quantidade)}</td>
+          <td>${esc(m.registradoPor)}</td>
+          <td style="color:var(--gray-600);font-style:italic;font-size:0.8125rem">${m.observacao ? esc(m.observacao) : '—'}</td>
+        </tr>`;
+      }).join('');
+  document.getElementById('modal-historico').style.display = 'flex';
+}
+
+function closeHistoricoModal() {
+  document.getElementById('modal-historico').style.display = 'none';
+}
+
+// === EXPORTAR CSV ===
+function exportCSV() {
+  const catMap = {};
+  getMateriais().forEach(m => { catMap[m.id] = m.categoria; });
+  const allMovs = getMovimentacoes();
+  const movsByCat = currentMovCategory
+    ? allMovs.filter(m => catMap[m.materialId] === currentMovCategory)
+    : allMovs;
+  const { start, end } = getFilterWindow(currentPeriod);
+  let movs = movsByCat.filter(m => { const d = new Date(m.data); return d >= start && d <= end; });
+  if (currentMovSearch) movs = movs.filter(m => m.materialNome.toLowerCase().includes(currentMovSearch));
+  if (currentMovTipo)   movs = movs.filter(m => m.tipo === currentMovTipo);
+  movs = movs.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  const header = ['Data/Hora', 'Material', 'Categoria', 'Tipo', 'Quantidade', 'Registrado por', 'Observação'];
+  const rows = movs.map(m => {
+    const d = new Date(m.data);
+    const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return [dateStr, m.materialNome, catMap[m.materialId] || '—', m.tipo, m.quantidade, m.registradoPor, m.observacao || '']
+      .map(v => `"${String(v).replace(/"/g, '""')}"`)
+      .join(',');
+  });
+
+  const csv = '﻿' + [header.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `movimentacoes_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function updateMovCatFilter() {
+  const sel = document.getElementById('mov-cat-filter');
+  if (!sel) return;
+  const cats = getCategorias().slice().sort();
+  sel.innerHTML = '<option value="">Todas as categorias</option>' +
+    cats.map(c => `<option value="${esc(c)}" ${c === currentMovCategory ? 'selected' : ''}>${esc(c)}</option>`).join('');
+}
+
+// === GERENCIAR USUÁRIOS ===
+function openUsuariosModal() {
+  if (!guardAdmin()) return;
+  document.getElementById('modal-usuarios').style.display = 'flex';
+  renderUserList();
+}
+function closeUsuariosModal() {
+  document.getElementById('modal-usuarios').style.display = 'none';
+}
+function renderUserList() {
+  const users = getUsuarios();
+  document.getElementById('usuarios-tbody').innerHTML = users.map(u => {
+    const isSelf = u.id === currentSession.usuarioId;
+    const isAdmin = u.papel === 'admin';
+    const roleCls = isAdmin ? 'badge-entrada' : 'badge-saida';
+    const roleLabel = isAdmin ? 'Admin' : 'Viewer';
+    return `<tr>
+      <td>${esc(u.nomeCompleto)}</td>
+      <td>${esc(u.usuario)}</td>
+      <td><span class="badge ${roleCls}">${roleLabel}</span></td>
+      <td>${isSelf
+        ? `<span style="font-size:0.8125rem;color:var(--gray-600)">Você</span>`
+        : `<button class="btn btn-secondary btn-sm" onclick="changeUserRole(${u.id})">${isAdmin ? 'Tornar Viewer' : 'Tornar Admin'}</button>
+           <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Remover</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+function changeUserRole(id) {
+  const users = getUsuarios();
+  const idx = users.findIndex(u => u.id === id);
+  if (idx === -1) return;
+  users[idx].papel = users[idx].papel === 'admin' ? 'viewer' : 'admin';
+  saveUsuarios(users);
+  renderUserList();
+}
+function deleteUser(id) {
+  const users = getUsuarios();
+  const user = users.find(u => u.id === id);
+  if (!user || !confirm(`Remover o usuário '${user.usuario}'? Esta ação não pode ser desfeita.`)) return;
+  saveUsuarios(users.filter(u => u.id !== id));
+  renderUserList();
+}
+
+// === BACKUP E RESTAURAÇÃO ===
+function exportBackup() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    usuarios: getUsuarios(),
+    materiais: getMateriais(),
+    categorias: getCategorias(),
+    movimentacoes: getMovimentacoes()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `autchronos_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.usuarios || !data.materiais || !data.categorias || !data.movimentacoes)
+        return alert('Arquivo inválido. Selecione um backup gerado por este sistema.');
+      if (!confirm('Restaurar backup substituirá todos os dados atuais. Continuar?')) return;
+      saveUsuarios(data.usuarios);
+      saveMateriais(data.materiais);
+      saveCategorias(data.categorias);
+      saveMovimentacoes(data.movimentacoes);
+      alert('Backup restaurado! A página será recarregada.');
+      location.reload();
+    } catch { alert('Erro ao ler o arquivo. Certifique-se de que é um arquivo de backup válido.'); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// === AJUSTE DE ESTOQUE ===
+let ajusteMaterialId = null;
+function openAjusteModal(id) {
+  if (!guardAdmin()) return;
+  ajusteMaterialId = id;
+  const material = getMateriais().find(m => m.id === id);
+  if (!material) return;
+  document.getElementById('ajuste-material-nome').textContent = material.nome;
+  const qa = material.quantidade % 1 === 0 ? material.quantidade : material.quantidade.toFixed(2);
+  document.getElementById('ajuste-estoque-atual').textContent = `${qa} ${material.unidade}`;
+  document.getElementById('ajuste-qtd').value = '';
+  clearFieldError('err-ajuste-qtd');
+  document.getElementById('modal-ajuste').style.display = 'flex';
+  setTimeout(() => document.getElementById('ajuste-qtd').focus(), 50);
+}
+function closeAjusteModal() {
+  document.getElementById('modal-ajuste').style.display = 'none';
+  ajusteMaterialId = null;
+}
+function saveAjuste() {
+  const qtdRaw = document.getElementById('ajuste-qtd').value;
+  clearFieldError('err-ajuste-qtd');
+  const qtd = parseDecimal(qtdRaw);
+  if (qtdRaw.trim() === '' || isNaN(qtd) || qtd < 0) {
+    showFieldError('err-ajuste-qtd', 'Informe uma quantidade válida (≥ 0).');
+    return;
+  }
+  const materiais = getMateriais();
+  const idx = materiais.findIndex(m => m.id === ajusteMaterialId);
+  if (idx === -1) return;
+  const material = materiais[idx];
+  if (qtd === material.quantidade) { closeAjusteModal(); return; }
+  const movs = getMovimentacoes();
+  const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
+  movs.push({
+    id: crypto.randomUUID(),
+    materialId: material.id,
+    materialNome: material.nome,
+    tipo: 'ajuste',
+    quantidade: qtd,
+    data: new Date().toISOString(),
+    registradoPor: currentSession.usuario,
+    observacao: `Ajuste: ${fmt(material.quantidade)} → ${fmt(qtd)}`
+  });
+  saveMovimentacoes(movs);
+  materiais[idx] = { ...material, quantidade: qtd };
+  saveMateriais(materiais);
+  closeAjusteModal();
+  refreshAllSections();
+}
+
+// === LOADING SCREEN ===
+function showLoadingScreen(session) {
+  const el = document.getElementById('screen-loading');
+  el.querySelector('.loading-logo').innerHTML = logoSVG(48);
+  // reset bar animation
+  const fill = el.querySelector('.loading-bar-fill');
+  fill.style.animation = 'none';
+  fill.offsetHeight; // reflow
+  fill.style.animation = '';
+
+  el.classList.remove('fade-out');
+  el.style.display = 'flex';
+
+  renderDashboard(session);
+  showScreen('dashboard');
+
+  setTimeout(() => {
+    el.classList.add('fade-out');
+    setTimeout(() => { el.style.display = 'none'; refreshAllSections(); }, 500);
+  }, 1400);
 }
 
 // === INIT ===
@@ -1147,14 +1816,19 @@ window.addEventListener('DOMContentLoaded', () => {
   initStorage();
   const session = getSession();
   if (session) {
-    renderDashboard(session);
-    showScreen('dashboard');
-    refreshAllSections();
+    showLoadingScreen(session);
   } else {
     renderLogin();
     showScreen('login');
   }
 });
   </script>
+
+  <!-- Loading Screen -->
+  <div id="screen-loading" style="display:none">
+    <div class="loading-logo"></div>
+    <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
+    <div class="loading-label">Carregando...</div>
+  </div>
 </body>
 </html>
