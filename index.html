@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Autchronos — Gestão de Estoque</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
 /* === RESET & BASE === */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -508,74 +509,65 @@ tr:hover td { background: var(--gray-50); }
   </div>
 
   <script>
-// === STORAGE KEYS ===
-const KEYS = {
-  usuarios: 'crm_usuarios',
-  sessao: 'crm_sessao',
-  sessaoTemp: 'crm_sessao_temp',
-  materiais: 'crm_materiais',
-  categorias: 'crm_categorias',
-  movimentacoes: 'crm_movimentacoes'
-};
+// === SUPABASE CLIENT ===
+const _sb = window.supabase.createClient(
+  'https://qiuugdcueuflrymxfsou.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpdXVnZGN1ZXVmbHJ5bXhmc291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MjI1MjYsImV4cCI6MjA5MzI5ODUyNn0.Q_DgNBT-NmBuhQLU4ZPvzAsFJemoS5CAABTxeont9rE',
+  { auth: { persistSession: true, autoRefreshToken: true } }
+);
 
-// === GETTERS / SETTERS ===
-function safeGet(storage, key, fallback) {
-  try { const v = storage.getItem(key); return v ? JSON.parse(v) : fallback; }
-  catch { return fallback; }
+// === IN-MEMORY CACHE ===
+let _materiais = [], _categorias = [], _movimentacoes = [], _profiles = [];
+
+// Supabase snake_case → camelCase
+const normMaterial = m => ({
+  id: m.id, nome: m.nome, categoria: m.categoria,
+  quantidade: +m.quantidade, unidade: m.unidade,
+  estoqueMinimo: +m.estoque_minimo, valorUnitario: +m.valor_unitario,
+  localizacao: m.localizacao || ''
+});
+const normMovimento = m => ({
+  id: m.id, materialId: m.material_id, materialNome: m.material_nome,
+  tipo: m.tipo, quantidade: +m.quantidade, data: m.data,
+  registradoPor: m.registrado_por, observacao: m.observacao || ''
+});
+const normProfile = p => ({ id: p.id, nomeCompleto: p.nome_completo, papel: p.papel });
+
+// Getters síncronos (trabalham no cache)
+const getMateriais = () => _materiais;
+const getCategorias = () => _categorias;
+const getUsuarios = () => _profiles;
+const getMovimentacoes = () => _movimentacoes;
+
+// Carrega todos os dados do Supabase para o cache
+async function loadAllData() {
+  const [mr, cr, movr, pr] = await Promise.all([
+    _sb.from('materiais').select('*').order('id'),
+    _sb.from('categorias').select('nome').order('nome'),
+    _sb.from('movimentacoes').select('*').order('data', { ascending: false }),
+    _sb.from('profiles').select('*').order('nome_completo')
+  ]);
+  _materiais    = (mr.data   || []).map(normMaterial);
+  _categorias   = (cr.data   || []).map(c => c.nome);
+  _movimentacoes = (movr.data || []).map(normMovimento);
+  _profiles     = (pr.data   || []).map(normProfile);
 }
-const getUsuarios = () => safeGet(localStorage, KEYS.usuarios, []);
-const saveUsuarios = d => localStorage.setItem(KEYS.usuarios, JSON.stringify(d));
-const getMateriais = () => safeGet(localStorage, KEYS.materiais, []);
-const saveMateriais = d => localStorage.setItem(KEYS.materiais, JSON.stringify(d));
-const getCategorias = () => safeGet(localStorage, KEYS.categorias, []);
-const saveCategorias = d => localStorage.setItem(KEYS.categorias, JSON.stringify(d));
-const getMovimentacoes = () => safeGet(localStorage, KEYS.movimentacoes, []);
-const saveMovimentacoes = d => localStorage.setItem(KEYS.movimentacoes, JSON.stringify(d));
 
 // === SESSION ===
-function getSession() {
-  return safeGet(localStorage, KEYS.sessao, null) || safeGet(sessionStorage, KEYS.sessaoTemp, null);
-}
-function saveSession(data, lembrarMe) {
-  if (lembrarMe) localStorage.setItem(KEYS.sessao, JSON.stringify(data));
-  else sessionStorage.setItem(KEYS.sessaoTemp, JSON.stringify(data));
-}
-function clearSession() {
-  localStorage.removeItem(KEYS.sessao);
-  sessionStorage.removeItem(KEYS.sessaoTemp);
-}
-
-// === ID GENERATORS (monotonically increasing counters) ===
-function nextUserId() {
-  const k = 'crm_seq_usuario';
-  const n = (parseInt(localStorage.getItem(k)) || 0) + 1;
-  localStorage.setItem(k, n);
-  return n;
-}
-function nextMaterialId() {
-  const k = 'crm_seq_material';
-  const n = (parseInt(localStorage.getItem(k)) || 0) + 1;
-  localStorage.setItem(k, n);
-  return n;
-}
-
-// === SEED ===
-function initStorage() {
-  if (!localStorage.getItem(KEYS.usuarios)) {
-    saveUsuarios([{ id: 1, nomeCompleto: 'Administrador', usuario: 'admin', senha: '1234', papel: 'admin' }]);
-  }
-  if (!localStorage.getItem(KEYS.categorias)) {
-    saveCategorias(['Elétrico', 'Hidráulico', 'Civil', 'Ferramentas', 'EPI']);
-  }
-  if (!localStorage.getItem(KEYS.materiais)) saveMateriais([]);
-  if (!localStorage.getItem(KEYS.movimentacoes)) saveMovimentacoes([]);
-  // Seed sequence counters from existing data (runs once on first launch after upgrade)
-  if (!localStorage.getItem('crm_seq_usuario')) {
-    localStorage.setItem('crm_seq_usuario', Math.max(0, ...getUsuarios().map(u => u.id).filter(Number.isFinite)));
-  }
-  if (!localStorage.getItem('crm_seq_material')) {
-    localStorage.setItem('crm_seq_material', Math.max(0, ...getMateriais().map(m => m.id).filter(Number.isFinite)));
-  }
+async function getAppSession() {
+  const { data: { session } } = await _sb.auth.getSession();
+  if (!session) return null;
+  const { data: profile } = await _sb.from('profiles')
+    .select('nome_completo, papel')
+    .eq('id', session.user.id)
+    .single();
+  if (!profile) return null;
+  return {
+    usuarioId: session.user.id,
+    email: session.user.email,
+    nomeCompleto: profile.nome_completo,
+    papel: profile.papel
+  };
 }
 
 // === HELPERS ===
@@ -610,21 +602,17 @@ function guardAdmin() {
   return !!(currentSession && currentSession.papel === 'admin');
 }
 
-function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor, observacao = '') {
+async function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor, observacao = '') {
   const diff = qtdNova - qtdAnterior;
   if (diff === 0) return;
-  const movs = getMovimentacoes();
-  movs.push({
-    id: crypto.randomUUID(),
-    materialId,
-    materialNome,
+  await _sb.from('movimentacoes').insert({
+    material_id: materialId,
+    material_nome: materialNome,
     tipo: diff > 0 ? 'entrada' : 'saída',
     quantidade: Math.abs(diff),
-    data: new Date().toISOString(),
-    registradoPor,
-    observacao
+    registrado_por: registradoPor,
+    observacao: observacao || null
   });
-  saveMovimentacoes(movs);
 }
 
 // === SCREEN ROUTER ===
@@ -658,28 +646,27 @@ function logoSVG(size = 32) {
   </svg>`;
 }
 
-const USUARIO_REGEX = /^[\p{L}0-9_-]+$/u;
-
 // === REGISTER SCREEN ===
 function renderRegister() {
-  document.getElementById('screen-register').classList.add('auth-screen');
+  document.getElementById('screen-register').className = 'auth-screen';
   document.getElementById('screen-register').innerHTML = `
     <div class="auth-card">
       <div class="auth-logo">${logoSVG(28)}</div>
       <div class="auth-title">Criar Conta</div>
+      <div class="auth-error" id="reg-error"></div>
       <div class="form-group">
         <label for="reg-nome">Nome completo</label>
-        <input type="text" id="reg-nome" placeholder="Seu nome completo">
+        <input type="text" id="reg-nome" placeholder="Seu nome completo" autocomplete="name">
         <div class="form-error" id="err-nome"></div>
       </div>
       <div class="form-group">
-        <label for="reg-usuario">Usuário</label>
-        <input type="text" id="reg-usuario" placeholder="Mínimo 3 caracteres" autocomplete="username">
-        <div class="form-error" id="err-usuario"></div>
+        <label for="reg-email">E-mail</label>
+        <input type="email" id="reg-email" autocomplete="email" placeholder="seu@email.com">
+        <div class="form-error" id="err-email"></div>
       </div>
       <div class="form-group">
         <label for="reg-senha">Senha</label>
-        <input type="password" id="reg-senha" autocomplete="new-password">
+        <input type="password" id="reg-senha" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
         <div class="form-error" id="err-senha"></div>
       </div>
       <div class="form-group">
@@ -698,90 +685,96 @@ function renderRegister() {
 
 function showFieldError(id, msg) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.textContent = msg;
   el.classList.add('visible');
 }
 function clearFieldError(id) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.textContent = '';
   el.classList.remove('visible');
 }
 
-function doRegister() {
+async function doRegister() {
   const nome = document.getElementById('reg-nome').value.trim();
-  const usuario = document.getElementById('reg-usuario').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
   const senha = document.getElementById('reg-senha').value;
   const confirma = document.getElementById('reg-confirma').value;
   let valid = true;
 
-  ['err-nome','err-usuario','err-senha','err-confirma'].forEach(clearFieldError);
+  ['err-nome', 'err-email', 'err-senha', 'err-confirma'].forEach(clearFieldError);
+  const regErr = document.getElementById('reg-error');
+  regErr.classList.remove('visible');
 
-  if (!nome) {
-    showFieldError('err-nome', 'Este campo é obrigatório.'); valid = false;
-  } else if (nome.length > 100) {
-    showFieldError('err-nome', 'Máximo de 100 caracteres.'); valid = false;
+  if (!nome) { showFieldError('err-nome', 'Este campo é obrigatório.'); valid = false; }
+  else if (nome.length > 100) { showFieldError('err-nome', 'Máximo de 100 caracteres.'); valid = false; }
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showFieldError('err-email', 'Informe um e-mail válido.'); valid = false;
   }
 
-  if (!usuario) {
-    showFieldError('err-usuario', 'Este campo é obrigatório.'); valid = false;
-  } else if (usuario.length < 3) {
-    showFieldError('err-usuario', 'Mínimo de 3 caracteres.'); valid = false;
-  } else if (usuario.length > 30) {
-    showFieldError('err-usuario', 'Máximo de 30 caracteres.'); valid = false;
-  } else if (!USUARIO_REGEX.test(usuario)) {
-    showFieldError('err-usuario', 'Use apenas letras (inclusive acentuadas), números, _ ou -.'); valid = false;
-  } else {
-    const exists = getUsuarios().some(u => u.usuario.toLowerCase() === usuario.toLowerCase());
-    if (exists) { showFieldError('err-usuario', 'Este nome de usuário já está em uso.'); valid = false; }
-  }
+  if (!senha) { showFieldError('err-senha', 'Este campo é obrigatório.'); valid = false; }
+  else if (senha.length < 6) { showFieldError('err-senha', 'Mínimo de 6 caracteres.'); valid = false; }
 
-  if (!senha) {
-    showFieldError('err-senha', 'Este campo é obrigatório.'); valid = false;
-  } else if (senha.length < 6) {
-    showFieldError('err-senha', 'Mínimo de 6 caracteres.'); valid = false;
-  }
-
-  if (!confirma) {
-    showFieldError('err-confirma', 'Este campo é obrigatório.'); valid = false;
-  } else if (confirma !== senha) {
-    showFieldError('err-confirma', 'As senhas não coincidem.'); valid = false;
-  }
+  if (!confirma) { showFieldError('err-confirma', 'Este campo é obrigatório.'); valid = false; }
+  else if (senha && senha !== confirma) { showFieldError('err-confirma', 'As senhas não coincidem.'); valid = false; }
 
   if (!valid) return;
 
-  const users = getUsuarios();
-  const newUser = { id: nextUserId(), nomeCompleto: nome, usuario, senha, papel: 'viewer' };
-  users.push(newUser);
-  saveUsuarios(users);
+  const btn = document.querySelector('button[onclick="doRegister()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Criando conta...'; }
 
-  const session = { usuarioId: newUser.id, usuario: newUser.usuario, nomeCompleto: newUser.nomeCompleto, papel: 'viewer' };
-  saveSession(session, false);
+  const { error } = await _sb.auth.signUp({
+    email,
+    password: senha,
+    options: { data: { nome_completo: nome } }
+  });
+
+  if (error) {
+    regErr.textContent = error.message.includes('already registered')
+      ? 'Este e-mail já está cadastrado.'
+      : error.message;
+    regErr.classList.add('visible');
+    if (btn) { btn.disabled = false; btn.textContent = 'Criar conta'; }
+    return;
+  }
+
+  // Aguarda trigger criar o perfil
+  await new Promise(r => setTimeout(r, 1000));
+
+  const session = await getAppSession();
+  if (!session) {
+    regErr.textContent = 'Conta criada! Verifique seu e-mail para confirmar o cadastro.';
+    regErr.style.background = '#dcfce7'; regErr.style.color = 'var(--green)';
+    regErr.classList.add('visible');
+    if (btn) { btn.disabled = false; btn.textContent = 'Criar conta'; }
+    return;
+  }
+
+  await loadAllData();
   showLoadingScreen(session);
 }
 
 // === LOGIN SCREEN ===
 function renderLogin() {
-  document.getElementById('screen-login').classList.add('auth-screen');
+  document.getElementById('screen-login').className = 'auth-screen';
   document.getElementById('screen-login').innerHTML = `
     <div class="auth-card">
       <div class="auth-logo">${logoSVG(28)}</div>
       <div class="auth-title">Acesso ao Sistema</div>
       <div class="auth-error" id="login-error"></div>
       <div class="form-group">
-        <label for="login-usuario">Usuário</label>
-        <input type="text" id="login-usuario" autocomplete="username" placeholder="Digite seu usuário">
+        <label for="login-email">E-mail</label>
+        <input type="email" id="login-email" autocomplete="email" placeholder="seu@email.com">
       </div>
       <div class="form-group">
         <label for="login-senha">Senha</label>
         <input type="password" id="login-senha" autocomplete="current-password" placeholder="Digite sua senha">
       </div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="login-lembrar">
-        <label for="login-lembrar">Lembrar-me</label>
-      </div>
       <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
       <div class="auth-links" style="margin-top:0.75rem">
-        <a href="#" onclick="alert('Funcionalidade indisponível. Entre em contato com o administrador do sistema.');return false">Esqueci minha senha</a>
+        <a href="#" onclick="doForgotPassword();return false">Esqueci minha senha</a>
       </div>
       <div class="auth-links">
         Não tem conta? <a href="#" onclick="renderRegister();showScreen('register');return false">Criar conta</a>
@@ -791,23 +784,41 @@ function renderLogin() {
   document.getElementById('login-senha').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 }
 
-function doLogin() {
-  const usuario = document.getElementById('login-usuario').value.trim();
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
   const senha = document.getElementById('login-senha').value;
-  const lembrar = document.getElementById('login-lembrar').checked;
   const err = document.getElementById('login-error');
   err.classList.remove('visible');
 
-  const user = getUsuarios().find(u => u.usuario.toLowerCase() === usuario.toLowerCase() && u.senha === senha);
-  if (!user) {
-    err.textContent = 'Usuário ou senha incorretos.';
+  const btn = document.querySelector('button[onclick="doLogin()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Entrando...'; }
+
+  const { error } = await _sb.auth.signInWithPassword({ email, password: senha });
+  if (error) {
+    err.textContent = 'E-mail ou senha incorretos.';
     err.classList.add('visible');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
     return;
   }
 
-  const session = { usuarioId: user.id, usuario: user.usuario, nomeCompleto: user.nomeCompleto, papel: user.papel };
-  saveSession(session, lembrar);
+  const session = await getAppSession();
+  if (!session) {
+    err.textContent = 'Erro ao carregar perfil. Tente novamente.';
+    err.classList.add('visible');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+    return;
+  }
+
+  await loadAllData();
   showLoadingScreen(session);
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('login-email')?.value.trim();
+  if (!email) { alert('Informe seu e-mail no campo acima antes de clicar em "Esqueci minha senha".'); return; }
+  const { error } = await _sb.auth.resetPasswordForEmail(email);
+  if (error) { alert('Erro: ' + error.message); return; }
+  alert('E-mail de recuperação enviado! Verifique sua caixa de entrada.');
 }
 
 // === DASHBOARD ===
@@ -923,8 +934,8 @@ function renderDashboard(session) {
   // is visible and chart container has a valid offsetWidth.
 }
 
-function doLogout() {
-  clearSession();
+async function doLogout() {
+  await _sb.auth.signOut();
   currentSession = null;
   currentPeriod = 'hoje';
   currentMovCategory = '';
@@ -1066,7 +1077,7 @@ function closeMovimentoModal() {
   movimentoMaterialId = null;
 }
 
-function saveMovimento() {
+async function saveMovimento() {
   const tipo = document.querySelector('input[name="mov-tipo"]:checked').value;
   const qtdRaw = document.getElementById('mov-qtd').value;
   clearFieldError('err-mov-qtd');
@@ -1077,23 +1088,31 @@ function saveMovimento() {
     return;
   }
 
-  const materiais = getMateriais();
-  const idx = materiais.findIndex(m => m.id === movimentoMaterialId);
-  if (idx === -1) return;
+  const material = getMateriais().find(m => m.id === movimentoMaterialId);
+  if (!material) return;
 
-  const material = materiais[idx];
   const novaQtd = tipo === 'entrada' ? material.quantidade + qtd : material.quantidade - qtd;
-
   if (novaQtd < 0) {
     const atual = material.quantidade % 1 === 0 ? material.quantidade : material.quantidade.toFixed(2);
     showFieldError('err-mov-qtd', `Estoque insuficiente. Disponível: ${atual} ${material.unidade}.`);
     return;
   }
 
+  const btn = document.querySelector('button[onclick="saveMovimento()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Registrando...'; }
+
   const observacao = (document.getElementById('mov-observacao')?.value || '').trim();
-  recordMovimento(material.id, material.nome, material.quantidade, novaQtd, currentSession.usuario, observacao);
-  materiais[idx] = { ...material, quantidade: novaQtd };
-  saveMateriais(materiais);
+  const { error: errMov } = await _sb.from('movimentacoes').insert({
+    material_id: material.id, material_nome: material.nome,
+    tipo, quantidade: qtd,
+    registrado_por: currentSession.nomeCompleto,
+    observacao: observacao || null
+  });
+  if (errMov) { alert('Erro: ' + errMov.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
+
+  await _sb.from('materiais').update({ quantidade: novaQtd }).eq('id', material.id);
+
+  await loadAllData();
   closeMovimentoModal();
   refreshAllSections();
 }
@@ -1353,16 +1372,18 @@ function closeMaterialModal() {
   editingMaterialId = null;
 }
 
-function deleteMaterial(id) {
+async function deleteMaterial(id) {
   if (!guardAdmin()) return;
-  const materiais = getMateriais();
-  const material = materiais.find(m => m.id === id);
+  const material = getMateriais().find(m => m.id === id);
   if (!material) return;
 
   if (!confirm(`Deseja excluir o material '${material.nome}'? Esta ação não pode ser desfeita.`)) return;
 
-  saveMateriais(materiais.filter(m => m.id !== id));
-  saveMovimentacoes(getMovimentacoes().filter(m => m.materialId !== id));
+  const { error } = await _sb.from('materiais').delete().eq('id', id);
+  if (error) { alert('Erro ao excluir: ' + error.message); return; }
+  // movimentacoes apagadas em cascade pelo banco
+
+  await loadAllData();
   refreshAllSections();
 }
 
@@ -1376,7 +1397,7 @@ function validateDecimalField(value, id) {
   return num;
 }
 
-function saveMaterial() {
+async function saveMaterial() {
   if (!guardAdmin()) return;
   const nome = document.getElementById('m-nome').value.trim();
   const cat = document.getElementById('m-cat').value;
@@ -1406,24 +1427,30 @@ function saveMaterial() {
 
   if (!valid) return;
 
-  const materiais = getMateriais();
+  const localizacao = document.getElementById('m-local').value.trim() || null;
+  const btn = document.querySelector('button[onclick="saveMaterial()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
   if (editingMaterialId) {
-    const idx = materiais.findIndex(m => m.id === editingMaterialId);
-    if (idx === -1) {
-      alert('Material não encontrado. Pode ter sido removido em outra aba.');
-      closeMaterialModal();
-      refreshAllSections();
-      return;
-    }
-    const old = materiais[idx];
-    const localizacao = document.getElementById('m-local').value.trim();
-    recordMovimento(old.id, old.nome, old.quantidade, qtd, currentSession.usuario);
-    materiais[idx] = { ...old, nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor, localizacao };
+    const old = getMateriais().find(m => m.id === editingMaterialId);
+    if (!old) { alert('Material não encontrado.'); closeMaterialModal(); return; }
+
+    const { error } = await _sb.from('materiais').update({
+      nome, categoria: cat, quantidade: qtd, unidade,
+      estoque_minimo: min, valor_unitario: valor, localizacao
+    }).eq('id', editingMaterialId);
+    if (error) { alert('Erro ao salvar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } return; }
+
+    await recordMovimento(old.id, old.nome, old.quantidade, qtd, currentSession.nomeCompleto);
   } else {
-    const localizacao = document.getElementById('m-local').value.trim();
-    materiais.push({ id: nextMaterialId(), nome, categoria: cat, quantidade: qtd, unidade, estoqueMinimo: min, valorUnitario: valor, localizacao });
+    const { error } = await _sb.from('materiais').insert({
+      nome, categoria: cat, quantidade: qtd, unidade,
+      estoque_minimo: min, valor_unitario: valor, localizacao
+    });
+    if (error) { alert('Erro ao salvar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } return; }
   }
-  saveMateriais(materiais);
+
+  await loadAllData();
   closeMaterialModal();
   refreshAllSections();
 }
@@ -1467,20 +1494,19 @@ function renameCategory(input) {
   if (!newName) { input.value = oldName; return; }
   if (newName === oldName) return;
 
-  const cats = getCategorias();
-  const isDuplicate = cats.some(c => c.toLowerCase() === newName.toLowerCase() && c !== oldName);
-  if (isDuplicate) {
+  if (getCategorias().some(c => c.toLowerCase() === newName.toLowerCase() && c !== oldName)) {
     input.value = oldName;
     if (errEl) { errEl.textContent = 'Esta categoria já existe.'; errEl.style.display = 'block'; setTimeout(() => { errEl.style.display = 'none'; }, 3000); }
     return;
   }
 
-  const materiais = getMateriais().map(m => m.categoria === oldName ? { ...m, categoria: newName } : m);
-  saveMateriais(materiais);
-
-  saveCategorias(cats.map(c => c === oldName ? newName : c));
-  renderCategoryList();
-  renderMaterialsTable();
+  _sb.from('categorias').update({ nome: newName }).eq('nome', oldName).then(async ({ error }) => {
+    if (error) { input.value = oldName; alert('Erro ao renomear: ' + error.message); return; }
+    await _sb.from('materiais').update({ categoria: newName }).eq('categoria', oldName);
+    await loadAllData();
+    renderCategoryList();
+    renderMaterialsTable();
+  });
 }
 
 function addCategory() {
@@ -1489,33 +1515,32 @@ function addCategory() {
   const name = input.value.trim();
   if (!name) return;
 
-  const cats = getCategorias();
-  if (cats.some(c => c.toLowerCase() === name.toLowerCase())) {
+  if (getCategorias().some(c => c.toLowerCase() === name.toLowerCase())) {
     input.style.borderColor = 'var(--red)';
     setTimeout(() => { input.style.borderColor = ''; }, 2000);
     return;
   }
-  cats.push(name);
-  saveCategorias(cats);
-  renderCategoryList();
+
+  _sb.from('categorias').insert({ nome: name }).then(async ({ error }) => {
+    if (error) { alert('Erro ao adicionar categoria: ' + error.message); return; }
+    await loadAllData();
+    renderCategoryList();
+  });
 }
 
 function deleteCategory(name) {
   if (!guardAdmin()) return;
   if (getCategorias().length <= 1) return;
-  const materiais = getMateriais();
-  const count = materiais.filter(m => m.categoria === name).length;
+  const count = getMateriais().filter(m => m.categoria === name).length;
 
   if (count > 0 && !confirm(`${count} material(is) usa(m) esta categoria. Deseja excluir mesmo assim?`)) return;
 
-  const cats = getCategorias().filter(c => c !== name);
-  saveCategorias(cats);
-  // Materials keep the old category name as free text (spec §6.4) — no mutation needed.
-  if (count > 0) {
-    renderCards();
-    renderMaterialsTable();
-  }
-  renderCategoryList();
+  _sb.from('categorias').delete().eq('nome', name).then(async ({ error }) => {
+    if (error) { alert('Erro ao excluir categoria: ' + error.message); return; }
+    await loadAllData();
+    if (count > 0) { renderCards(); renderMaterialsTable(); }
+    renderCategoryList();
+  });
 }
 function deleteCategoryByIndex(idx) {
   const cats = getCategorias().slice().sort();
@@ -1672,38 +1697,30 @@ function renderUserList() {
     const roleLabel = isAdmin ? 'Admin' : 'Viewer';
     return `<tr>
       <td>${esc(u.nomeCompleto)}</td>
-      <td>${esc(u.usuario)}</td>
       <td><span class="badge ${roleCls}">${roleLabel}</span></td>
       <td>${isSelf
         ? `<span style="font-size:0.8125rem;color:var(--gray-600)">Você</span>`
-        : `<button class="btn btn-secondary btn-sm" onclick="changeUserRole(${u.id})">${isAdmin ? 'Tornar Viewer' : 'Tornar Admin'}</button>
-           <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Remover</button>`}
+        : `<button class="btn btn-secondary btn-sm" onclick="changeUserRole('${u.id}')">${isAdmin ? 'Tornar Viewer' : 'Tornar Admin'}</button>`}
       </td>
     </tr>`;
   }).join('');
 }
 function changeUserRole(id) {
-  const users = getUsuarios();
-  const idx = users.findIndex(u => u.id === id);
-  if (idx === -1) return;
-  users[idx].papel = users[idx].papel === 'admin' ? 'viewer' : 'admin';
-  saveUsuarios(users);
-  renderUserList();
-}
-function deleteUser(id) {
-  const users = getUsuarios();
-  const user = users.find(u => u.id === id);
-  if (!user || !confirm(`Remover o usuário '${user.usuario}'? Esta ação não pode ser desfeita.`)) return;
-  saveUsuarios(users.filter(u => u.id !== id));
-  renderUserList();
+  const user = getUsuarios().find(u => u.id === id);
+  if (!user) return;
+  const novoPapel = user.papel === 'admin' ? 'viewer' : 'admin';
+  _sb.from('profiles').update({ papel: novoPapel }).eq('id', id).then(async ({ error }) => {
+    if (error) { alert('Erro: ' + error.message); return; }
+    await loadAllData();
+    renderUserList();
+  });
 }
 
 // === BACKUP E RESTAURAÇÃO ===
 function exportBackup() {
   const data = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
-    usuarios: getUsuarios(),
     materiais: getMateriais(),
     categorias: getCategorias(),
     movimentacoes: getMovimentacoes()
@@ -1720,19 +1737,35 @@ function importBackup(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!data.usuarios || !data.materiais || !data.categorias || !data.movimentacoes)
+      if (!data.materiais || !data.categorias || !data.movimentacoes)
         return alert('Arquivo inválido. Selecione um backup gerado por este sistema.');
-      if (!confirm('Restaurar backup substituirá todos os dados atuais. Continuar?')) return;
-      saveUsuarios(data.usuarios);
-      saveMateriais(data.materiais);
-      saveCategorias(data.categorias);
-      saveMovimentacoes(data.movimentacoes);
-      alert('Backup restaurado! A página será recarregada.');
-      location.reload();
-    } catch { alert('Erro ao ler o arquivo. Certifique-se de que é um arquivo de backup válido.'); }
+      if (!confirm('Restaurar backup apagará todos os dados atuais do banco. Continuar?')) return;
+
+      // Limpa dados existentes
+      await _sb.from('movimentacoes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await _sb.from('materiais').delete().gt('id', 0);
+      await _sb.from('categorias').delete().gt('id', 0);
+
+      // Recria
+      if (data.categorias.length) {
+        await _sb.from('categorias').insert(data.categorias.map(nome => ({ nome })));
+      }
+      if (data.materiais.length) {
+        await _sb.from('materiais').insert(data.materiais.map(m => ({
+          nome: m.nome, categoria: m.categoria, quantidade: m.quantidade,
+          unidade: m.unidade, estoque_minimo: m.estoqueMinimo || m.estoque_minimo || 0,
+          valor_unitario: m.valorUnitario || m.valor_unitario || 0,
+          localizacao: m.localizacao || null
+        })));
+      }
+
+      await loadAllData();
+      alert('Backup restaurado com sucesso!');
+      refreshAllSections();
+    } catch(err) { alert('Erro ao restaurar: ' + err.message); }
   };
   reader.readAsText(file);
   input.value = '';
@@ -1757,7 +1790,7 @@ function closeAjusteModal() {
   document.getElementById('modal-ajuste').style.display = 'none';
   ajusteMaterialId = null;
 }
-function saveAjuste() {
+async function saveAjuste() {
   const qtdRaw = document.getElementById('ajuste-qtd').value;
   clearFieldError('err-ajuste-qtd');
   const qtd = parseDecimal(qtdRaw);
@@ -1765,26 +1798,25 @@ function saveAjuste() {
     showFieldError('err-ajuste-qtd', 'Informe uma quantidade válida (≥ 0).');
     return;
   }
-  const materiais = getMateriais();
-  const idx = materiais.findIndex(m => m.id === ajusteMaterialId);
-  if (idx === -1) return;
-  const material = materiais[idx];
+  const material = getMateriais().find(m => m.id === ajusteMaterialId);
+  if (!material) return;
   if (qtd === material.quantidade) { closeAjusteModal(); return; }
-  const movs = getMovimentacoes();
+
+  const btn = document.querySelector('button[onclick="saveAjuste()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Aplicando...'; }
+
   const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
-  movs.push({
-    id: crypto.randomUUID(),
-    materialId: material.id,
-    materialNome: material.nome,
-    tipo: 'ajuste',
-    quantidade: qtd,
-    data: new Date().toISOString(),
-    registradoPor: currentSession.usuario,
+  const { error: errMov } = await _sb.from('movimentacoes').insert({
+    material_id: material.id, material_nome: material.nome,
+    tipo: 'ajuste', quantidade: qtd,
+    registrado_por: currentSession.nomeCompleto,
     observacao: `Ajuste: ${fmt(material.quantidade)} → ${fmt(qtd)}`
   });
-  saveMovimentacoes(movs);
-  materiais[idx] = { ...material, quantidade: qtd };
-  saveMateriais(materiais);
+  if (errMov) { alert('Erro: ' + errMov.message); if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; } return; }
+
+  await _sb.from('materiais').update({ quantidade: qtd }).eq('id', material.id);
+
+  await loadAllData();
   closeAjusteModal();
   refreshAllSections();
 }
@@ -1812,10 +1844,10 @@ function showLoadingScreen(session) {
 }
 
 // === INIT ===
-window.addEventListener('DOMContentLoaded', () => {
-  initStorage();
-  const session = getSession();
+window.addEventListener('DOMContentLoaded', async () => {
+  const session = await getAppSession();
   if (session) {
+    await loadAllData();
     showLoadingScreen(session);
   } else {
     renderLogin();
