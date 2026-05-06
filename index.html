@@ -1069,6 +1069,9 @@ function openMovimentoModal(id, tipo = 'entrada') {
   document.getElementById('mov-qtd').value = '';
   clearFieldError('err-mov-qtd');
 
+  const btnReg = document.querySelector('button[onclick="saveMovimento()"]');
+  if (btnReg) { btnReg.disabled = false; btnReg.textContent = 'Registrar'; }
+
   document.getElementById('modal-movimento').style.display = 'flex';
   setTimeout(() => document.getElementById('mov-qtd').focus(), 50);
 }
