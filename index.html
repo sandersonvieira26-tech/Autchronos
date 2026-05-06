@@ -303,6 +303,9 @@ tr:hover td { background: var(--gray-50); }
   .cards-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 767px) {
+  /* Sem scroll horizontal na página */
+  body { overflow-x: hidden; }
+
   /* Header */
   .dashboard-header { position: relative; }
   .header-right .user-name { display: none; }
@@ -323,38 +326,44 @@ tr:hover td { background: var(--gray-50); }
   .admin-btns .btn-logout { text-align: left; width: 100%; }
   .btn-admin-toggle { display: flex; align-items: center; }
 
-  /* Layout */
-  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-  .dashboard-body { padding: 0.75rem; gap: 1rem; display: flex; flex-direction: column; }
+  /* Layout geral */
+  .dashboard-body { padding: 0.75rem; gap: 0.75rem; display: flex; flex-direction: column; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 0.625rem; margin-bottom: 0; }
+  .table-section { margin-bottom: 0; overflow: hidden; }
+  .movements-section { overflow: hidden; }
 
-  /* Table */
-  .table-section, .movements-section { border-radius: var(--radius); }
-  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table-wrapper table { min-width: 600px; }
+  /* Cards menores e compactos */
+  .card { padding: 0.75rem 0.875rem; }
+  .card-label { font-size: 0.7rem; margin-bottom: 0.25rem; }
+  .card-value { font-size: 1.25rem; }
 
-  /* Toolbar */
+  /* Tabela de materiais */
   .table-toolbar { flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 0.75rem; }
   .table-toolbar .search-input, .table-toolbar select { width: 100%; }
   .table-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; margin: 0; }
-  .table-actions .btn { width: 100%; }
+  .table-actions .btn { width: 100%; font-size: 0.8rem; }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrapper table { min-width: 580px; }
 
-  /* Modals */
-  .modal-box { max-width: 100%; margin: 0; border-radius: var(--radius) var(--radius) 0 0; }
+  /* Toolbar de movimentações */
+  .mov-toolbar { padding: 0.625rem 0.875rem; gap: 0.5rem; flex-wrap: wrap; }
+  .mov-toolbar .search-input { flex: 1; min-width: 130px; }
+  .mov-toolbar select { flex: 1; min-width: 130px; }
+  .mov-toolbar button { width: 100%; margin-left: 0 !important; }
+  .movements-section .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .movements-section .table-wrapper table { min-width: 480px; }
+
+  /* Filtros de período */
+  .period-filter { flex-wrap: wrap; gap: 0.375rem; padding: 0.75rem; }
+  .period-btn { font-size: 0.8rem; padding: 0.3rem 0.7rem; }
+
+  /* Modais sobem da parte inferior */
   .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal-box { max-width: 100%; margin: 0; border-radius: var(--radius) var(--radius) 0 0; max-height: 92vh; }
   .modal-grid { grid-template-columns: 1fr; }
 
-  /* Movements */
-  .period-filter { flex-wrap: wrap; gap: 0.375rem; }
-  .period-btn { font-size: 0.8125rem; padding: 0.3rem 0.75rem; }
-  .mov-toolbar { flex-wrap: wrap; gap: 0.5rem; }
-  .mov-toolbar input,
-  .mov-toolbar select { flex: 1; min-width: 120px; }
-  .movements-section .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .movements-section .table-wrapper table { min-width: 500px; }
-
-  /* Cards menores */
-  .card { padding: 0.875rem; }
-  .card-value { font-size: 1.5rem; }
+  /* Títulos de seção */
+  .section-title { font-size: 1rem; }
 }
 
 /* === DATE RANGE === */
