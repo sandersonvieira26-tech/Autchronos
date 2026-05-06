@@ -114,3 +114,28 @@ CREATE POLICY "movimentacoes_insert" ON public.movimentacoes
 CREATE POLICY "movimentacoes_delete_admin" ON public.movimentacoes
   FOR DELETE TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'));
+
+-- 7. EQUIPAMENTOS DE CALIBRAÇÃO
+CREATE TABLE IF NOT EXISTS public.equipamentos_calibracao (
+  id SERIAL PRIMARY KEY,
+  nome TEXT NOT NULL,
+  identificacao TEXT,
+  categoria TEXT NOT NULL,
+  numero_certificado TEXT,
+  data_ultima_calibracao DATE NOT NULL,
+  validade_meses INTEGER NOT NULL CHECK (validade_meses > 0),
+  data_proxima_calibracao DATE NOT NULL,
+  responsavel TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.equipamentos_calibracao ENABLE ROW LEVEL SECURITY;
+
+-- Todos leem; somente admin escreve
+CREATE POLICY "equipamentos_calibracao_read" ON public.equipamentos_calibracao
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "equipamentos_calibracao_write_admin" ON public.equipamentos_calibracao
+  FOR ALL TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'));

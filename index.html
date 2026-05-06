@@ -219,6 +219,9 @@ tr:hover td { background: var(--gray-50); }
 .badge-entrada { background: #fff7ed; color: var(--orange); }
 .badge-saida { background: var(--gray-100); color: var(--gray-600); }
 .badge-ajuste { background: #ede9fe; color: #7c3aed; }
+.badge-calib-ok { background: #dcfce7; color: var(--green); }
+.badge-calib-proximo { background: #fef3c7; color: var(--amber); }
+.badge-calib-vencido { background: var(--red-50); color: var(--red); }
 
 /* === MODAL === */
 @keyframes modal-overlay-in {
@@ -461,6 +464,11 @@ tr:hover td { background: var(--gray-50); }
 
   /* Títulos de seção */
   .section-title { font-size: 1rem; }
+}
+
+/* Desktop: hide mobile-only alertas section to avoid duplicates */
+@media (min-width: 768px) {
+  #section-alertas { display: none !important; }
 }
 
 /* === DATE RANGE === */
@@ -727,6 +735,62 @@ tr:hover td { background: var(--gray-50); }
     </div>
   </div>
 
+  <!-- Modal: Adicionar/Editar Equipamento de Calibração -->
+  <div id="modal-equipamento" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:560px">
+      <div class="modal-header">
+        <h2 id="modal-equip-title">Adicionar Equipamento</h2>
+        <button class="modal-close" onclick="closeEquipamentoModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-grid">
+          <div class="form-group" style="grid-column:1/-1">
+            <label for="eq-nome">Nome do Equipamento *</label>
+            <input type="text" id="eq-nome" maxlength="120" placeholder="Ex: Multímetro digital, Paquímetro...">
+            <div class="form-error" id="err-eq-nome"></div>
+          </div>
+          <div class="form-group">
+            <label for="eq-id">Identificação / Patrimônio</label>
+            <input type="text" id="eq-id" maxlength="60" placeholder="Nº de série ou patrimônio">
+          </div>
+          <div class="form-group">
+            <label for="eq-cat">Categoria *</label>
+            <select id="eq-cat">
+              <option value="">Selecione...</option>
+            </select>
+            <div class="form-error" id="err-eq-cat"></div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label for="eq-cert">Número do Certificado</label>
+            <input type="text" id="eq-cert" maxlength="80" placeholder="Nº do certificado de calibração">
+          </div>
+          <div class="form-group">
+            <label for="eq-ultima">Data da Última Calibração *</label>
+            <input type="date" id="eq-ultima" oninput="updateProximaCalib()">
+            <div class="form-error" id="err-eq-ultima"></div>
+          </div>
+          <div class="form-group">
+            <label for="eq-validade">Validade (meses) *</label>
+            <input type="number" id="eq-validade" min="1" max="120" placeholder="Ex: 12" oninput="updateProximaCalib()">
+            <div class="form-error" id="err-eq-validade"></div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Data da Próxima Calibração</label>
+            <div id="eq-proxima-display" style="padding:0.625rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.9375rem;color:var(--gray-600);background:var(--gray-50)">—</div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label for="eq-resp">Responsável</label>
+            <input type="text" id="eq-resp" maxlength="80" placeholder="Nome do responsável pela calibração">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeEquipamentoModal()">Cancelar</button>
+        <button class="btn btn-primary" style="width:auto" onclick="saveEquipamento()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
 // === SUPABASE CLIENT ===
 const _sb = window.supabase.createClient(
@@ -736,7 +800,7 @@ const _sb = window.supabase.createClient(
 );
 
 // === IN-MEMORY CACHE ===
-let _materiais = [], _categorias = [], _movimentacoes = [], _profiles = [];
+let _materiais = [], _categorias = [], _movimentacoes = [], _profiles = [], _equipamentos = [];
 
 // Supabase snake_case → camelCase
 const normMaterial = m => ({
@@ -751,25 +815,36 @@ const normMovimento = m => ({
   registradoPor: m.registrado_por, observacao: m.observacao || ''
 });
 const normProfile = p => ({ id: p.id, nomeCompleto: p.nome_completo, papel: p.papel });
+const normEquipamento = e => ({
+  id: e.id, nome: e.nome, identificacao: e.identificacao || '',
+  categoria: e.categoria, numeroCertificado: e.numero_certificado || '',
+  dataUltimaCalibracao: e.data_ultima_calibracao,
+  validadeMeses: +e.validade_meses,
+  dataProximaCalibracao: e.data_proxima_calibracao,
+  responsavel: e.responsavel || ''
+});
 
 // Getters síncronos (trabalham no cache)
 const getMateriais = () => _materiais;
 const getCategorias = () => _categorias;
 const getUsuarios = () => _profiles;
 const getMovimentacoes = () => _movimentacoes;
+const getEquipamentos = () => _equipamentos;
 
 // Carrega todos os dados do Supabase para o cache
 async function loadAllData() {
-  const [mr, cr, movr, pr] = await Promise.all([
+  const [mr, cr, movr, pr, er] = await Promise.all([
     _sb.from('materiais').select('*').order('id'),
     _sb.from('categorias').select('nome').order('nome'),
     _sb.from('movimentacoes').select('*').order('data', { ascending: false }),
-    _sb.from('profiles').select('*').order('nome_completo')
+    _sb.from('profiles').select('*').order('nome_completo'),
+    _sb.from('equipamentos_calibracao').select('*').order('data_proxima_calibracao')
   ]);
-  _materiais    = (mr.data   || []).map(normMaterial);
-  _categorias   = (cr.data   || []).map(c => c.nome);
-  _movimentacoes = (movr.data || []).map(normMovimento);
-  _profiles     = (pr.data   || []).map(normProfile);
+  _materiais     = (mr.data  || []).map(normMaterial);
+  _categorias    = (cr.data  || []).map(c => c.nome);
+  _movimentacoes = (movr.data|| []).map(normMovimento);
+  _profiles      = (pr.data  || []).map(normProfile);
+  _equipamentos  = (er.data  || []).map(normEquipamento);
 }
 
 // === SESSION ===
@@ -1167,6 +1242,30 @@ function renderDashboard(session) {
         <div id="alertas-section-mobile" style="padding:0.75rem"></div>
       </div>
 
+      <!-- Seção: Calibrações -->
+      <div class="mobile-section" id="section-calibracoes">
+        <div class="table-section" style="margin-bottom:2rem">
+          <div class="table-toolbar" style="justify-content:space-between">
+            <span class="section-title" style="margin:0">&#9881; Calibrações de Equipamentos</span>
+            ${isAdmin ? `<button class="btn btn-primary btn-sm" style="width:auto" onclick="openEquipamentoModal()">+ Equipamento</button>` : ''}
+          </div>
+          <div id="calib-alertas" style="padding:0 1.25rem"></div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Equipamento</th><th>Identificação</th><th>Categoria</th>
+                  <th>Certificado</th><th>Última Calib.</th><th>Próxima Calib.</th>
+                  <th>Validade</th><th>Responsável</th><th>Status</th>
+                  ${isAdmin ? '<th>Ações</th>' : ''}
+                </tr>
+              </thead>
+              <tbody id="calib-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Seção: Movimentações -->
       <div class="mobile-section" id="section-movimentacoes">
         <div class="movements-section">
@@ -1236,15 +1335,22 @@ function renderDashboard(session) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
-        <span>Movimentações</span>
+        <span>Movimentos</span>
+      </button>
+      <button class="bottom-nav-btn" id="tab-calibracoes" onclick="setMobileTab('calibracoes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+        </svg>
+        <span>Calibração</span>
       </button>
     </nav>
 
     <!-- FAB (mobile) -->
     <div class="fab-wrap" id="fab-wrap">
       <div class="fab-menu" id="fab-menu">
-        ${isAdmin ? `<button class="fab-item" onclick="openCategoryModal();closeFab()">Categorias</button>
-        <button class="fab-item" onclick="openMaterialModal();closeFab()">+ Material</button>` : ''}
+        ${isAdmin ? `<button class="fab-item" onclick="openEquipamentoModal();closeFab()">+ Equipamento</button>
+        <button class="fab-item" onclick="openMaterialModal();closeFab()">+ Material</button>
+        <button class="fab-item" onclick="openCategoryModal();closeFab()">Categorias</button>` : ''}
       </div>
       <button class="fab-btn" id="fab-btn" onclick="toggleFab()">+</button>
     </div>
@@ -1271,6 +1377,7 @@ function refreshAllSections() {
   renderAlertas();
   renderMaterialsTable();
   renderMovements();
+  renderEquipamentos();
 }
 
 function renderCards() {
@@ -2197,12 +2304,211 @@ function showLoadingScreen(session) {
   }, 1400);
 }
 
+// === CALIBRAÇÃO DE EQUIPAMENTOS ===
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function addMonthsToDate(dateStr, months) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().split('T')[0];
+}
+
+function calcCalibStatus(dataProxima) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const next = new Date(dataProxima + 'T00:00:00');
+  const diffDays = Math.round((next - today) / 86400000);
+  if (diffDays < 0)   return { label: 'Vencido', cls: 'badge-calib-vencido', days: diffDays };
+  if (diffDays <= 30) return { label: `Vence em ${diffDays}d`, cls: 'badge-calib-proximo', days: diffDays };
+  return { label: 'OK', cls: 'badge-calib-ok', days: diffDays };
+}
+
+function updateProximaCalib() {
+  const ultima = document.getElementById('eq-ultima')?.value;
+  const meses = parseInt(document.getElementById('eq-validade')?.value) || 0;
+  const el = document.getElementById('eq-proxima-display');
+  if (!el) return;
+  if (ultima && meses > 0) {
+    const proxima = addMonthsToDate(ultima, meses);
+    const { label, cls } = calcCalibStatus(proxima);
+    el.innerHTML = `<strong>${fmtDate(proxima)}</strong> <span class="badge ${cls}" style="margin-left:0.5rem">${label}</span>`;
+    el.dataset.value = proxima;
+  } else {
+    el.textContent = '—';
+    el.dataset.value = '';
+  }
+}
+
+function renderEquipamentos() {
+  const alertEl = document.getElementById('calib-alertas');
+  const tbody = document.getElementById('calib-tbody');
+  if (!tbody) return;
+
+  const equips = getEquipamentos();
+  const isAdmin = currentSession && currentSession.papel === 'admin';
+
+  // Alert panel: vencidos + próximos
+  if (alertEl) {
+    const urgentes = equips.filter(e => calcCalibStatus(e.dataProximaCalibracao).days <= 30)
+      .sort((a, b) => new Date(a.dataProximaCalibracao) - new Date(b.dataProximaCalibracao));
+    if (urgentes.length === 0) {
+      alertEl.innerHTML = '';
+    } else {
+      alertEl.innerHTML = `
+        <div class="alertas-title" style="margin-top:1rem">&#9888; Calibrações que precisam de atenção
+          <span style="font-size:0.875rem;font-weight:400;color:var(--gray-600)">(${urgentes.length} equipamento${urgentes.length > 1 ? 's' : ''})</span>
+        </div>
+        <div class="alertas-grid" style="margin-bottom:1rem">
+          ${urgentes.map(e => {
+            const { label, cls, days } = calcCalibStatus(e.dataProximaCalibracao);
+            return `<div class="alerta-card ${days < 0 ? 'critico' : ''}">
+              <div class="alerta-nome">${esc(e.nome)}</div>
+              <div class="alerta-detalhe">Próxima: <strong>${fmtDate(e.dataProximaCalibracao)}</strong>
+                ${days < 0 ? ` (${Math.abs(days)} dia${Math.abs(days)>1?'s':''} atrás)` : ` (em ${days} dia${days>1?'s':''})`}
+              </div>
+              ${e.identificacao ? `<div class="alerta-detalhe">ID: ${esc(e.identificacao)}</div>` : ''}
+              <span class="badge ${cls}">${days < 0 ? 'Vencido' : 'Vence em breve'}</span>
+              <span style="font-size:0.8125rem;color:var(--gray-600);margin-left:0.375rem">${esc(e.categoria)}</span>
+            </div>`;
+          }).join('')}
+        </div>`;
+    }
+  }
+
+  if (equips.length === 0) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${isAdmin ? 10 : 9}">Nenhum equipamento cadastrado.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = equips.map(e => {
+    const { label, cls } = calcCalibStatus(e.dataProximaCalibracao);
+    return `<tr>
+      <td><strong>${esc(e.nome)}</strong></td>
+      <td>${esc(e.identificacao) || '—'}</td>
+      <td>${esc(e.categoria)}</td>
+      <td>${esc(e.numeroCertificado) || '—'}</td>
+      <td>${fmtDate(e.dataUltimaCalibracao)}</td>
+      <td><strong>${fmtDate(e.dataProximaCalibracao)}</strong></td>
+      <td>${e.validadeMeses} mês${e.validadeMeses > 1 ? 'es' : ''}</td>
+      <td>${esc(e.responsavel) || '—'}</td>
+      <td><span class="badge ${cls}">${label}</span></td>
+      ${isAdmin ? `<td>
+        <button class="btn btn-secondary btn-sm" onclick="openEquipamentoModal(${e.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEquipamento(${e.id})">Excluir</button>
+      </td>` : ''}
+    </tr>`;
+  }).join('');
+}
+
+let editingEquipamentoId = null;
+
+function openEquipamentoModal(id = null) {
+  if (!guardAdmin()) return;
+  editingEquipamentoId = id;
+  const equip = id ? getEquipamentos().find(e => e.id === id) : null;
+
+  document.getElementById('modal-equip-title').textContent = id ? 'Editar Equipamento' : 'Adicionar Equipamento';
+
+  const cats = getCategorias().slice().sort();
+  document.getElementById('eq-cat').innerHTML = '<option value="">Selecione...</option>' +
+    cats.map(c => `<option value="${esc(c)}" ${equip && equip.categoria === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+
+  document.getElementById('eq-nome').value = equip ? equip.nome : '';
+  document.getElementById('eq-id').value = equip ? equip.identificacao : '';
+  document.getElementById('eq-cert').value = equip ? equip.numeroCertificado : '';
+  document.getElementById('eq-ultima').value = equip ? equip.dataUltimaCalibracao : '';
+  document.getElementById('eq-validade').value = equip ? equip.validadeMeses : '';
+  document.getElementById('eq-resp').value = equip ? equip.responsavel : '';
+
+  ['err-eq-nome', 'err-eq-cat', 'err-eq-ultima', 'err-eq-validade'].forEach(clearFieldError);
+
+  updateProximaCalib();
+  document.getElementById('modal-equipamento').style.display = 'flex';
+}
+
+function closeEquipamentoModal() {
+  document.getElementById('modal-equipamento').style.display = 'none';
+  editingEquipamentoId = null;
+}
+
+async function saveEquipamento() {
+  if (!guardAdmin()) return;
+  const nome = document.getElementById('eq-nome').value.trim();
+  const cat = document.getElementById('eq-cat').value;
+  const ultimaRaw = document.getElementById('eq-ultima').value;
+  const validadeRaw = document.getElementById('eq-validade').value;
+  let valid = true;
+
+  ['err-eq-nome', 'err-eq-cat', 'err-eq-ultima', 'err-eq-validade'].forEach(clearFieldError);
+
+  if (!nome) { showFieldError('err-eq-nome', 'Este campo é obrigatório.'); valid = false; }
+  if (!cat) { showFieldError('err-eq-cat', 'Selecione uma categoria.'); valid = false; }
+  if (!ultimaRaw) { showFieldError('err-eq-ultima', 'Informe a data da última calibração.'); valid = false; }
+  const validade = parseInt(validadeRaw);
+  if (!validadeRaw || isNaN(validade) || validade < 1) {
+    showFieldError('err-eq-validade', 'Informe um número de meses válido (≥ 1).');
+    valid = false;
+  }
+  if (!valid) return;
+
+  const dataProxima = addMonthsToDate(ultimaRaw, validade);
+  const identificacao = document.getElementById('eq-id').value.trim() || null;
+  const numeroCertificado = document.getElementById('eq-cert').value.trim() || null;
+  const responsavel = document.getElementById('eq-resp').value.trim() || null;
+
+  const btn = document.querySelector('button[onclick="saveEquipamento()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+  const payload = {
+    nome, categoria: cat, identificacao,
+    numero_certificado: numeroCertificado,
+    data_ultima_calibracao: ultimaRaw,
+    validade_meses: validade,
+    data_proxima_calibracao: dataProxima,
+    responsavel
+  };
+
+  let error;
+  if (editingEquipamentoId) {
+    ({ error } = await _sb.from('equipamentos_calibracao').update(payload).eq('id', editingEquipamentoId));
+  } else {
+    ({ error } = await _sb.from('equipamentos_calibracao').insert(payload));
+  }
+
+  if (error) {
+    alert('Erro ao salvar: ' + error.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+    return;
+  }
+
+  await loadAllData();
+  closeEquipamentoModal();
+  renderEquipamentos();
+}
+
+async function deleteEquipamento(id) {
+  if (!guardAdmin()) return;
+  const equip = getEquipamentos().find(e => e.id === id);
+  if (!equip) return;
+  if (!confirm(`Deseja excluir o equipamento '${equip.nome}'? Esta ação não pode ser desfeita.`)) return;
+
+  const { error } = await _sb.from('equipamentos_calibracao').delete().eq('id', id);
+  if (error) { alert('Erro ao excluir: ' + error.message); return; }
+
+  await loadAllData();
+  renderEquipamentos();
+}
+
 // === MOBILE TABS & FAB ===
 let currentMobileTab = 'materiais';
 
 function setMobileTab(tab) {
   currentMobileTab = tab;
-  ['materiais', 'alertas', 'movimentacoes'].forEach(t => {
+  ['materiais', 'alertas', 'movimentacoes', 'calibracoes'].forEach(t => {
     document.getElementById('section-' + t)?.classList.toggle('active', t === tab);
     document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
   });
