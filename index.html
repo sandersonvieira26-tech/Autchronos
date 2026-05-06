@@ -34,6 +34,50 @@ input, select, textarea { font-family: inherit; }
   --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
 }
 
+/* === DARK MODE === */
+[data-theme="dark"] {
+  --gray-900: #f1f5f9;
+  --gray-800: #e2e8f0;
+  --gray-700: #cbd5e1;
+  --gray-600: #94a3b8;
+  --gray-200: #334155;
+  --gray-100: #1e293b;
+  --gray-50:  #0f172a;
+  --white:    #1e293b;
+  --red-50:   #450a0a;
+  --shadow:    0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.6);
+}
+[data-theme="dark"] body { background: #0f172a; }
+[data-theme="dark"] .auth-screen { background: #0f172a; }
+[data-theme="dark"] .dashboard-header { background: #020617; }
+[data-theme="dark"] input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #0f172a;
+  color: var(--gray-900);
+  border-color: var(--gray-200);
+}
+[data-theme="dark"] input::placeholder { color: var(--gray-600); }
+[data-theme="dark"] .table-section,
+[data-theme="dark"] .movements-section { border-color: var(--gray-200); }
+[data-theme="dark"] tbody tr:hover { background: #263548; }
+[data-theme="dark"] .period-btn { background: #0f172a; color: var(--gray-700); border-color: var(--gray-200); }
+[data-theme="dark"] .period-btn.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+[data-theme="dark"] .search-input { background: #0f172a; }
+[data-theme="dark"] .auth-card { background: #1e293b; }
+[data-theme="dark"] .chart-bar-bg { background: #334155; }
+
+/* Botão de tema */
+.btn-theme {
+  width: 34px; height: 34px;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.btn-theme svg { width: 18px; height: 18px; }
+
 /* === AUTH SCREENS === */
 .auth-screen {
   min-height: 100vh;
@@ -836,6 +880,25 @@ async function doForgotPassword() {
   alert('E-mail de recuperação enviado! Verifique sua caixa de entrada.');
 }
 
+// === TEMA ===
+function getThemeIcon() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  return dark
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+}
+function toggleTheme() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? '' : 'dark';
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.innerHTML = getThemeIcon();
+}
+(function applyTheme() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark') document.documentElement.dataset.theme = 'dark';
+})();
+
 // === DASHBOARD ===
 let currentSession = null;
 let currentPeriod = 'hoje';
@@ -862,6 +925,7 @@ function renderDashboard(session) {
         <button class="btn-logout" onclick="exportBackup()">Backup</button>
         <label class="btn-logout" style="cursor:pointer">Restaurar<input type="file" accept=".json" style="display:none" onchange="importBackup(this)"></label>
         ` : ''}
+        <button class="btn-logout btn-theme" onclick="toggleTheme()" id="btn-theme" title="Alternar modo noturno">${getThemeIcon()}</button>
         <button class="btn-logout" onclick="doLogout()">Sair</button>
       </div>
     </header>
