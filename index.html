@@ -739,6 +739,54 @@ tr:hover td { background: var(--gray-50); }
     </div>
   </div>
 
+  <!-- Modal: Importar CSV de Calibrações -->
+  <div id="modal-import-calib" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:700px">
+      <div class="modal-header">
+        <h2>Importar Equipamentos via CSV</h2>
+        <button class="modal-close" onclick="closeImportCalibModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="import-calib-instructions">
+          <p style="font-size:0.875rem;color:var(--gray-700);margin-bottom:0.875rem">
+            No Excel: <strong>Arquivo → Salvar Como → CSV UTF-8 (delimitado por vírgulas)</strong>. Datas no formato <strong>DD/MM/AAAA</strong>.
+          </p>
+          <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:0.875rem;margin-bottom:1rem;font-size:0.8rem">
+            <strong>Cabeçalho esperado na primeira linha do CSV:</strong>
+            <div style="margin-top:0.5rem;display:grid;grid-template-columns:1fr 1fr;gap:0.2rem 1.5rem;color:var(--gray-700)">
+              <span>• <code>nome</code> <span style="color:var(--red)">*</span></span>
+              <span>• <code>identificacao</code></span>
+              <span>• <code>categoria</code> <span style="color:var(--red)">*</span></span>
+              <span>• <code>numero_certificado</code></span>
+              <span>• <code>data_ultima_calibracao</code> <span style="color:var(--red)">*</span></span>
+              <span>• <code>responsavel</code></span>
+              <span>• <code>validade_meses</code> <span style="color:var(--red)">*</span></span>
+            </div>
+            <div style="margin-top:0.5rem;color:var(--gray-600);font-size:0.775rem">Os nomes das colunas não precisam ser exatos — o sistema tenta reconhecer variações.</div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="import-calib-file">Selecionar arquivo CSV</label>
+            <input type="file" id="import-calib-file" accept=".csv,.txt" onchange="previewImportCalib(this)" style="padding:0.375rem;border:1px solid var(--gray-200);border-radius:var(--radius);width:100%">
+            <div class="form-error" id="err-import-calib"></div>
+          </div>
+        </div>
+        <div id="import-calib-preview" style="display:none;margin-top:1rem">
+          <div id="import-calib-summary" style="margin-bottom:0.75rem;font-size:0.875rem;padding:0.625rem 0.875rem;border-radius:var(--radius);background:var(--gray-50);border:1px solid var(--gray-200)"></div>
+          <div class="table-wrapper" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius)">
+            <table>
+              <thead><tr id="import-calib-thead"></tr></thead>
+              <tbody id="import-calib-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportCalibModal()">Cancelar</button>
+        <button class="btn btn-primary" style="width:auto;display:none" id="btn-confirm-import-calib" onclick="confirmImportCalib()">&#8595; Importar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Renovar Calibração -->
   <div id="modal-renovar-calib" class="modal-overlay" style="display:none">
     <div class="modal-box" style="max-width:420px">
@@ -1294,7 +1342,10 @@ function renderDashboard(session) {
               <option value="proximo90">Vence em até 3 meses</option>
               <option value="ok">OK</option>
             </select>
-            ${isAdmin ? `<button class="btn btn-primary btn-sm" style="width:auto;margin-left:auto;flex-shrink:0" onclick="openEquipamentoModal()">+ Equipamento</button>` : ''}
+            ${isAdmin ? `<div style="display:flex;gap:0.5rem;margin-left:auto;flex-shrink:0">
+              <button class="btn btn-secondary btn-sm" style="width:auto" onclick="openImportCalibModal()">&#8679; Importar CSV</button>
+              <button class="btn btn-primary btn-sm" style="width:auto" onclick="openEquipamentoModal()">+ Equipamento</button>
+            </div>` : ''}
           </div>
           <div id="calib-alertas" style="padding:0 1.25rem"></div>
           <div class="table-wrapper">
@@ -2698,6 +2749,215 @@ async function deleteEquipamento(id) {
 
   await loadAllData();
   renderEquipamentos();
+}
+
+// === IMPORTAR CSV DE CALIBRAÇÕES ===
+let importCalibRows = [];
+
+function openImportCalibModal() {
+  if (!guardAdmin()) return;
+  importCalibRows = [];
+  const fi = document.getElementById('import-calib-file');
+  if (fi) fi.value = '';
+  document.getElementById('import-calib-preview').style.display = 'none';
+  document.getElementById('btn-confirm-import-calib').style.display = 'none';
+  clearFieldError('err-import-calib');
+  document.getElementById('modal-import-calib').style.display = 'flex';
+}
+
+function closeImportCalibModal() {
+  document.getElementById('modal-import-calib').style.display = 'none';
+  importCalibRows = [];
+}
+
+function _detectDelimiter(line) {
+  const sc = (line.match(/;/g) || []).length;
+  const co = (line.match(/,/g) || []).length;
+  return sc > co ? ';' : ',';
+}
+
+function _parseCSVLine(line, delim) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === delim && !inQ) {
+      result.push(cur.trim()); cur = '';
+    } else cur += ch;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function _normalizeHeader(h) {
+  return h.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+const _CALIB_ALIASES = {
+  nome:                  ['nome','name','equipamento','descricao','description','item'],
+  identificacao:         ['identificacao','id','patrimonio','serie','num_serie','numero_serie','tag','codigo','cod'],
+  categoria:             ['categoria','category','tipo','setor','area'],
+  numero_certificado:    ['numero_certificado','certificado','cert','num_cert','num_certificado','certificate','n_cert'],
+  data_ultima_calibracao:['data_ultima_calibracao','ultima_calibracao','data_calibracao','data','calibracao','ultimo_calibracao','dt_calibracao'],
+  validade_meses:        ['validade_meses','validade','meses','months','periodicidade','intervalo','freq_meses'],
+  responsavel:           ['responsavel','responsible','tecnico','laboratorio','lab','executor']
+};
+
+function _mapHeaders(rawHeaders) {
+  const norm = rawHeaders.map(_normalizeHeader);
+  const map = {};
+  for (const [field, aliases] of Object.entries(_CALIB_ALIASES)) {
+    const idx = norm.findIndex(h => aliases.includes(h));
+    if (idx >= 0) map[field] = idx;
+  }
+  return map;
+}
+
+function _parseDateBR(str) {
+  if (!str) return null;
+  str = str.trim().replace(/\s+/g,'');
+  const m1 = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  const m2 = str.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+  if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+  // Excel serial number (days since 1900-01-01)
+  const serial = parseInt(str);
+  if (!isNaN(serial) && serial > 40000 && serial < 60000) {
+    const d = new Date((serial - 25569) * 86400000);
+    return d.toISOString().split('T')[0];
+  }
+  return null;
+}
+
+function previewImportCalib(input) {
+  const file = input.files[0];
+  if (!file) return;
+  clearFieldError('err-import-calib');
+  importCalibRows = [];
+  document.getElementById('import-calib-preview').style.display = 'none';
+  document.getElementById('btn-confirm-import-calib').style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const text = ev.target.result.replace(/^﻿/, ''); // strip BOM
+      const lines = text.split(/\r?\n/);
+      const nonEmpty = lines.filter(l => l.trim());
+      if (nonEmpty.length < 2) {
+        showFieldError('err-import-calib', 'Arquivo vazio ou sem dados além do cabeçalho.');
+        return;
+      }
+
+      const delim = _detectDelimiter(nonEmpty[0]);
+      const headers = _parseCSVLine(nonEmpty[0], delim);
+      const colMap  = _mapHeaders(headers);
+
+      const required = ['nome','categoria','data_ultima_calibracao','validade_meses'];
+      const missing  = required.filter(f => colMap[f] === undefined);
+      if (missing.length) {
+        showFieldError('err-import-calib',
+          `Coluna(s) obrigatória(s) não encontrada(s): ${missing.join(', ')}. ` +
+          `Cabeçalho detectado: ${headers.join(', ')}`);
+        return;
+      }
+
+      const rows = [], erros = [];
+      for (let i = 1; i < nonEmpty.length; i++) {
+        const cols = _parseCSVLine(nonEmpty[i], delim);
+        if (cols.every(c => !c.trim())) continue;
+        const get = f => colMap[f] !== undefined ? (cols[colMap[f]] || '').trim() : '';
+
+        const nome       = get('nome');
+        const categoria  = get('categoria');
+        const dataRaw    = get('data_ultima_calibracao');
+        const validRaw   = get('validade_meses');
+
+        if (!nome)      { erros.push(`Linha ${i+1}: nome vazio`); continue; }
+        if (!categoria) { erros.push(`Linha ${i+1}: categoria vazia`); continue; }
+        const dataUltima = _parseDateBR(dataRaw);
+        if (!dataUltima){ erros.push(`Linha ${i+1}: data inválida "${dataRaw}"`); continue; }
+        const validade = parseInt(validRaw);
+        if (isNaN(validade) || validade < 1) {
+          erros.push(`Linha ${i+1}: validade inválida "${validRaw}"`); continue;
+        }
+
+        rows.push({
+          nome, categoria,
+          identificacao:          get('identificacao') || null,
+          numero_certificado:     get('numero_certificado') || null,
+          data_ultima_calibracao: dataUltima,
+          validade_meses:         validade,
+          data_proxima_calibracao: addMonthsToDate(dataUltima, validade),
+          responsavel:            get('responsavel') || null
+        });
+      }
+
+      importCalibRows = rows;
+
+      // Summary
+      const summaryEl = document.getElementById('import-calib-summary');
+      const okPart = `<span style="color:var(--green)"><strong>${rows.length}</strong> equipamento${rows.length !== 1 ? 's' : ''} pronto${rows.length !== 1 ? 's' : ''} para importar</span>`;
+      const errPart = erros.length
+        ? ` &nbsp;|&nbsp; <span style="color:var(--amber)"><strong>${erros.length}</strong> linha${erros.length > 1 ? 's' : ''} ignorada${erros.length > 1 ? 's' : ''}</span>` +
+          `<div style="font-size:0.775rem;color:var(--gray-600);margin-top:0.25rem">${erros.slice(0,4).map(esc).join(' · ')}${erros.length > 4 ? ` · ...` : ''}</div>`
+        : '';
+      summaryEl.innerHTML = okPart + errPart;
+
+      // Preview table (first 8 rows)
+      document.getElementById('import-calib-thead').innerHTML =
+        '<th>Nome</th><th>Categoria</th><th>Identificação</th><th>Última Calib.</th><th>Próxima Calib.</th><th>Validade</th>';
+      document.getElementById('import-calib-tbody').innerHTML =
+        rows.slice(0, 8).map(r => `<tr>
+          <td>${esc(r.nome)}</td>
+          <td>${esc(r.categoria)}</td>
+          <td>${esc(r.identificacao || '—')}</td>
+          <td>${fmtDate(r.data_ultima_calibracao)}</td>
+          <td>${fmtDate(r.data_proxima_calibracao)}</td>
+          <td>${r.validade_meses}m</td>
+        </tr>`).join('') +
+        (rows.length > 8 ? `<tr class="empty-row"><td colspan="6">... e mais ${rows.length - 8} equipamento${rows.length - 8 > 1 ? 's' : ''}</td></tr>` : '');
+
+      document.getElementById('import-calib-preview').style.display = 'block';
+      if (rows.length > 0) {
+        const btn = document.getElementById('btn-confirm-import-calib');
+        btn.style.display = 'inline-flex';
+        btn.disabled = false;
+        btn.textContent = `↓ Importar ${rows.length} equipamento${rows.length !== 1 ? 's' : ''}`;
+      }
+    } catch(err) {
+      showFieldError('err-import-calib', 'Erro ao ler arquivo: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function confirmImportCalib() {
+  if (!importCalibRows.length) return;
+  const btn = document.getElementById('btn-confirm-import-calib');
+  if (btn) { btn.disabled = true; btn.textContent = 'Importando...'; }
+
+  const BATCH = 100;
+  let inserted = 0;
+  for (let i = 0; i < importCalibRows.length; i += BATCH) {
+    const { error } = await _sb.from('equipamentos_calibracao').insert(importCalibRows.slice(i, i + BATCH));
+    if (error) {
+      alert(`Erro ao importar (lote ${Math.floor(i/BATCH)+1}): ${error.message}`);
+      if (btn) { btn.disabled = false; btn.textContent = 'Importar'; }
+      return;
+    }
+    inserted += Math.min(BATCH, importCalibRows.length - i);
+  }
+
+  await loadAllData();
+  closeImportCalibModal();
+  renderEquipamentos();
+  renderCards();
+  alert(`${inserted} equipamento${inserted !== 1 ? 's' : ''} importado${inserted !== 1 ? 's' : ''} com sucesso!`);
 }
 
 // === MOBILE TABS & FAB ===
