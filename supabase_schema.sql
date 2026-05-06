@@ -70,9 +70,15 @@ CREATE TABLE IF NOT EXISTS public.movimentacoes (
   quantidade NUMERIC NOT NULL CHECK (quantidade >= 0),
   data TIMESTAMPTZ DEFAULT NOW(),
   registrado_por TEXT NOT NULL,
+  retirado_por TEXT,
+  destino TEXT,
   observacao TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Se a tabela já existir, adicione as colunas de rastreio:
+ALTER TABLE public.movimentacoes ADD COLUMN IF NOT EXISTS retirado_por TEXT;
+ALTER TABLE public.movimentacoes ADD COLUMN IF NOT EXISTS destino TEXT;
 
 -- 6. ROW LEVEL SECURITY
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

@@ -807,7 +807,7 @@ tr:hover td { background: var(--gray-50); }
         <div class="table-wrapper">
           <table>
             <thead>
-              <tr><th>Data/Hora</th><th>Tipo</th><th>Quantidade</th><th>Registrado por</th><th>Observação</th></tr>
+              <tr><th>Data/Hora</th><th>Tipo</th><th>Quantidade</th><th>Retirado por</th><th>Destino</th><th>Observação</th></tr>
             </thead>
             <tbody id="historico-tbody"></tbody>
           </table>
@@ -845,9 +845,19 @@ tr:hover td { background: var(--gray-50); }
           <input type="text" id="mov-qtd" placeholder="0" autocomplete="off">
           <div class="form-error" id="err-mov-qtd"></div>
         </div>
+        <div class="form-group" id="mov-retirador-group" style="display:none">
+          <label for="mov-retirado-por">Retirado por *</label>
+          <input type="text" id="mov-retirado-por" placeholder="Nome de quem retirou" maxlength="120" autocomplete="off">
+          <div class="form-error" id="err-mov-retirador"></div>
+        </div>
+        <div class="form-group" id="mov-destino-group" style="display:none">
+          <label for="mov-destino">Destino / Local de uso *</label>
+          <input type="text" id="mov-destino" placeholder="Ex: Obra Av. Paulista, Almoxarifado B..." maxlength="160" autocomplete="off">
+          <div class="form-error" id="err-mov-destino"></div>
+        </div>
         <div class="form-group">
           <label for="mov-observacao">Observação <span style="font-weight:400;color:var(--gray-600)">(opcional)</span></label>
-          <input type="text" id="mov-observacao" placeholder="Ex: Obra João Pessoa, devolvido, avaria..." maxlength="120" autocomplete="off">
+          <input type="text" id="mov-observacao" placeholder="Observações adicionais..." maxlength="120" autocomplete="off">
         </div>
       </div>
       <div class="modal-footer">
@@ -1059,7 +1069,8 @@ const normMaterial = m => ({
 const normMovimento = m => ({
   id: m.id, materialId: m.material_id, materialNome: m.material_nome,
   tipo: m.tipo, quantidade: +m.quantidade, data: m.data,
-  registradoPor: m.registrado_por, observacao: m.observacao || ''
+  registradoPor: m.registrado_por, retiradorPor: m.retirado_por || '',
+  destino: m.destino || '', observacao: m.observacao || ''
 });
 const normProfile = p => ({ id: p.id, nomeCompleto: p.nome_completo, papel: p.papel });
 const normEquipamento = e => ({
@@ -1624,7 +1635,7 @@ function renderDashboard(session) {
           <div class="table-wrapper">
             <table>
               <thead>
-                <tr><th>Data/Hora</th><th>Material</th><th>Tipo</th><th>Quantidade</th><th>Registrado por</th></tr>
+                <tr><th>Data/Hora</th><th>Material</th><th>Tipo</th><th>Quantidade</th><th>Retirado por</th><th>Destino</th></tr>
               </thead>
               <tbody id="movements-tbody"></tbody>
             </table>
@@ -1992,6 +2003,13 @@ function renderMaterialsTable() {
 // === MOVIMENTAÇÃO ===
 let movimentoMaterialId = null;
 
+function updateMovTrackingFields() {
+  const tipo = document.querySelector('input[name="mov-tipo"]:checked')?.value;
+  const isSaida = tipo === 'saída';
+  document.getElementById('mov-retirador-group').style.display = isSaida ? '' : 'none';
+  document.getElementById('mov-destino-group').style.display = isSaida ? '' : 'none';
+}
+
 function openMovimentoModal(id, tipo = 'entrada') {
   movimentoMaterialId = id;
   const material = getMateriais().find(m => m.id === id);
@@ -2004,7 +2022,17 @@ function openMovimentoModal(id, tipo = 'entrada') {
   document.getElementById('mov-estoque-valor').textContent = `${qtdAtual} ${esc(material.unidade)}`;
   document.querySelector(`input[name="mov-tipo"][value="${tipo}"]`).checked = true;
   document.getElementById('mov-qtd').value = '';
+  document.getElementById('mov-retirado-por').value = '';
+  document.getElementById('mov-destino').value = '';
+  document.getElementById('mov-observacao').value = '';
   clearFieldError('err-mov-qtd');
+  clearFieldError('err-mov-retirador');
+  clearFieldError('err-mov-destino');
+  updateMovTrackingFields();
+
+  document.querySelectorAll('input[name="mov-tipo"]').forEach(r => {
+    r.onchange = updateMovTrackingFields;
+  });
 
   const btnReg = document.querySelector('button[onclick="saveMovimento()"]');
   if (btnReg) { btnReg.disabled = false; btnReg.textContent = 'Registrar'; }
@@ -2039,6 +2067,17 @@ async function saveMovimento() {
     return;
   }
 
+  clearFieldError('err-mov-retirador');
+  clearFieldError('err-mov-destino');
+  const retiradorPor = (document.getElementById('mov-retirado-por')?.value || '').trim();
+  const destino = (document.getElementById('mov-destino')?.value || '').trim();
+  if (tipo === 'saída') {
+    let hasErr = false;
+    if (!retiradorPor) { showFieldError('err-mov-retirador', 'Informe quem retirou o material.'); hasErr = true; }
+    if (!destino) { showFieldError('err-mov-destino', 'Informe o destino ou local de uso.'); hasErr = true; }
+    if (hasErr) return;
+  }
+
   const btn = document.querySelector('button[onclick="saveMovimento()"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Registrando...'; }
 
@@ -2047,6 +2086,8 @@ async function saveMovimento() {
     material_id: material.id, material_nome: material.nome,
     tipo, quantidade: qtd,
     registrado_por: currentSession.nomeCompleto,
+    retirado_por: retiradorPor || null,
+    destino: destino || null,
     observacao: observacao || null
   });
   if (errMov) { alert('Erro: ' + errMov.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
@@ -2122,7 +2163,7 @@ function renderMovements() {
 
   const tbody = document.getElementById('movements-tbody');
   if (movs.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma movimentação encontrada neste período.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhuma movimentação encontrada neste período.</td></tr>';
     return;
   }
 
@@ -2139,7 +2180,8 @@ function renderMovements() {
       </td>
       <td><span class="badge ${badgeClass}">${label}</span></td>
       <td>${fmt(m.quantidade)}</td>
-      <td>${esc(m.registradoPor)}</td>
+      <td>${m.retiradorPor ? esc(m.retiradorPor) : '<span style="color:var(--gray-500)">—</span>'}</td>
+      <td>${m.destino ? esc(m.destino) : '<span style="color:var(--gray-500)">—</span>'}</td>
     </tr>`;
   }).join('');
 }
@@ -2565,7 +2607,7 @@ function openHistoricoModal(id) {
   const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
   const tbody = document.getElementById('historico-tbody');
   tbody.innerHTML = movs.length === 0
-    ? '<tr class="empty-row"><td colspan="5">Nenhuma movimentação registrada.</td></tr>'
+    ? '<tr class="empty-row"><td colspan="6">Nenhuma movimentação registrada.</td></tr>'
     : movs.map(m => {
         const d = new Date(m.data);
         const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -2575,7 +2617,8 @@ function openHistoricoModal(id) {
           <td>${dateStr}</td>
           <td><span class="badge ${badgeClass}">${label}</span></td>
           <td>${fmt(m.quantidade)}</td>
-          <td>${esc(m.registradoPor)}</td>
+          <td>${m.retiradorPor ? esc(m.retiradorPor) : '<span style="color:var(--gray-500)">—</span>'}</td>
+          <td>${m.destino ? esc(m.destino) : '<span style="color:var(--gray-500)">—</span>'}</td>
           <td style="color:var(--gray-600);font-style:italic;font-size:0.8125rem">${m.observacao ? esc(m.observacao) : '—'}</td>
         </tr>`;
       }).join('');
@@ -2600,11 +2643,11 @@ function exportCSV() {
   if (currentMovTipo)   movs = movs.filter(m => m.tipo === currentMovTipo);
   movs = movs.sort((a, b) => new Date(b.data) - new Date(a.data));
 
-  const header = ['Data/Hora', 'Material', 'Categoria', 'Tipo', 'Quantidade', 'Registrado por', 'Observação'];
+  const header = ['Data/Hora', 'Material', 'Categoria', 'Tipo', 'Quantidade', 'Retirado por', 'Destino', 'Observação'];
   const rows = movs.map(m => {
     const d = new Date(m.data);
     const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    return [dateStr, m.materialNome, catMap[m.materialId] || '—', m.tipo, m.quantidade, m.registradoPor, m.observacao || '']
+    return [dateStr, m.materialNome, catMap[m.materialId] || '—', m.tipo, m.quantidade, m.retiradorPor || '', m.destino || '', m.observacao || '']
       .map(v => `"${String(v).replace(/"/g, '""')}"`)
       .join(',');
   });
