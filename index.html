@@ -619,7 +619,7 @@ tr:hover td { background: var(--gray-50); }
       <div class="modal-body" style="padding:0">
         <div class="table-wrapper">
           <table>
-            <thead><tr><th>Nome</th><th>Usuário</th><th>Papel</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Nome</th><th>Papel atual</th><th>Ação</th></tr></thead>
             <tbody id="usuarios-tbody"></tbody>
           </table>
         </div>
@@ -2130,30 +2130,48 @@ function closeUsuariosModal() {
 }
 function renderUserList() {
   const users = getUsuarios();
+  const adminCount = users.filter(u => u.papel === 'admin').length;
   document.getElementById('usuarios-tbody').innerHTML = users.map(u => {
     const isSelf = u.id === currentSession.usuarioId;
     const isAdmin = u.papel === 'admin';
     const roleCls = isAdmin ? 'badge-entrada' : 'badge-saida';
     const roleLabel = isAdmin ? 'Admin' : 'Viewer';
+    const isLastAdmin = isAdmin && adminCount === 1;
+
+    let actionCell;
+    if (isSelf) {
+      actionCell = `<span style="font-size:0.8125rem;color:var(--gray-600)">— você mesmo</span>`;
+    } else if (isLastAdmin) {
+      actionCell = `<span style="font-size:0.8125rem;color:var(--gray-600)" title="É o único admin">Único admin</span>`;
+    } else {
+      const label = isAdmin ? 'Rebaixar para Viewer' : 'Tornar Admin';
+      const cls   = isAdmin ? 'btn-danger' : 'btn-primary';
+      actionCell = `<button class="btn ${cls} btn-sm" onclick="changeUserRole('${u.id}')">${label}</button>`;
+    }
+
     return `<tr>
       <td>${esc(u.nomeCompleto)}</td>
       <td><span class="badge ${roleCls}">${roleLabel}</span></td>
-      <td>${isSelf
-        ? `<span style="font-size:0.8125rem;color:var(--gray-600)">Você</span>`
-        : `<button class="btn btn-secondary btn-sm" onclick="changeUserRole('${u.id}')">${isAdmin ? 'Tornar Viewer' : 'Tornar Admin'}</button>`}
-      </td>
+      <td>${actionCell}</td>
     </tr>`;
   }).join('');
 }
-function changeUserRole(id) {
+
+async function changeUserRole(id) {
   const user = getUsuarios().find(u => u.id === id);
   if (!user) return;
+
   const novoPapel = user.papel === 'admin' ? 'viewer' : 'admin';
-  _sb.from('profiles').update({ papel: novoPapel }).eq('id', id).then(async ({ error }) => {
-    if (error) { alert('Erro: ' + error.message); return; }
-    await loadAllData();
-    renderUserList();
-  });
+  const acao = novoPapel === 'admin' ? 'tornar Admin' : 'rebaixar para Viewer';
+  if (!confirm(`Deseja ${acao} o usuário "${user.nomeCompleto}"?`)) return;
+
+  const { error } = await _sb.from('profiles').update({ papel: novoPapel }).eq('id', id);
+  if (error) {
+    alert('Erro ao alterar papel.\n\nSe a alteração falhou por permissão, rode o SQL de correção de RLS no Supabase (veja instruções).\n\nDetalhe: ' + error.message);
+    return;
+  }
+  await loadAllData();
+  renderUserList();
 }
 
 // === BACKUP E RESTAURAÇÃO ===
