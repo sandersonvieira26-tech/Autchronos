@@ -334,6 +334,33 @@ tr:hover td { background: var(--gray-50); }
 .pagination-btn:disabled { opacity: 0.38; cursor: default; }
 .pagination-info { font-size: 0.8rem; color: var(--gray-500); padding: 0 0.375rem; }
 
+/* === TRACKING DASHBOARD === */
+.track-panel { display:flex; gap:1rem; padding:0.875rem 1.25rem 0; flex-wrap:wrap; }
+.track-card { flex:1; min-width:180px; background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius); padding:0.75rem 1rem; }
+.track-card-title { font-size:0.75rem; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.5rem; }
+.track-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem; font-size:0.8125rem; }
+.track-bar-wrap { flex:1; height:6px; background:var(--gray-100); border-radius:3px; overflow:hidden; }
+.track-bar-fill { height:100%; border-radius:3px; background:var(--orange); }
+.track-name { min-width:80px; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--gray-700); }
+.track-count { font-weight:700; color:var(--gray-900); font-size:0.8125rem; flex-shrink:0; }
+.track-cost-val { font-size:1.5rem; font-weight:800; color:var(--red); }
+.track-cost-label { font-size:0.75rem; color:var(--gray-600); margin-top:0.125rem; }
+
+/* === REPOSIÇÃO === */
+.repos-item { display:flex; align-items:center; gap:0.75rem; padding:0.625rem 0; border-bottom:1px solid var(--gray-200); }
+.repos-item:last-child { border-bottom:none; }
+.repos-badge { flex-shrink:0; }
+.repos-nome { font-weight:600; color:var(--gray-900); font-size:0.9375rem; }
+.repos-cat { font-size:0.8125rem; color:var(--gray-600); margin-top:0.125rem; }
+.repos-qty { margin-left:auto; text-align:right; flex-shrink:0; }
+.repos-qty-val { font-size:1.1rem; font-weight:700; }
+.repos-qty-min { font-size:0.75rem; color:var(--gray-600); }
+
+/* === CONFIRM DELETE MODAL === */
+.confirm-del-icon { font-size:2.5rem; text-align:center; margin-bottom:0.5rem; }
+.confirm-del-msg { color:var(--gray-700); font-size:0.9375rem; text-align:center; }
+.confirm-del-name { font-weight:700; color:var(--gray-900); }
+
 /* === BOTTOM NAV === */
 .bottom-nav { display: none; }
 
@@ -807,6 +834,40 @@ tr:hover td { background: var(--gray-50); }
     </div>
   </div>
 
+  <!-- Modal: Reposição de Estoque -->
+  <div id="modal-reposicao" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:560px">
+      <div class="modal-header">
+        <h2>Lista de Reposição</h2>
+        <button class="modal-close" onclick="closeReposicaoModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:0 1.5rem 0.5rem">
+        <p id="repos-summary" style="font-size:0.875rem;color:var(--gray-600);padding:0.75rem 0 0.5rem"></p>
+        <div id="repos-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeReposicaoModal()">Fechar</button>
+        <button class="btn btn-secondary" style="width:auto" onclick="exportReposicaoCSV()">&#8595; CSV</button>
+        <button class="btn btn-primary" style="width:auto" onclick="printReposicao()">&#128438; Imprimir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmação de Exclusão -->
+  <div id="modal-confirm-del" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-body" style="padding:2rem 1.5rem 1rem">
+        <div class="confirm-del-icon">&#9888;&#65039;</div>
+        <h2 id="confirm-del-title" style="text-align:center;font-size:1.0625rem;margin-bottom:0.625rem"></h2>
+        <p class="confirm-del-msg" id="confirm-del-msg"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeConfirmDelete()">Cancelar</button>
+        <button class="btn btn-danger" id="confirm-del-btn" style="width:auto">Excluir</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Histórico do Material -->
   <div id="modal-historico" class="modal-overlay" style="display:none">
     <div class="modal-box" style="max-width:680px">
@@ -856,7 +917,8 @@ tr:hover td { background: var(--gray-50); }
         </div>
         <div class="form-group" id="mov-destino-group" style="display:none">
           <label for="mov-destino">Destino / Local de uso *</label>
-          <input type="text" id="mov-destino" placeholder="Ex: Obra Av. Paulista, Almoxarifado B..." maxlength="160" autocomplete="off">
+          <input type="text" id="mov-destino" list="destinos-list" placeholder="Ex: Obra Av. Paulista, Almoxarifado B..." maxlength="160" autocomplete="off">
+          <datalist id="destinos-list"></datalist>
           <div class="form-error" id="err-mov-destino"></div>
         </div>
         <div class="form-group">
@@ -1438,8 +1500,11 @@ let currentCalibStatus = '';
 let currentCalibPage = 1;
 let currentCalibView = 'dashboard';
 const CALIB_PER_PAGE = 15;
+let currentMovPage = 1;
+const MOV_PER_PAGE = 25;
 let currentCustomStart = '';
 let currentCustomEnd = '';
+let _realtimeChannel = null;
 
 function renderDashboard(session) {
   currentSession = session;
@@ -1503,6 +1568,7 @@ function renderDashboard(session) {
             <div class="table-actions" style="margin-left:auto">
               ${isAdmin ? `<button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Categorias</button>
               <button class="btn btn-primary btn-sm" style="width:auto" onclick="openMaterialModal()">+ Material</button>` : ''}
+              <button class="btn btn-secondary btn-sm" style="width:auto" onclick="openReposicaoModal()" title="Lista de materiais em Baixo ou Crítico">&#9888; Reposição</button>
               <button class="btn btn-secondary btn-sm" style="width:auto" onclick="exportMateriaisCSV()" title="Exportar lista atual para Excel/CSV">&#8595; CSV</button>
             </div>
           </div>
@@ -1625,6 +1691,7 @@ function renderDashboard(session) {
               </div>
             </div>
           </div>
+          <div id="mov-tracking-panel"></div>
           <div class="chart-container" id="chart-container"></div>
           <div class="chart-summary" id="chart-summary"></div>
           <div class="mov-toolbar">
@@ -1644,6 +1711,7 @@ function renderDashboard(session) {
               <tbody id="movements-tbody"></tbody>
             </table>
           </div>
+          <div id="mov-pagination" class="pagination"></div>
         </div>
       </div>
     </div>
@@ -1693,12 +1761,14 @@ function renderDashboard(session) {
 }
 
 async function doLogout() {
+  if (_realtimeChannel) { _sb.removeChannel(_realtimeChannel); _realtimeChannel = null; }
   await _sb.auth.signOut();
   currentSession = null;
   currentPeriod = 'hoje';
   currentMovCategory = '';
   currentMovSearch = '';
   currentMovTipo = '';
+  currentMovPage = 1;
   currentCustomStart = '';
   currentCustomEnd = '';
   currentCalibCat = '';
@@ -2038,6 +2108,13 @@ function openMovimentoModal(id, tipo = 'entrada') {
     r.onchange = updateMovTrackingFields;
   });
 
+  // Autocomplete destinos a partir de movimentações existentes
+  const dl = document.getElementById('destinos-list');
+  if (dl) {
+    const destinos = [...new Set(getMovimentacoes().map(m => m.destino).filter(Boolean))].sort();
+    dl.innerHTML = destinos.map(d => `<option value="${esc(d)}">`).join('');
+  }
+
   const btnReg = document.querySelector('button[onclick="saveMovimento()"]');
   if (btnReg) { btnReg.disabled = false; btnReg.textContent = 'Registrar'; }
 
@@ -2128,8 +2205,9 @@ function renderMovements() {
   updateMovCatFilter();
 
   const allMovs = getMovimentacoes();
+  const matValMap = {};
   const catMap = {};
-  getMateriais().forEach(m => { catMap[m.id] = m.categoria; });
+  getMateriais().forEach(m => { catMap[m.id] = m.categoria; matValMap[m.id] = m.valorUnitario || 0; });
 
   const movsByCat = currentMovCategory
     ? allMovs.filter(m => catMap[m.materialId] === currentMovCategory)
@@ -2139,8 +2217,6 @@ function renderMovements() {
   let movs = movsByCat.filter(m => { const d = new Date(m.data); return d >= start && d <= end; });
 
   // Totalizador (antes dos filtros de busca/tipo)
-  const matValMap = {};
-  getMateriais().forEach(m => { matValMap[m.id] = m.valorUnitario || 0; });
   const movsEnt = movs.filter(m => m.tipo === 'entrada');
   const movsSai = movs.filter(m => m.tipo === 'saída');
   const totEntradas = movsEnt.reduce((s, m) => s + m.quantidade, 0);
@@ -2157,21 +2233,34 @@ function renderMovements() {
        <span>Saldo: <strong style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(saldo)}</strong></span>`;
   }
 
+  // Tracking dashboard (saídas do período antes dos filtros de busca/tipo)
+  renderMovTrackingPanel(movsSai, matValMap, totValSai);
+
   // Chart
   renderChart(document.getElementById('chart-container'), movsByCat, currentPeriod);
 
   // Filtros de busca e tipo
-  if (currentMovSearch) movs = movs.filter(m => m.materialNome.toLowerCase().includes(currentMovSearch));
+  if (currentMovSearch) movs = movs.filter(m =>
+    m.materialNome.toLowerCase().includes(currentMovSearch) ||
+    (m.retiradorPor || '').toLowerCase().includes(currentMovSearch) ||
+    (m.destino || '').toLowerCase().includes(currentMovSearch));
   if (currentMovTipo)   movs = movs.filter(m => m.tipo === currentMovTipo);
   movs = movs.sort((a, b) => new Date(b.data) - new Date(a.data));
 
+  // Paginação
+  const total = movs.length;
+  const totalPages = Math.max(1, Math.ceil(total / MOV_PER_PAGE));
+  if (currentMovPage > totalPages) currentMovPage = totalPages;
+  const pageMovs = movs.slice((currentMovPage - 1) * MOV_PER_PAGE, currentMovPage * MOV_PER_PAGE);
+
   const tbody = document.getElementById('movements-tbody');
-  if (movs.length === 0) {
+  if (total === 0) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhuma movimentação encontrada neste período.</td></tr>';
+    document.getElementById('mov-pagination').innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = movs.map(m => {
+  tbody.innerHTML = pageMovs.map(m => {
     const d = new Date(m.data);
     const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const tipoInfo = { entrada:['badge-entrada','Entrada'], saída:['badge-saida','Saída'], ajuste:['badge-ajuste','Ajuste'] };
@@ -2188,6 +2277,76 @@ function renderMovements() {
       <td>${m.destino ? esc(m.destino) : '<span style="color:var(--gray-500)">—</span>'}</td>
     </tr>`;
   }).join('');
+
+  // Render pagination
+  renderPaginationEl('mov-pagination', currentMovPage, totalPages, p => { currentMovPage = p; renderMovements(); }, total, MOV_PER_PAGE);
+}
+
+function renderMovTrackingPanel(saidas, matValMap, totValSai) {
+  const panel = document.getElementById('mov-tracking-panel');
+  if (!panel) return;
+  if (saidas.length === 0) { panel.innerHTML = ''; return; }
+
+  // Top retirado_por
+  const retiradoresMap = {};
+  saidas.forEach(m => { if (m.retiradorPor) retiradoresMap[m.retiradorPor] = (retiradoresMap[m.retiradorPor] || 0) + 1; });
+  const topRet = Object.entries(retiradoresMap).sort((a,b) => b[1]-a[1]).slice(0, 5);
+  const maxRet = topRet[0]?.[1] || 1;
+
+  // Top destinos
+  const destinosMap = {};
+  saidas.forEach(m => { if (m.destino) destinosMap[m.destino] = (destinosMap[m.destino] || 0) + 1; });
+  const topDest = Object.entries(destinosMap).sort((a,b) => b[1]-a[1]).slice(0, 5);
+  const maxDest = topDest[0]?.[1] || 1;
+
+  const barRows = (items, max) => items.length === 0
+    ? '<div style="color:var(--gray-500);font-size:0.8125rem;padding:0.25rem 0">Nenhum registro</div>'
+    : items.map(([name, count]) => `
+      <div class="track-row">
+        <span class="track-name" title="${esc(name)}">${esc(name)}</span>
+        <div class="track-bar-wrap"><div class="track-bar-fill" style="width:${Math.round(count/max*100)}%"></div></div>
+        <span class="track-count">${count}</span>
+      </div>`).join('');
+
+  panel.innerHTML = `<div class="track-panel">
+    <div class="track-card">
+      <div class="track-card-title">Quem mais retirou</div>
+      ${barRows(topRet, maxRet)}
+    </div>
+    <div class="track-card">
+      <div class="track-card-title">Destinos frequentes</div>
+      ${barRows(topDest, maxDest)}
+    </div>
+    ${totValSai > 0 ? `<div class="track-card" style="min-width:140px;flex:0 0 auto;text-align:center">
+      <div class="track-card-title">Custo das saídas</div>
+      <div class="track-cost-val">${formatBRL(totValSai)}</div>
+      <div class="track-cost-label">${saidas.length} saída${saidas.length !== 1 ? 's' : ''} no período</div>
+    </div>` : ''}
+  </div>`;
+}
+
+function renderPaginationEl(elId, page, totalPages, onPage, total, perPage) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = `<span class="pagination-info">${total} registro${total !== 1 ? 's' : ''}</span>`; return; }
+  const from = (page - 1) * perPage + 1;
+  const to = Math.min(page * perPage, total);
+  let html = `<button class="pagination-btn" onclick="${onPage.toString().includes('=>') ? '' : ''}void(0)" id="${elId}-prev" ${page === 1 ? 'disabled' : ''}>&#8592;</button>`;
+  const range = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) range.push(i);
+    else if (range[range.length-1] !== '…') range.push('…');
+  }
+  range.forEach(r => {
+    if (r === '…') html += `<span class="pagination-info">…</span>`;
+    else html += `<button class="pagination-btn ${r === page ? 'pg-active' : ''}" data-pg="${r}">${r}</button>`;
+  });
+  html += `<button class="pagination-btn" id="${elId}-next" ${page === totalPages ? 'disabled' : ''}>&#8594;</button>`;
+  html += `<span class="pagination-info">${from}–${to} de ${total}</span>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => onPage(+btn.dataset.pg)));
+  const prev = el.querySelector(`#${elId}-prev`); if (prev) prev.addEventListener('click', () => onPage(page - 1));
+  const next = el.querySelector(`#${elId}-next`); if (next) next.addEventListener('click', () => onPage(page + 1));
 }
 
 function getBuckets(period) {
@@ -2364,15 +2523,16 @@ async function deleteMaterial(id) {
   if (!guardAdmin()) return;
   const material = getMateriais().find(m => m.id === id);
   if (!material) return;
-
-  if (!confirm(`Deseja excluir o material '${material.nome}'? Esta ação não pode ser desfeita.`)) return;
-
-  const { error } = await _sb.from('materiais').delete().eq('id', id);
-  if (error) { alert('Erro ao excluir: ' + error.message); return; }
-  // movimentacoes apagadas em cascade pelo banco
-
-  await loadAllData();
-  refreshAllSections();
+  openConfirmDelete(
+    'Excluir material',
+    `Tem certeza que deseja excluir <span class="confirm-del-name">${esc(material.nome)}</span>? Todo o histórico de movimentações será perdido. Esta ação não pode ser desfeita.`,
+    async () => {
+      const { error } = await _sb.from('materiais').delete().eq('id', id);
+      if (error) { alert('Erro ao excluir: ' + error.message); return; }
+      await loadAllData();
+      refreshAllSections();
+    }
+  );
 }
 
 function validateDecimalField(value, id) {
@@ -2537,6 +2697,7 @@ function deleteCategoryByIndex(idx) {
 }
 
 function setPeriod(p) {
+  currentMovPage = 1;
   currentPeriod = p;
   ['hoje','7d','14d','30d','custom'].forEach(k => {
     const btn = document.getElementById('btn-' + k);
@@ -2552,16 +2713,19 @@ function applyCustomPeriod() {
 }
 
 function setMovCategory(cat) {
+  currentMovPage = 1;
   currentMovCategory = cat;
   renderMovements();
 }
 
 function setMovSearch(val) {
+  currentMovPage = 1;
   currentMovSearch = val.toLowerCase();
   renderMovements();
 }
 
 function setMovTipo(val) {
+  currentMovPage = 1;
   currentMovTipo = val;
   renderMovements();
 }
@@ -2609,15 +2773,22 @@ function openHistoricoModal(id) {
     .filter(m => m.materialId === id)
     .sort((a, b) => new Date(b.data) - new Date(a.data));
   const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
+  const valorUnit = material ? (material.valorUnitario || 0) : 0;
   const list = document.getElementById('historico-list');
   if (movs.length === 0) {
     list.innerHTML = '<p style="text-align:center;color:var(--gray-600);padding:2rem 1rem">Nenhuma movimentação registrada.</p>';
   } else {
-    list.innerHTML = movs.map(m => {
+    let custoTotalSaidas = 0;
+    const cards = movs.map(m => {
       const d = new Date(m.data);
       const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const tipoInfo = { entrada:['badge-entrada','Entrada'], saída:['badge-saida','Saída'], ajuste:['badge-ajuste','Ajuste'] };
       const [badgeClass, label] = tipoInfo[m.tipo] || ['badge-saida', m.tipo];
+      const custo = valorUnit > 0 ? m.quantidade * valorUnit : 0;
+      if (m.tipo === 'saída') custoTotalSaidas += custo;
+      const custoStr = custo > 0
+        ? `<div class="hist-entry-row"><span class="hist-entry-key">Valor</span><span class="hist-entry-val" style="color:${m.tipo === 'saída' ? 'var(--red)' : 'var(--green)'}">${m.tipo === 'saída' ? '−' : '+'} ${formatBRL(custo)}</span></div>`
+        : '';
       return `<div class="hist-entry">
         <div class="hist-entry-header">
           <span class="hist-entry-date">${dateStr}</span>
@@ -2627,17 +2798,154 @@ function openHistoricoModal(id) {
           <span class="hist-entry-key">Quantidade</span>
           <span class="hist-entry-val">${fmt(m.quantidade)}${material ? ' ' + esc(material.unidade) : ''}</span>
         </div>
+        ${custoStr}
         ${m.retiradorPor ? `<div class="hist-entry-row"><span class="hist-entry-key">Retirado por</span><span class="hist-entry-val">${esc(m.retiradorPor)}</span></div>` : ''}
         ${m.destino ? `<div class="hist-entry-row"><span class="hist-entry-key">Destino</span><span class="hist-entry-val">${esc(m.destino)}</span></div>` : ''}
         ${m.observacao ? `<div class="hist-entry-row"><span class="hist-entry-key">Obs.</span><span class="hist-entry-val" style="color:var(--gray-600);font-style:italic;font-weight:400">${esc(m.observacao)}</span></div>` : ''}
       </div>`;
     }).join('');
+    const totLine = custoTotalSaidas > 0
+      ? `<div style="padding:0.75rem 1rem;background:var(--gray-100);border-top:1px solid var(--gray-200);font-size:0.875rem;display:flex;justify-content:space-between;align-items:center">
+           <span style="color:var(--gray-600)">Total em saídas</span>
+           <strong style="color:var(--red)">${formatBRL(custoTotalSaidas)}</strong>
+         </div>` : '';
+    list.innerHTML = cards + totLine;
   }
   document.getElementById('modal-historico').style.display = 'flex';
 }
 
 function closeHistoricoModal() {
   document.getElementById('modal-historico').style.display = 'none';
+}
+
+// === LISTA DE REPOSIÇÃO ===
+function openReposicaoModal() {
+  const itens = getMateriais()
+    .filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK')
+    .sort((a, b) => {
+      const ord = { 'Crítico': 0, 'Baixo': 1 };
+      return ord[calcStatus(a.quantidade, a.estoqueMinimo)] - ord[calcStatus(b.quantidade, b.estoqueMinimo)];
+    });
+  const fmt = v => v % 1 === 0 ? v : v.toFixed(2);
+  const sumEl = document.getElementById('repos-summary');
+  const listEl = document.getElementById('repos-list');
+  if (itens.length === 0) {
+    sumEl.textContent = 'Todos os materiais estão com estoque adequado.';
+    listEl.innerHTML = '';
+  } else {
+    const criticos = itens.filter(m => calcStatus(m.quantidade, m.estoqueMinimo) === 'Crítico').length;
+    const baixos   = itens.filter(m => calcStatus(m.quantidade, m.estoqueMinimo) === 'Baixo').length;
+    sumEl.innerHTML = `${criticos > 0 ? `<span style="color:var(--red);font-weight:600">${criticos} Crítico${criticos>1?'s':''}</span>` : ''}${criticos && baixos ? ' &nbsp;·&nbsp; ' : ''}${baixos > 0 ? `<span style="color:var(--amber);font-weight:600">${baixos} Baixo${baixos>1?'s':''}</span>` : ''} — necessitam reposição`;
+    listEl.innerHTML = itens.map(m => {
+      const st = calcStatus(m.quantidade, m.estoqueMinimo);
+      const badgeClass = st === 'Crítico' ? 'badge-critico' : 'badge-baixo';
+      const falta = Math.max(0, m.estoqueMinimo - m.quantidade);
+      return `<div class="repos-item">
+        <span class="repos-badge badge ${badgeClass}">${st}</span>
+        <div style="flex:1;min-width:0">
+          <div class="repos-nome">${esc(m.nome)}</div>
+          <div class="repos-cat">${esc(m.categoria)}${m.localizacao ? ' · ' + esc(m.localizacao) : ''}</div>
+        </div>
+        <div class="repos-qty">
+          <div class="repos-qty-val" style="color:${st==='Crítico'?'var(--red)':'var(--amber)'}">${fmt(m.quantidade)} ${esc(m.unidade)}</div>
+          <div class="repos-qty-min">mín: ${fmt(m.estoqueMinimo)} · falta: <strong>${fmt(falta)}</strong></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('modal-reposicao').style.display = 'flex';
+}
+
+function closeReposicaoModal() {
+  document.getElementById('modal-reposicao').style.display = 'none';
+}
+
+function exportReposicaoCSV() {
+  const itens = getMateriais()
+    .filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK')
+    .sort((a, b) => {
+      const ord = { 'Crítico': 0, 'Baixo': 1 };
+      return ord[calcStatus(a.quantidade, a.estoqueMinimo)] - ord[calcStatus(b.quantidade, b.estoqueMinimo)];
+    });
+  const fmt = v => v % 1 === 0 ? v : v.toFixed(2);
+  const header = ['Status', 'Nome', 'Categoria', 'Localização', 'Qtd. Atual', 'Unidade', 'Estoque Mínimo', 'Falta', 'Valor Unit.'];
+  const rows = itens.map(m => {
+    const falta = Math.max(0, m.estoqueMinimo - m.quantidade);
+    return [calcStatus(m.quantidade, m.estoqueMinimo), m.nome, m.categoria, m.localizacao || '', fmt(m.quantidade), m.unidade, fmt(m.estoqueMinimo), fmt(falta), m.valorUnitario > 0 ? m.valorUnitario.toFixed(2).replace('.', ',') : '']
+      .map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+  const csv = '﻿' + [header.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `reposicao_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function printReposicao() {
+  const itens = getMateriais()
+    .filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK')
+    .sort((a, b) => {
+      const ord = { 'Crítico': 0, 'Baixo': 1 };
+      return ord[calcStatus(a.quantidade, a.estoqueMinimo)] - ord[calcStatus(b.quantidade, b.estoqueMinimo)];
+    });
+  const fmt = v => v % 1 === 0 ? v : v.toFixed(2);
+  const rows = itens.map(m => {
+    const st = calcStatus(m.quantidade, m.estoqueMinimo);
+    const falta = Math.max(0, m.estoqueMinimo - m.quantidade);
+    return `<tr>
+      <td style="color:${st==='Crítico'?'#dc2626':'#d97706'};font-weight:600">${st}</td>
+      <td>${esc(m.nome)}</td>
+      <td>${esc(m.categoria)}</td>
+      <td>${fmt(m.quantidade)} ${esc(m.unidade)}</td>
+      <td>${fmt(m.estoqueMinimo)}</td>
+      <td><strong>${fmt(falta)}</strong></td>
+    </tr>`;
+  }).join('');
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista de Reposição</title>
+    <style>body{font-family:sans-serif;padding:1.5rem}h2{margin-bottom:0.5rem}p{color:#6b7280;margin-bottom:1rem}
+    table{border-collapse:collapse;width:100%}th,td{border:1px solid #e5e7eb;padding:0.5rem 0.75rem;text-align:left}
+    th{background:#f3f4f6;font-weight:600}@media print{button{display:none}}</style></head>
+    <body><h2>Lista de Reposição — Autchronos</h2>
+    <p>Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</p>
+    <table><thead><tr><th>Status</th><th>Material</th><th>Categoria</th><th>Qtd. Atual</th><th>Mínimo</th><th>Falta</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <br><button onclick="window.print()">Imprimir</button></body></html>`);
+  w.document.close();
+}
+
+// === CONFIRMAR EXCLUSÃO ===
+let _confirmDelCallback = null;
+function openConfirmDelete(title, msg, onConfirm) {
+  _confirmDelCallback = onConfirm;
+  document.getElementById('confirm-del-title').textContent = title;
+  document.getElementById('confirm-del-msg').innerHTML = msg;
+  const btn = document.getElementById('confirm-del-btn');
+  btn.onclick = () => { closeConfirmDelete(); if (_confirmDelCallback) _confirmDelCallback(); };
+  document.getElementById('modal-confirm-del').style.display = 'flex';
+}
+
+function closeConfirmDelete() {
+  document.getElementById('modal-confirm-del').style.display = 'none';
+  _confirmDelCallback = null;
+}
+
+// === REALTIME SUPABASE ===
+function setupRealtime() {
+  if (_realtimeChannel) { _sb.removeChannel(_realtimeChannel); _realtimeChannel = null; }
+  _realtimeChannel = _sb.channel('db-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'materiais' }, async () => {
+      await loadAllData(); refreshAllSections();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'movimentacoes' }, async () => {
+      await loadAllData(); refreshAllSections();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'equipamentos_calibracao' }, async () => {
+      await loadAllData(); refreshAllSections();
+    })
+    .subscribe();
 }
 
 // === EXPORTAR CSV ===
@@ -2882,7 +3190,7 @@ function showLoadingScreen(session) {
 
   setTimeout(() => {
     el.classList.add('fade-out');
-    setTimeout(() => { el.style.display = 'none'; refreshAllSections(); }, 500);
+    setTimeout(() => { el.style.display = 'none'; refreshAllSections(); setupRealtime(); }, 500);
   }, 1400);
 }
 
@@ -3539,13 +3847,16 @@ async function deleteEquipamento(id) {
   if (!guardAdmin()) return;
   const equip = getEquipamentos().find(e => e.id === id);
   if (!equip) return;
-  if (!confirm(`Deseja excluir o equipamento '${equip.nome}'? Esta ação não pode ser desfeita.`)) return;
-
-  const { error } = await _sb.from('equipamentos_calibracao').delete().eq('id', id);
-  if (error) { alert('Erro ao excluir: ' + error.message); return; }
-
-  await loadAllData();
-  renderEquipamentos();
+  openConfirmDelete(
+    'Excluir equipamento',
+    `Tem certeza que deseja excluir <span class="confirm-del-name">${esc(equip.nome)}</span>? O histórico de calibrações será perdido. Esta ação não pode ser desfeita.`,
+    async () => {
+      const { error } = await _sb.from('equipamentos_calibracao').delete().eq('id', id);
+      if (error) { alert('Erro ao excluir: ' + error.message); return; }
+      await loadAllData();
+      renderEquipamentos();
+    }
+  );
 }
 
 // === IMPORTAR CSV DE CALIBRAÇÕES ===
