@@ -76,6 +76,11 @@ input, select, textarea { font-family: inherit; }
 .dashboard-header .btn-logout,
 .dashboard-header .btn-theme { color: #f1f5f9 !important; }
 
+/* === OCULTAR SALDO === */
+.brl-mask { display: none; color: inherit; letter-spacing: 0.05em; }
+body.saldo-oculto .brl-real { display: none; }
+body.saldo-oculto .brl-mask { display: inline; }
+
 /* Botão de tema */
 .btn-theme {
   width: 36px; height: 36px;
@@ -1198,6 +1203,28 @@ function parseDecimal(str) {
 }
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatBRL = v => brl.format(v);
+const fmtBRL = v => `<span class="brl-wrap"><span class="brl-real">${formatBRL(v)}</span><span class="brl-mask">R$&nbsp;••••••</span></span>`;
+
+function getSaldoIcon() {
+  const oculto = document.body.classList.contains('saldo-oculto');
+  return oculto
+    ? `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>
+       </svg>`
+    : `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+       </svg>`;
+}
+
+function toggleSaldo() {
+  document.body.classList.toggle('saldo-oculto');
+  localStorage.setItem('saldoOculto', document.body.classList.contains('saldo-oculto') ? '1' : '0');
+  const btn = document.getElementById('btn-saldo');
+  if (btn) btn.innerHTML = getSaldoIcon();
+}
 
 function calcStatus(quantidade, estoqueMinimo) {
   if (quantidade >= estoqueMinimo) return 'OK';
@@ -1485,8 +1512,8 @@ function toggleTheme() {
   if (btn) btn.innerHTML = getThemeIcon();
 }
 (function applyTheme() {
-  const saved = localStorage.getItem('theme');
-  if (saved === 'dark') document.documentElement.dataset.theme = 'dark';
+  if (localStorage.getItem('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+  if (localStorage.getItem('saldoOculto') !== '0') document.body.classList.add('saldo-oculto');
 })();
 
 // === DASHBOARD ===
@@ -1526,6 +1553,7 @@ function renderDashboard(session) {
         </div>
         <button class="btn-logout btn-admin-toggle" id="btn-admin-toggle" onclick="toggleAdminMenu()" title="Opções admin">⋮</button>
         ` : ''}
+        <button class="btn-logout btn-theme" onclick="toggleSaldo()" id="btn-saldo" title="Mostrar/ocultar valores">${getSaldoIcon()}</button>
         <button class="btn-logout btn-theme" onclick="toggleTheme()" id="btn-theme" title="Alternar modo noturno">${getThemeIcon()}</button>
         <button class="btn-logout" onclick="doLogout()">Sair</button>
       </div>
@@ -1996,7 +2024,7 @@ function renderCards() {
     </div>
     <div class="card">
       <div class="card-label">Valor Total do Estoque</div>
-      <div class="card-value orange" style="font-size:1.35rem">${formatBRL(valorTotal)}</div>
+      <div class="card-value orange" style="font-size:1.35rem">${fmtBRL(valorTotal)}</div>
     </div>
     <div class="card">
       <div class="card-label">Entradas do Mês</div>
@@ -2228,8 +2256,8 @@ function renderMovements() {
   const summaryEl = document.getElementById('chart-summary');
   if (summaryEl) {
     summaryEl.innerHTML = movs.length === 0 ? '' :
-      `<span>Entradas: <span class="chart-summary-entrada">${fmt(totEntradas)}</span>${totValEnt > 0 ? ` <span style="font-size:0.8125rem;color:var(--gray-600)">(${formatBRL(totValEnt)})</span>` : ''}</span>
-       <span>Saídas: <span class="chart-summary-saida">${fmt(totSaidas)}</span>${totValSai > 0 ? ` <span style="font-size:0.8125rem;color:var(--gray-600)">(${formatBRL(totValSai)})</span>` : ''}</span>
+      `<span>Entradas: <span class="chart-summary-entrada">${fmt(totEntradas)}</span>${totValEnt > 0 ? ` <span style="font-size:0.8125rem;color:var(--gray-600)">(${fmtBRL(totValEnt)})</span>` : ''}</span>
+       <span>Saídas: <span class="chart-summary-saida">${fmt(totSaidas)}</span>${totValSai > 0 ? ` <span style="font-size:0.8125rem;color:var(--gray-600)">(${fmtBRL(totValSai)})</span>` : ''}</span>
        <span>Saldo: <strong style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(saldo)}</strong></span>`;
   }
 
@@ -2319,7 +2347,7 @@ function renderMovTrackingPanel(saidas, matValMap, totValSai) {
     </div>
     ${totValSai > 0 ? `<div class="track-card" style="min-width:140px;flex:0 0 auto;text-align:center">
       <div class="track-card-title">Custo das saídas</div>
-      <div class="track-cost-val">${formatBRL(totValSai)}</div>
+      <div class="track-cost-val">${fmtBRL(totValSai)}</div>
       <div class="track-cost-label">${saidas.length} saída${saidas.length !== 1 ? 's' : ''} no período</div>
     </div>` : ''}
   </div>`;
@@ -2787,7 +2815,7 @@ function openHistoricoModal(id) {
       const custo = valorUnit > 0 ? m.quantidade * valorUnit : 0;
       if (m.tipo === 'saída') custoTotalSaidas += custo;
       const custoStr = custo > 0
-        ? `<div class="hist-entry-row"><span class="hist-entry-key">Valor</span><span class="hist-entry-val" style="color:${m.tipo === 'saída' ? 'var(--red)' : 'var(--green)'}">${m.tipo === 'saída' ? '−' : '+'} ${formatBRL(custo)}</span></div>`
+        ? `<div class="hist-entry-row"><span class="hist-entry-key">Valor</span><span class="hist-entry-val" style="color:${m.tipo === 'saída' ? 'var(--red)' : 'var(--green)'}">${m.tipo === 'saída' ? '−' : '+'} ${fmtBRL(custo)}</span></div>`
         : '';
       return `<div class="hist-entry">
         <div class="hist-entry-header">
@@ -2807,7 +2835,7 @@ function openHistoricoModal(id) {
     const totLine = custoTotalSaidas > 0
       ? `<div style="padding:0.75rem 1rem;background:var(--gray-100);border-top:1px solid var(--gray-200);font-size:0.875rem;display:flex;justify-content:space-between;align-items:center">
            <span style="color:var(--gray-600)">Total em saídas</span>
-           <strong style="color:var(--red)">${formatBRL(custoTotalSaidas)}</strong>
+           <strong style="color:var(--red)">${fmtBRL(custoTotalSaidas)}</strong>
          </div>` : '';
     list.innerHTML = cards + totLine;
   }
