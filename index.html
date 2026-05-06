@@ -2494,6 +2494,9 @@ function openEquipamentoModal(id = null) {
 
   ['err-eq-nome', 'err-eq-cat', 'err-eq-ultima', 'err-eq-validade'].forEach(clearFieldError);
 
+  const btn = document.querySelector('button[onclick="saveEquipamento()"]');
+  if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+
   updateProximaCalib();
   document.getElementById('modal-equipamento').style.display = 'flex';
 }
