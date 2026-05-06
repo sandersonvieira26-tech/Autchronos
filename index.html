@@ -362,6 +362,72 @@ tr:hover td { background: var(--gray-50); }
 .mat-card-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
 .mat-card-actions .btn { flex: 1; min-width: 72px; font-size: 0.8rem; padding: 0.375rem 0.25rem; text-align: center; }
 
+/* === CALIB VIEW TOGGLE === */
+.view-toggle { display:flex; border:1px solid var(--gray-200); border-radius:var(--radius); overflow:hidden; flex-shrink:0; }
+.view-toggle-btn { padding:0.375rem 0.875rem; border:none; background:var(--white); font-size:0.8125rem; font-weight:600; cursor:pointer; color:var(--gray-500); transition:background 0.15s,color 0.15s; white-space:nowrap; }
+.view-toggle-btn.active { background:var(--orange); color:#fff; }
+
+/* === CALIB DASHBOARD === */
+.cdash-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:0.75rem; margin:1.25rem 1.25rem 0; }
+.cdash-card { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); padding:1rem 1.25rem; text-align:center; border-top:3px solid transparent; }
+.cdash-card.clickable { cursor:pointer; transition:box-shadow 0.15s; }
+.cdash-card.clickable:hover { box-shadow:var(--shadow-lg); }
+.cdash-val { font-size:2.25rem; font-weight:800; line-height:1; }
+.cdash-label { font-size:0.75rem; color:var(--gray-500); margin-top:0.375rem; }
+.cdash-total { border-top-color:var(--gray-300); }
+.cdash-ok    { border-top-color:var(--green); }
+.cdash-ok .cdash-val { color:var(--green); }
+.cdash-warn  { border-top-color:var(--amber); }
+.cdash-warn .cdash-val { color:var(--amber); }
+.cdash-red   { border-top-color:var(--red); }
+.cdash-red .cdash-val { color:var(--red); }
+.cdash-orange{ border-top-color:var(--orange); }
+.cdash-orange .cdash-val { color:var(--orange); }
+
+.cdash-row { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin:0.75rem 1.25rem; }
+.cdash-panel { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); padding:1.125rem 1.25rem; }
+.cdash-panel-title { font-size:0.8125rem; font-weight:700; color:var(--gray-600); margin-bottom:0.875rem; text-transform:uppercase; letter-spacing:0.03em; }
+
+/* Donut chart */
+.donut-wrap { display:flex; align-items:center; gap:1.25rem; }
+.donut-legend { display:flex; flex-direction:column; gap:0.5rem; flex:1; min-width:0; }
+.donut-leg-item { display:flex; align-items:center; gap:0.5rem; font-size:0.8125rem; }
+.donut-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.donut-leg-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.donut-leg-count { font-weight:700; color:var(--gray-800); flex-shrink:0; }
+
+/* Horizontal bars */
+.hbar { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; }
+.hbar-label { font-size:0.8rem; min-width:70px; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--gray-700); }
+.hbar-track { flex:1; height:8px; background:var(--gray-100); border-radius:4px; overflow:hidden; }
+.hbar-fill { height:100%; border-radius:4px; }
+.hbar-count { font-size:0.8rem; font-weight:700; color:var(--gray-700); min-width:20px; text-align:right; }
+
+/* Monthly bar chart */
+.mbar-chart { display:flex; align-items:flex-end; gap:0.25rem; height:90px; padding-bottom:0; }
+.mbar-col { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1; height:100%; }
+.mbar-count { font-size:0.6rem; font-weight:700; color:var(--gray-600); margin-bottom:2px; min-height:12px; display:flex; align-items:flex-end; }
+.mbar-bar { width:100%; border-radius:3px 3px 0 0; min-height:3px; transition:height 0.3s; }
+.mbar-month { font-size:0.6rem; color:var(--gray-500); margin-top:4px; text-align:center; }
+
+/* Agenda list */
+.agenda-list { display:flex; flex-direction:column; gap:0.375rem; }
+.agenda-item { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; border-radius:calc(var(--radius) - 2px); font-size:0.8125rem; }
+.agenda-item.ok      { background:#dcfce7; }
+.agenda-item.proximo { background:#fef3c7; }
+.agenda-item.vencido { background:var(--red-50); }
+.agenda-nome { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agenda-date { color:var(--gray-600); font-size:0.75rem; white-space:nowrap; }
+.agenda-days { font-weight:700; font-size:0.75rem; white-space:nowrap; text-align:right; min-width:65px; }
+
+/* Responsive calib dashboard */
+@media (max-width: 1023px) { .cdash-cards { grid-template-columns:repeat(3,1fr); } }
+@media (max-width: 767px) {
+  .cdash-cards { grid-template-columns:repeat(2,1fr); margin:0.75rem; }
+  .cdash-row { grid-template-columns:1fr; margin:0.75rem; }
+  .cdash-panel { padding:1rem; }
+}
+
 /* === CALIB CARDS === */
 .calib-cards { display: none; }
 .calib-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0.875rem 1rem; }
@@ -1355,6 +1421,7 @@ let currentMovTipo = '';
 let currentCalibCat = '';
 let currentCalibStatus = '';
 let currentCalibPage = 1;
+let currentCalibView = 'dashboard';
 const CALIB_PER_PAGE = 15;
 let currentCustomStart = '';
 let currentCustomEnd = '';
@@ -1454,50 +1521,66 @@ function renderDashboard(session) {
       <!-- Seção: Calibrações -->
       <div class="mobile-section" id="section-calibracoes">
         <div class="table-section" style="margin-bottom:2rem">
+          <!-- Toolbar principal -->
           <div class="table-toolbar" style="flex-wrap:wrap;gap:0.5rem">
-            <input class="search-input" type="text" id="calib-filter-nome"
-              placeholder="Buscar por nome, certificado ou ID..."
-              oninput="renderEquipamentos()" style="flex:1;min-width:200px">
-            <select id="calib-filter-cat" onchange="setCalibCat(this.value)"
-              style="padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white);min-width:130px">
-              <option value="">Todas as categorias</option>
-            </select>
-            <select id="calib-filter-status" onchange="setCalibStatus(this.value)"
-              style="padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white);min-width:160px">
-              <option value="">Todos os status</option>
-              <option value="vencido">Vencidos</option>
-              <option value="proximo30">Vence em até 30 dias</option>
-              <option value="proximo90">Vence em até 3 meses</option>
-              <option value="ok">OK</option>
-            </select>
-            <div style="display:flex;gap:0.5rem;flex-shrink:0;flex-wrap:wrap">
+            <!-- Filtros: visíveis apenas na view lista -->
+            <div id="calib-filters-group" style="display:none;gap:0.5rem;flex:1;flex-wrap:wrap;min-width:0;align-items:center">
+              <input class="search-input" type="text" id="calib-filter-nome"
+                placeholder="Buscar por nome, certificado ou ID..."
+                oninput="renderEquipamentos()" style="flex:1;min-width:160px">
+              <select id="calib-filter-cat" onchange="setCalibCat(this.value)"
+                style="padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white);min-width:120px">
+                <option value="">Todas as categorias</option>
+              </select>
+              <select id="calib-filter-status" onchange="setCalibStatus(this.value)"
+                style="padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white);min-width:150px">
+                <option value="">Todos os status</option>
+                <option value="vencido">Vencidos</option>
+                <option value="proximo30">Vence em até 30 dias</option>
+                <option value="proximo90">Vence em até 3 meses</option>
+                <option value="ok">OK</option>
+              </select>
+            </div>
+            <!-- Ações: sempre visíveis -->
+            <div style="display:flex;gap:0.5rem;flex-shrink:0;flex-wrap:wrap;align-items:center;margin-left:auto">
+              <div class="view-toggle">
+                <button class="view-toggle-btn active" data-view="dashboard" onclick="setCalibView('dashboard')">&#128200; Dashboard</button>
+                <button class="view-toggle-btn" data-view="lista" onclick="setCalibView('lista')">&#9776; Lista</button>
+              </div>
               ${isAdmin ? `<button class="btn btn-secondary btn-sm" style="width:auto" onclick="openImportCalibModal()">&#8679; Importar</button>
               <button class="btn btn-primary btn-sm" style="width:auto" onclick="openEquipamentoModal()">+ Equipamento</button>` : ''}
               <button class="btn btn-secondary btn-sm" style="width:auto" onclick="exportCalibCSV()" title="Exportar para Excel">&#8595; CSV</button>
             </div>
           </div>
-          <div class="status-legend">
-            <span>Status:</span>
-            <span class="badge badge-calib-ok has-tip" data-tip="Próxima calibração em mais de 30 dias">OK</span>
-            <span class="badge badge-calib-proximo has-tip" data-tip="Calibração vence nos próximos 30 dias">Vence em breve</span>
-            <span class="badge badge-calib-vencido has-tip" data-tip="Prazo de calibração ultrapassado">Vencido</span>
+
+          <!-- VIEW: Dashboard -->
+          <div id="calib-dashboard" style="padding-bottom:1.25rem"></div>
+
+          <!-- VIEW: Lista (oculto por padrão) -->
+          <div id="calib-lista-content" style="display:none">
+            <div class="status-legend">
+              <span>Status:</span>
+              <span class="badge badge-calib-ok has-tip" data-tip="Próxima calibração em mais de 30 dias">OK</span>
+              <span class="badge badge-calib-proximo has-tip" data-tip="Calibração vence nos próximos 30 dias">Vence em breve</span>
+              <span class="badge badge-calib-vencido has-tip" data-tip="Prazo de calibração ultrapassado">Vencido</span>
+            </div>
+            <div id="calib-alertas" style="padding:0 1.25rem"></div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Equipamento</th><th>Identificação</th><th>Categoria</th>
+                    <th>Certificado</th><th>Última Calib.</th><th>Próxima Calib.</th>
+                    <th>Validade</th><th>Responsável</th><th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="calib-tbody"></tbody>
+              </table>
+            </div>
+            <div class="calib-cards" id="calib-cards"></div>
+            <div id="calib-pagination" class="pagination"></div>
           </div>
-          <div id="calib-alertas" style="padding:0 1.25rem"></div>
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Equipamento</th><th>Identificação</th><th>Categoria</th>
-                  <th>Certificado</th><th>Última Calib.</th><th>Próxima Calib.</th>
-                  <th>Validade</th><th>Responsável</th><th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody id="calib-tbody"></tbody>
-            </table>
-          </div>
-          <div class="calib-cards" id="calib-cards"></div>
-          <div id="calib-pagination" class="pagination"></div>
         </div>
       </div>
 
@@ -2792,7 +2875,22 @@ function setCalibCat(val) { currentCalibCat = val; currentCalibPage = 1; renderE
 function setCalibStatus(val) { currentCalibStatus = val; currentCalibPage = 1; renderEquipamentos(); }
 function setCalibPage(page) { currentCalibPage = page; renderEquipamentos(); }
 
+function setCalibView(view) {
+  currentCalibView = view;
+  const dash  = document.getElementById('calib-dashboard');
+  const lista = document.getElementById('calib-lista-content');
+  const fg    = document.getElementById('calib-filters-group');
+  if (dash)  dash.style.display  = view === 'dashboard' ? 'block' : 'none';
+  if (lista) lista.style.display = view === 'lista'     ? 'block' : 'none';
+  if (fg)    fg.style.display    = view === 'lista'     ? 'flex'  : 'none';
+  document.querySelectorAll('.view-toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === view));
+  if (view === 'dashboard') renderCalibDashboard();
+  else renderEquipamentos();
+}
+
 function renderEquipamentos() {
+  renderCalibDashboard();
   const alertEl = document.getElementById('calib-alertas');
   const tbody   = document.getElementById('calib-tbody');
   if (!tbody) return;
@@ -2928,6 +3026,182 @@ function renderEquipamentos() {
   pages.push(`<button class="pagination-btn" onclick="setCalibPage(${currentCalibPage + 1})" ${currentCalibPage === totalPages ? 'disabled' : ''}>&#8594;</button>`);
   pages.push(`<span class="pagination-info">${pageStart + 1}–${Math.min(pageStart + CALIB_PER_PAGE, filtered.length)} de ${filtered.length}</span>`);
   pgEl.innerHTML = pages.join('');
+}
+
+function renderCalibDashboard() {
+  const el = document.getElementById('calib-dashboard');
+  if (!el) return;
+
+  const equips = getEquipamentos();
+
+  if (equips.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--gray-400)">
+      <div style="font-size:2rem;margin-bottom:0.5rem">&#9881;</div>
+      Nenhum equipamento cadastrado ainda.
+    </div>`;
+    return;
+  }
+
+  // ── Contadores de status ──────────────────────────────────────────────
+  let ok = 0, prox30 = 0, prox90 = 0, venc = 0;
+  equips.forEach(e => {
+    const d = calcCalibStatus(e.dataProximaCalibracao).days;
+    if (d < 0) venc++;
+    else if (d <= 30) prox30++;
+    else if (d <= 90) prox90++;
+    else ok++;
+  });
+  const total = equips.length;
+
+  // ── Por categoria ─────────────────────────────────────────────────────
+  const catMap = {};
+  equips.forEach(e => {
+    if (!catMap[e.categoria]) catMap[e.categoria] = { ok:0, prox:0, venc:0 };
+    const d = calcCalibStatus(e.dataProximaCalibracao).days;
+    if (d < 0) catMap[e.categoria].venc++;
+    else if (d <= 30) catMap[e.categoria].prox++;
+    else catMap[e.categoria].ok++;
+  });
+  const catList = Object.entries(catMap)
+    .map(([nome, v]) => ({ nome, total: v.ok+v.prox+v.venc, worst: v.venc>0?'red':v.prox>0?'amber':'green', ...v }))
+    .sort((a,b) => b.venc - a.venc || b.prox - a.prox || b.total - a.total);
+  const maxCat = Math.max(...catList.map(c => c.total), 1);
+
+  // ── Próximos 12 meses ─────────────────────────────────────────────────
+  const now = new Date();
+  const months = Array.from({length: 12}, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    return { label: d.toLocaleString('pt-BR', {month:'short'}), count:0 };
+  });
+  equips.forEach(e => {
+    const d = new Date(e.dataProximaCalibracao + 'T00:00:00');
+    const idx = (d.getFullYear() - now.getFullYear()) * 12 + d.getMonth() - now.getMonth();
+    if (idx >= 0 && idx < 12) months[idx].count++;
+  });
+  const maxMonth = Math.max(...months.map(m => m.count), 1);
+
+  // ── Agenda (próximos 60 dias + vencidos) ─────────────────────────────
+  const agendaAll = equips
+    .filter(e => calcCalibStatus(e.dataProximaCalibracao).days <= 60)
+    .sort((a, b) => new Date(a.dataProximaCalibracao) - new Date(b.dataProximaCalibracao));
+
+  // ── Donut SVG ─────────────────────────────────────────────────────────
+  const C = 2 * Math.PI * 36;
+  const segs = [
+    { count: venc,           color: 'var(--red)' },
+    { count: prox30,         color: 'var(--amber)' },
+    { count: prox90,         color: 'var(--orange)' },
+    { count: ok,             color: 'var(--green)' },
+  ];
+  let dashOffset = 0;
+  const donutCircles = segs.map(s => {
+    if (s.count <= 0) return '';
+    const pct  = s.count / total;
+    const dash = pct * C;
+    const svg  = `<circle r="36" cx="50" cy="50" fill="none" stroke="${s.color}" stroke-width="13"
+      stroke-dasharray="${dash} ${C - dash}" stroke-dashoffset="${-dashOffset}"
+      transform="rotate(-90 50 50)"/>`;
+    dashOffset += dash;
+    return svg;
+  }).join('');
+
+  const donutSVG = `<svg viewBox="0 0 100 100" width="110" height="110" style="flex-shrink:0">
+    <circle r="36" cx="50" cy="50" fill="none" stroke="var(--gray-100)" stroke-width="13"/>
+    ${donutCircles}
+    <text x="50" y="47" text-anchor="middle" font-size="18" font-weight="800" fill="var(--gray-900)">${total}</text>
+    <text x="50" y="58" text-anchor="middle" font-size="7" fill="var(--gray-500)">equipamentos</text>
+  </svg>`;
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  const barColor = w => w === 'red' ? 'var(--red)' : w === 'amber' ? 'var(--amber)' : 'var(--green)';
+  const noop = total === 0;
+
+  el.innerHTML = `
+    <div class="cdash-cards">
+      <div class="cdash-card cdash-total">
+        <div class="cdash-val" style="color:var(--gray-800)">${total}</div>
+        <div class="cdash-label">Total</div>
+      </div>
+      <div class="cdash-card cdash-ok">
+        <div class="cdash-val">${ok}</div>
+        <div class="cdash-label">OK &gt; 30 dias</div>
+      </div>
+      <div class="cdash-card cdash-orange ${prox90>0?'clickable':''}" onclick="${prox90>0?"setCalibView('lista');setCalibStatus('proximo90')":""}">
+        <div class="cdash-val">${prox90}</div>
+        <div class="cdash-label">Vencem em 90 dias</div>
+      </div>
+      <div class="cdash-card cdash-warn ${prox30>0?'clickable':''}" onclick="${prox30>0?"setCalibView('lista');setCalibStatus('proximo30')":""}">
+        <div class="cdash-val">${prox30}</div>
+        <div class="cdash-label">Vencem em 30 dias</div>
+      </div>
+      <div class="cdash-card cdash-red ${venc>0?'clickable':''}" onclick="${venc>0?"setCalibView('lista');setCalibStatus('vencido')":""}">
+        <div class="cdash-val">${venc}</div>
+        <div class="cdash-label">Vencidas</div>
+      </div>
+    </div>
+
+    <div class="cdash-row">
+      <div class="cdash-panel">
+        <div class="cdash-panel-title">Distribuição por status</div>
+        <div class="donut-wrap">
+          ${donutSVG}
+          <div class="donut-legend">
+            <div class="donut-leg-item"><div class="donut-dot" style="background:var(--red)"></div><span class="donut-leg-label">Vencidas</span><span class="donut-leg-count">${venc}</span></div>
+            <div class="donut-leg-item"><div class="donut-dot" style="background:var(--amber)"></div><span class="donut-leg-label">Vencem em 30d</span><span class="donut-leg-count">${prox30}</span></div>
+            <div class="donut-leg-item"><div class="donut-dot" style="background:var(--orange)"></div><span class="donut-leg-label">Vencem em 31–90d</span><span class="donut-leg-count">${prox90}</span></div>
+            <div class="donut-leg-item"><div class="donut-dot" style="background:var(--green)"></div><span class="donut-leg-label">OK</span><span class="donut-leg-count">${ok}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="cdash-panel">
+        <div class="cdash-panel-title">Por categoria</div>
+        ${catList.length === 0
+          ? '<div style="color:var(--gray-400);font-size:0.875rem">Sem dados</div>'
+          : catList.map(c => `<div class="hbar">
+              <span class="hbar-label" title="${esc(c.nome)}">${esc(c.nome)}</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:${Math.round(c.total/maxCat*100)}%;background:${barColor(c.worst)}"></div></div>
+              <span class="hbar-count">${c.total}</span>
+            </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="cdash-row">
+      <div class="cdash-panel">
+        <div class="cdash-panel-title">Vencimentos — próximos 12 meses</div>
+        <div class="mbar-chart">
+          ${months.map((m, i) => {
+            const h = Math.max(Math.round(m.count / maxMonth * 72), m.count > 0 ? 4 : 3);
+            const isCurrentMonth = i === 0;
+            const color = isCurrentMonth && m.count > 0 ? 'var(--red)' : m.count > 0 ? 'var(--orange)' : 'var(--gray-200)';
+            return `<div class="mbar-col">
+              <div class="mbar-count">${m.count > 0 ? m.count : ''}</div>
+              <div class="mbar-bar" style="height:${h}px;background:${color}"></div>
+              <div class="mbar-month" style="${isCurrentMonth?'font-weight:700;color:var(--orange)':''}">${m.label}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="cdash-panel">
+        <div class="cdash-panel-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Agenda de atenção</span>
+          ${agendaAll.length > 6 ? `<button class="btn btn-secondary btn-sm" style="width:auto;font-size:0.72rem" onclick="setCalibView('lista');setCalibStatus('proximo90')">Ver todas</button>` : ''}
+        </div>
+        ${agendaAll.length === 0
+          ? `<div style="text-align:center;padding:1.5rem;color:var(--gray-400);font-size:0.875rem">&#10003; Nenhuma calibração urgente</div>`
+          : `<div class="agenda-list">
+              ${agendaAll.slice(0, 7).map(e => {
+                const { days } = calcCalibStatus(e.dataProximaCalibracao);
+                const cls = days < 0 ? 'vencido' : days <= 30 ? 'proximo' : 'ok';
+                const dLabel = days < 0 ? `${Math.abs(days)}d atrás` : days === 0 ? 'Hoje' : `em ${days}d`;
+                return `<div class="agenda-item ${cls}">
+                  <span class="agenda-nome" title="${esc(e.nome)}">${esc(e.nome)}</span>
+                  <span class="agenda-date">${fmtDate(e.dataProximaCalibracao)}</span>
+                  <span class="agenda-days">${dLabel}</span>
+                </div>`;
+              }).join('')}
+            </div>`}
+      </div>
+    </div>`;
 }
 
 function toggleCalibAlertas() {
