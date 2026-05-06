@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS public.equipamentos_calibracao (
   identificacao TEXT,
   categoria TEXT NOT NULL,
   numero_certificado TEXT,
+  certificado_path TEXT,
   data_ultima_calibracao DATE NOT NULL,
   validade_meses INTEGER NOT NULL CHECK (validade_meses > 0),
   data_proxima_calibracao DATE NOT NULL,
@@ -129,6 +130,9 @@ CREATE TABLE IF NOT EXISTS public.equipamentos_calibracao (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Se a tabela já existir, adicione a coluna:
+ALTER TABLE public.equipamentos_calibracao ADD COLUMN IF NOT EXISTS certificado_path TEXT;
 
 ALTER TABLE public.equipamentos_calibracao ENABLE ROW LEVEL SECURITY;
 
@@ -139,3 +143,42 @@ CREATE POLICY "equipamentos_calibracao_write_admin" ON public.equipamentos_calib
   FOR ALL TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'))
   WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'));
+
+-- 8. HISTÓRICO DE CALIBRAÇÕES
+CREATE TABLE IF NOT EXISTS public.calibracoes_historico (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  equipamento_id INTEGER REFERENCES public.equipamentos_calibracao(id) ON DELETE CASCADE,
+  equipamento_nome TEXT NOT NULL,
+  data_calibracao DATE NOT NULL,
+  data_proxima DATE NOT NULL,
+  numero_certificado TEXT,
+  certificado_path TEXT,
+  responsavel TEXT,
+  registrado_por TEXT NOT NULL,
+  observacao TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.calibracoes_historico ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "hist_calib_read" ON public.calibracoes_historico
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "hist_calib_insert" ON public.calibracoes_historico
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "hist_calib_delete_admin" ON public.calibracoes_historico
+  FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'));
+
+-- 9. STORAGE BUCKET CERTIFICADOS
+-- Cole no SQL Editor do Supabase para criar o bucket e as políticas:
+INSERT INTO storage.buckets (id, name, public) VALUES ('certificados', 'certificados', false)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "cert_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'certificados');
+CREATE POLICY "cert_insert_admin" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'certificados' AND
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'));
+CREATE POLICY "cert_delete_admin" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'certificados' AND
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'));
