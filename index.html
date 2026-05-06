@@ -298,6 +298,49 @@ tr:hover td { background: var(--gray-50); }
 .btn-admin-toggle { display: none; font-size: 1.375rem; padding: 0 0.6rem; line-height: 1; }
 .admin-btns { display: flex; align-items: center; gap: 0.75rem; }
 
+/* === MOBILE TABS === */
+.mobile-section { display: block; }
+.mat-cards { display: none; }
+
+/* === BOTTOM NAV === */
+.bottom-nav { display: none; }
+
+/* === FAB === */
+.fab-wrap { display: none; }
+
+/* === MATERIAL CARDS (mobile) === */
+.mat-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden; position: relative;
+}
+.mat-card-swipe-bg {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 82px;
+  background: var(--red); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  color: #fff; font-size: 0.7rem; font-weight: 600;
+}
+.mat-card-body {
+  background: var(--white); padding: 0.875rem 1rem;
+  position: relative; z-index: 1;
+  transition: transform 0.18s ease;
+}
+.mat-card-row1 {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem;
+}
+.mat-card-name { font-weight: 600; font-size: 0.9375rem; color: var(--gray-900); }
+.mat-card-loc { font-size: 0.725rem; color: var(--gray-600); margin-top: 2px; }
+.mat-card-tags { display: flex; gap: 0.375rem; flex-wrap: wrap; margin: 0.375rem 0 0.5rem; }
+.mat-card-qty {
+  display: flex; align-items: baseline; gap: 0.3rem;
+  margin-bottom: 0.625rem;
+}
+.mat-card-qty-val { font-size: 1.5rem; font-weight: 700; color: var(--gray-900); }
+.mat-card-qty-unit { font-size: 0.875rem; color: var(--gray-600); }
+.mat-card-qty-min { font-size: 0.725rem; color: var(--gray-600); margin-left: auto; }
+.mat-card-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
+.mat-card-actions .btn { flex: 1; min-width: 72px; font-size: 0.8rem; padding: 0.375rem 0.25rem; text-align: center; }
+
 /* === RESPONSIVE === */
 @media (max-width: 1023px) {
   .cards-grid { grid-template-columns: repeat(2, 1fr); }
@@ -305,6 +348,60 @@ tr:hover td { background: var(--gray-50); }
 @media (max-width: 767px) {
   /* Sem scroll horizontal na página */
   body { overflow-x: hidden; }
+
+  /* Tabs */
+  .mobile-section { display: none; }
+  .mobile-section.active { display: block; }
+  .dashboard-body { padding-bottom: 72px !important; }
+
+  /* Cards de material (mobile) */
+  .mat-cards { display: flex; flex-direction: column; gap: 0.625rem; padding: 0.75rem; }
+  .table-section .table-wrapper { display: none; }
+  .table-section thead { display: none; }
+  #alertas-section { display: none !important; }
+
+  /* Bottom Nav */
+  .bottom-nav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+    height: 58px; background: var(--white); border-top: 1px solid var(--gray-200);
+    z-index: 100; box-shadow: 0 -2px 8px rgba(0,0,0,0.07);
+  }
+  .bottom-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 2px; border: none; background: none;
+    font-size: 0.65rem; font-weight: 600; color: var(--gray-600);
+    cursor: pointer; padding: 0.4rem; transition: color 0.15s;
+  }
+  .bottom-nav-btn.active { color: var(--orange); }
+  .bottom-nav-btn svg { width: 22px; height: 22px; }
+  [data-theme="dark"] .bottom-nav { background: #1e293b; border-color: #334155; }
+
+  /* FAB */
+  .fab-wrap {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;
+    position: fixed; bottom: 70px; right: 1rem; z-index: 110;
+  }
+  .fab-btn {
+    width: 54px; height: 54px; border-radius: 50%; background: var(--orange);
+    color: #fff; border: none; cursor: pointer; font-size: 1.75rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(249,115,22,0.45);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .fab-btn.open { transform: rotate(45deg); background: var(--red); box-shadow: 0 4px 14px rgba(220,38,38,0.4); }
+  .fab-menu {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.375rem;
+    opacity: 0; transform: translateY(10px) scale(0.95);
+    pointer-events: none; transition: opacity 0.18s, transform 0.18s;
+  }
+  .fab-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+  .fab-item {
+    background: var(--white); color: var(--gray-900);
+    border: 1px solid var(--gray-200); border-radius: 20px;
+    padding: 0.5rem 1.125rem; font-size: 0.875rem; font-weight: 500;
+    box-shadow: var(--shadow); cursor: pointer; white-space: nowrap;
+  }
+  .fab-item:active { background: var(--gray-100); }
 
   /* Header */
   .dashboard-header { position: relative; }
@@ -1026,83 +1123,130 @@ function renderDashboard(session) {
       </div>
     </header>
     <div class="dashboard-body">
-      <div id="cards-grid" class="cards-grid"></div>
-      <div id="alertas-section"></div>
-      <div class="table-section">
-        <div class="table-toolbar">
-          <input class="search-input" type="text" id="filter-nome" placeholder="Buscar por nome..." oninput="renderMaterialsTable()">
-          <select id="filter-cat" onchange="renderMaterialsTable()">
-            <option value="">Todas as categorias</option>
-          </select>
-          <select id="filter-status" onchange="renderMaterialsTable()">
-            <option value="">Todos os status</option>
-            <option value="OK">OK</option>
-            <option value="Baixo">Baixo</option>
-            <option value="Crítico">Crítico</option>
-          </select>
-          ${isAdmin ? `
-          <div class="table-actions">
-            <button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Gerenciar Categorias</button>
-            <button class="btn btn-primary btn-sm" style="width:auto" onclick="openMaterialModal()">+ Adicionar Material</button>
-          </div>` : ''}
-        </div>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th><th>Nome</th><th>Categoria</th>
-                <th>Quantidade</th><th>Unidade</th><th>Est. Mínimo</th>
-                <th>Status</th><th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="materials-tbody"></tbody>
-          </table>
+
+      <!-- Seção: Materiais -->
+      <div class="mobile-section active" id="section-materiais">
+        <div id="cards-grid" class="cards-grid"></div>
+        <div id="alertas-section"></div>
+        <div class="table-section">
+          <div class="table-toolbar">
+            <input class="search-input" type="text" id="filter-nome" placeholder="Buscar por nome..." oninput="renderMaterialsTable()">
+            <select id="filter-cat" onchange="renderMaterialsTable()">
+              <option value="">Todas as categorias</option>
+            </select>
+            <select id="filter-status" onchange="renderMaterialsTable()">
+              <option value="">Todos os status</option>
+              <option value="OK">OK</option>
+              <option value="Baixo">Baixo</option>
+              <option value="Crítico">Crítico</option>
+            </select>
+            ${isAdmin ? `
+            <div class="table-actions">
+              <button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Gerenciar Categorias</button>
+              <button class="btn btn-primary btn-sm" style="width:auto" onclick="openMaterialModal()">+ Adicionar Material</button>
+            </div>` : ''}
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th><th>Nome</th><th>Categoria</th>
+                  <th>Quantidade</th><th>Unidade</th><th>Est. Mínimo</th>
+                  <th>Status</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="materials-tbody"></tbody>
+            </table>
+          </div>
+          <div class="mat-cards" id="materials-cards"></div>
         </div>
       </div>
-      <div class="movements-section">
-        <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--gray-200)">
-          <div class="section-title" style="margin-bottom:0.75rem">Movimentações de Estoque</div>
-          <div style="display:flex;flex-direction:column;gap:0.5rem">
-            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-              <div class="period-filter" style="padding:0;border:none;margin:0">
-                <button class="period-btn active" id="btn-hoje" onclick="setPeriod('hoje')">Hoje</button>
-                <button class="period-btn" id="btn-7d" onclick="setPeriod('7d')">7 dias</button>
-                <button class="period-btn" id="btn-14d" onclick="setPeriod('14d')">14 dias</button>
-                <button class="period-btn" id="btn-30d" onclick="setPeriod('30d')">30 dias</button>
-                <button class="period-btn" id="btn-custom" onclick="setPeriod('custom')">Personalizado</button>
+
+      <!-- Seção: Alertas (mobile) -->
+      <div class="mobile-section" id="section-alertas">
+        <div id="alertas-section-mobile" style="padding:0.75rem"></div>
+      </div>
+
+      <!-- Seção: Movimentações -->
+      <div class="mobile-section" id="section-movimentacoes">
+        <div class="movements-section">
+          <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--gray-200)">
+            <div class="section-title" style="margin-bottom:0.75rem">Movimentações de Estoque</div>
+            <div style="display:flex;flex-direction:column;gap:0.5rem">
+              <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+                <div class="period-filter" style="padding:0;border:none;margin:0">
+                  <button class="period-btn active" id="btn-hoje" onclick="setPeriod('hoje')">Hoje</button>
+                  <button class="period-btn" id="btn-7d" onclick="setPeriod('7d')">7 dias</button>
+                  <button class="period-btn" id="btn-14d" onclick="setPeriod('14d')">14 dias</button>
+                  <button class="period-btn" id="btn-30d" onclick="setPeriod('30d')">30 dias</button>
+                  <button class="period-btn" id="btn-custom" onclick="setPeriod('custom')">Personalizado</button>
+                </div>
+                <select id="mov-cat-filter" onchange="setMovCategory(this.value)"
+                  style="padding:0.375rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white);color:var(--gray-700)">
+                  <option value="">Todas as categorias</option>
+                </select>
               </div>
-              <select id="mov-cat-filter" onchange="setMovCategory(this.value)"
-                style="padding:0.375rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white);color:var(--gray-700)">
-                <option value="">Todas as categorias</option>
-              </select>
-            </div>
-            <div class="date-range-row" id="custom-date-range">
-              <input type="date" id="custom-start" onchange="applyCustomPeriod()">
-              <span>até</span>
-              <input type="date" id="custom-end" onchange="applyCustomPeriod()">
+              <div class="date-range-row" id="custom-date-range">
+                <input type="date" id="custom-start" onchange="applyCustomPeriod()">
+                <span>até</span>
+                <input type="date" id="custom-end" onchange="applyCustomPeriod()">
+              </div>
             </div>
           </div>
-        </div>
-        <div class="chart-container" id="chart-container"></div>
-        <div class="chart-summary" id="chart-summary"></div>
-        <div class="mov-toolbar">
-          <input class="search-input" type="text" id="mov-search" placeholder="Buscar por material..." oninput="setMovSearch(this.value)">
-          <select id="mov-tipo-filter" onchange="setMovTipo(this.value)">
-            <option value="">Entradas e Saídas</option>
-            <option value="entrada">Só Entradas</option>
-            <option value="saída">Só Saídas</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="exportCSV()">&#8595; Exportar CSV</button>
-        </div>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr><th>Data/Hora</th><th>Material</th><th>Tipo</th><th>Quantidade</th><th>Registrado por</th></tr>
-            </thead>
-            <tbody id="movements-tbody"></tbody>
-          </table>
+          <div class="chart-container" id="chart-container"></div>
+          <div class="chart-summary" id="chart-summary"></div>
+          <div class="mov-toolbar">
+            <input class="search-input" type="text" id="mov-search" placeholder="Buscar por material..." oninput="setMovSearch(this.value)">
+            <select id="mov-tipo-filter" onchange="setMovTipo(this.value)">
+              <option value="">Entradas e Saídas</option>
+              <option value="entrada">Só Entradas</option>
+              <option value="saída">Só Saídas</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="exportCSV()">&#8595; Exportar CSV</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Data/Hora</th><th>Material</th><th>Tipo</th><th>Quantidade</th><th>Registrado por</th></tr>
+              </thead>
+              <tbody id="movements-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- Bottom Nav (mobile) -->
+    <nav class="bottom-nav">
+      <button class="bottom-nav-btn active" id="tab-materiais" onclick="setMobileTab('materiais')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+        <span>Materiais</span>
+      </button>
+      <button class="bottom-nav-btn" id="tab-alertas" onclick="setMobileTab('alertas')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span>Alertas</span>
+      </button>
+      <button class="bottom-nav-btn" id="tab-movimentacoes" onclick="setMobileTab('movimentacoes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <span>Movimentações</span>
+      </button>
+    </nav>
+
+    <!-- FAB (mobile) -->
+    <div class="fab-wrap" id="fab-wrap">
+      <div class="fab-menu" id="fab-menu">
+        ${isAdmin ? `<button class="fab-item" onclick="openCategoryModal();closeFab()">Categorias</button>
+        <button class="fab-item" onclick="openMaterialModal();closeFab()">+ Material</button>` : ''}
+      </div>
+      <button class="fab-btn" id="fab-btn" onclick="toggleFab()">+</button>
     </div>
   `;
   // refreshAllSections() is called by the caller AFTER showScreen() so the dashboard
@@ -1197,6 +1341,7 @@ function renderMaterialsTable() {
 
   if (filtered.length === 0) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Nenhum material encontrado.</td></tr>`;
+    renderMaterialCards([]);
     return;
   }
 
@@ -1225,6 +1370,7 @@ function renderMaterialsTable() {
       </td>
     </tr>`;
   }).join('');
+  renderMaterialCards(filtered);
 }
 // === MOVIMENTAÇÃO ===
 let movimentoMaterialId = null;
@@ -1760,6 +1906,7 @@ function setMovTipo(val) {
 // === ALERTAS ===
 function renderAlertas() {
   const el = document.getElementById('alertas-section');
+  const elMobile = document.getElementById('alertas-section-mobile');
   if (!el) return;
   const alertas = getMateriais()
     .filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK')
@@ -1767,8 +1914,12 @@ function renderAlertas() {
       const ord = { 'Crítico': 0, 'Baixo': 1 };
       return ord[calcStatus(a.quantidade, a.estoqueMinimo)] - ord[calcStatus(b.quantidade, b.estoqueMinimo)];
     });
-  if (alertas.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = `
+  if (alertas.length === 0) {
+    el.innerHTML = '';
+    if (elMobile) elMobile.innerHTML = '<div style="text-align:center;color:var(--gray-600);padding:2rem">Nenhum alerta de estoque.</div>';
+    return;
+  }
+  const html = `
     <div class="alertas-title">&#9888; Alertas de Estoque <span style="font-size:0.875rem;font-weight:400;color:var(--gray-600)">(${alertas.length} item${alertas.length > 1 ? 's' : ''})</span></div>
     <div class="alertas-grid">
       ${alertas.map(m => {
@@ -1782,6 +1933,8 @@ function renderAlertas() {
         </div>`;
       }).join('')}
     </div>`;
+  el.innerHTML = html;
+  if (elMobile) elMobile.innerHTML = html;
 }
 
 // === HISTÓRICO POR MATERIAL ===
@@ -2042,6 +2195,109 @@ function showLoadingScreen(session) {
     el.classList.add('fade-out');
     setTimeout(() => { el.style.display = 'none'; refreshAllSections(); }, 500);
   }, 1400);
+}
+
+// === MOBILE TABS & FAB ===
+let currentMobileTab = 'materiais';
+
+function setMobileTab(tab) {
+  currentMobileTab = tab;
+  ['materiais', 'alertas', 'movimentacoes'].forEach(t => {
+    document.getElementById('section-' + t)?.classList.toggle('active', t === tab);
+    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
+  });
+  closeFab();
+}
+
+function toggleFab() {
+  document.getElementById('fab-btn')?.classList.toggle('open');
+  document.getElementById('fab-menu')?.classList.toggle('open');
+}
+
+function closeFab() {
+  document.getElementById('fab-btn')?.classList.remove('open');
+  document.getElementById('fab-menu')?.classList.remove('open');
+}
+
+function renderMaterialCards(filtered) {
+  const container = document.getElementById('materials-cards');
+  if (!container) return;
+  const isAdmin = currentSession && currentSession.papel === 'admin';
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--gray-600);padding:2rem">Nenhum material encontrado.</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(m => {
+    const status = calcStatus(m.quantidade, m.estoqueMinimo);
+    const badgeClass = { OK: 'badge-ok', Baixo: 'badge-baixo', Crítico: 'badge-critico' }[status];
+    const qty = m.quantidade % 1 === 0 ? m.quantidade : m.quantidade.toFixed(2);
+    const minQ = m.estoqueMinimo % 1 === 0 ? m.estoqueMinimo : m.estoqueMinimo.toFixed(2);
+    return `<div class="mat-card" id="matcard-${m.id}">
+      <div class="mat-card-swipe-bg">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Excluir
+      </div>
+      <div class="mat-card-body" id="matcard-body-${m.id}">
+        <div class="mat-card-row1">
+          <div>
+            <div class="mat-card-name">${esc(m.nome)}</div>
+            ${m.localizacao ? `<div class="mat-card-loc">${esc(m.localizacao)}</div>` : ''}
+          </div>
+          <span class="badge ${badgeClass}">${status}</span>
+        </div>
+        <div class="mat-card-tags">
+          <span class="badge badge-saida">${esc(m.categoria)}</span>
+        </div>
+        <div class="mat-card-qty">
+          <span class="mat-card-qty-val">${qty}</span>
+          <span class="mat-card-qty-unit">${esc(m.unidade)}</span>
+          <span class="mat-card-qty-min">mín: ${minQ}</span>
+        </div>
+        <div class="mat-card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'entrada')">+ Entrada</button>
+          <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'saída')">− Saída</button>
+          <button class="btn btn-secondary btn-sm" onclick="openHistoricoModal(${m.id})">Histórico</button>
+          ${isAdmin ? `<button class="btn btn-secondary btn-sm" onclick="openMaterialModal(${m.id})">Editar</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (isAdmin) {
+    filtered.forEach(m => {
+      const body = document.getElementById('matcard-body-' + m.id);
+      if (body) addSwipe(body, () => deleteMaterial(m.id));
+    });
+  }
+}
+
+function addSwipe(el, onDelete) {
+  let startX = 0, currentX = 0, dragging = false;
+  const MAX = 82;
+  el.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    currentX = 0;
+    dragging = true;
+    el.style.transition = 'none';
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const dx = e.touches[0].clientX - startX;
+    currentX = Math.max(-MAX, Math.min(0, dx));
+    el.style.transform = `translateX(${currentX}px)`;
+  }, { passive: true });
+  el.addEventListener('touchend', () => {
+    dragging = false;
+    el.style.transition = 'transform 0.18s ease';
+    if (currentX < -MAX * 0.55) {
+      el.style.transform = `translateX(-${MAX}px)`;
+      const bg = el.parentElement?.querySelector('.mat-card-swipe-bg');
+      if (bg) bg.onclick = () => { el.style.transform = 'translateX(0)'; currentX = 0; onDelete(); };
+    } else {
+      el.style.transform = 'translateX(0)';
+      currentX = 0;
+    }
+  });
 }
 
 // === INIT ===
