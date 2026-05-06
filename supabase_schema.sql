@@ -86,11 +86,14 @@ ALTER TABLE public.categorias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.materiais ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.movimentacoes ENABLE ROW LEVEL SECURITY;
 
--- Profiles: todos leem, cada um atualiza o próprio
+-- Profiles: todos leem, cada um atualiza o próprio, admin exclui outros
 CREATE POLICY "profiles_read" ON public.profiles
   FOR SELECT TO authenticated USING (true);
 CREATE POLICY "profiles_update_own" ON public.profiles
   FOR UPDATE TO authenticated USING (auth.uid() = id);
+CREATE POLICY "profiles_delete_admin" ON public.profiles
+  FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND papel = 'admin'));
 
 -- Categorias: todos leem, somente admin escreve
 CREATE POLICY "categorias_read" ON public.categorias
