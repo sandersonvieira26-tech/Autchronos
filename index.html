@@ -605,7 +605,7 @@ function guardAdmin() {
 async function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor, observacao = '') {
   const diff = qtdNova - qtdAnterior;
   if (diff === 0) return;
-  await _sb.from('movimentacoes').insert({
+  const { error } = await _sb.from('movimentacoes').insert({
     material_id: materialId,
     material_nome: materialNome,
     tipo: diff > 0 ? 'entrada' : 'saída',
@@ -613,6 +613,7 @@ async function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, r
     registrado_por: registradoPor,
     observacao: observacao || null
   });
+  if (error) console.error('recordMovimento:', error.message);
 }
 
 // === SCREEN ROUTER ===
@@ -1503,7 +1504,8 @@ function renameCategory(input) {
 
   _sb.from('categorias').update({ nome: newName }).eq('nome', oldName).then(async ({ error }) => {
     if (error) { input.value = oldName; alert('Erro ao renomear: ' + error.message); return; }
-    await _sb.from('materiais').update({ categoria: newName }).eq('categoria', oldName);
+    const { error: errMat } = await _sb.from('materiais').update({ categoria: newName }).eq('categoria', oldName);
+    if (errMat) { alert('Categoria renomeada, mas erro ao atualizar materiais: ' + errMat.message); }
     await loadAllData();
     renderCategoryList();
     renderMaterialsTable();
@@ -1741,7 +1743,7 @@ function importBackup(input) {
   reader.onload = async e => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!data.materiais || !data.categorias || !data.movimentacoes)
+      if (!data.materiais || !data.categorias)
         return alert('Arquivo inválido. Selecione um backup gerado por este sistema.');
       if (!confirm('Restaurar backup apagará todos os dados atuais do banco. Continuar?')) return;
 
