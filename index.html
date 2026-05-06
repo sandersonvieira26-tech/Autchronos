@@ -1170,6 +1170,8 @@ let currentPeriod = 'hoje';
 let currentMovCategory = '';
 let currentMovSearch = '';
 let currentMovTipo = '';
+let currentCalibCat = '';
+let currentCalibStatus = '';
 let currentCustomStart = '';
 let currentCustomEnd = '';
 
@@ -1245,9 +1247,19 @@ function renderDashboard(session) {
       <!-- Seção: Calibrações -->
       <div class="mobile-section" id="section-calibracoes">
         <div class="table-section" style="margin-bottom:2rem">
-          <div class="table-toolbar" style="justify-content:space-between">
-            <span class="section-title" style="margin:0">&#9881; Calibrações de Equipamentos</span>
-            ${isAdmin ? `<button class="btn btn-primary btn-sm" style="width:auto" onclick="openEquipamentoModal()">+ Equipamento</button>` : ''}
+          <div class="table-toolbar">
+            <span class="section-title" style="margin:0;flex-shrink:0">&#9881; Calibrações</span>
+            <select id="calib-filter-cat" onchange="setCalibCat(this.value)" style="padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white)">
+              <option value="">Todas as categorias</option>
+            </select>
+            <select id="calib-filter-status" onchange="setCalibStatus(this.value)" style="padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;background:var(--white)">
+              <option value="">Todos os status</option>
+              <option value="vencido">Vencidos</option>
+              <option value="proximo30">Vence no próximo mês</option>
+              <option value="proximo90">Vence em até 3 meses</option>
+              <option value="ok">OK</option>
+            </select>
+            ${isAdmin ? `<button class="btn btn-primary btn-sm" style="width:auto;margin-left:auto;flex-shrink:0" onclick="openEquipamentoModal()">+ Equipamento</button>` : ''}
           </div>
           <div id="calib-alertas" style="padding:0 1.25rem"></div>
           <div class="table-wrapper">
@@ -1368,6 +1380,8 @@ async function doLogout() {
   currentMovTipo = '';
   currentCustomStart = '';
   currentCustomEnd = '';
+  currentCalibCat = '';
+  currentCalibStatus = '';
   renderLogin();
   showScreen('login');
 }
@@ -2361,17 +2375,31 @@ function updateProximaCalib() {
   }
 }
 
+function setCalibCat(val) { currentCalibCat = val; renderEquipamentos(); }
+function setCalibStatus(val) { currentCalibStatus = val; renderEquipamentos(); }
+
 function renderEquipamentos() {
   const alertEl = document.getElementById('calib-alertas');
-  const tbody = document.getElementById('calib-tbody');
+  const tbody   = document.getElementById('calib-tbody');
   if (!tbody) return;
 
-  const equips = getEquipamentos();
+  const equips  = getEquipamentos();
   const isAdmin = currentSession && currentSession.papel === 'admin';
 
-  // Alert panel: vencidos + próximos
+  // Populate category filter dropdown
+  const catSel = document.getElementById('calib-filter-cat');
+  if (catSel) {
+    const usedCats = [...new Set(equips.map(e => e.categoria))].sort();
+    catSel.innerHTML = '<option value="">Todas as categorias</option>' +
+      usedCats.map(c => `<option value="${esc(c)}" ${c === currentCalibCat ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  }
+  const statusSel = document.getElementById('calib-filter-status');
+  if (statusSel) statusSel.value = currentCalibStatus;
+
+  // Alert panel: always shows ALL vencidos + próximos (sem filtro)
   if (alertEl) {
-    const urgentes = equips.filter(e => calcCalibStatus(e.dataProximaCalibracao).days <= 30)
+    const urgentes = equips
+      .filter(e => calcCalibStatus(e.dataProximaCalibracao).days <= 30)
       .sort((a, b) => new Date(a.dataProximaCalibracao) - new Date(b.dataProximaCalibracao));
     if (urgentes.length === 0) {
       alertEl.innerHTML = '';
@@ -2382,7 +2410,7 @@ function renderEquipamentos() {
         </div>
         <div class="alertas-grid" style="margin-bottom:1rem">
           ${urgentes.map(e => {
-            const { label, cls, days } = calcCalibStatus(e.dataProximaCalibracao);
+            const { cls, days } = calcCalibStatus(e.dataProximaCalibracao);
             return `<div class="alerta-card ${days < 0 ? 'critico' : ''}">
               <div class="alerta-nome">${esc(e.nome)}</div>
               <div class="alerta-detalhe">Próxima: <strong>${fmtDate(e.dataProximaCalibracao)}</strong>
@@ -2397,12 +2425,34 @@ function renderEquipamentos() {
     }
   }
 
-  if (equips.length === 0) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${isAdmin ? 10 : 9}">Nenhum equipamento cadastrado.</td></tr>`;
+  // Apply filters to table
+  let filtered = equips;
+
+  if (currentCalibCat) {
+    filtered = filtered.filter(e => e.categoria === currentCalibCat);
+  }
+
+  if (currentCalibStatus) {
+    filtered = filtered.filter(e => {
+      const { days } = calcCalibStatus(e.dataProximaCalibracao);
+      if (currentCalibStatus === 'vencido')    return days < 0;
+      if (currentCalibStatus === 'proximo30')  return days >= 0 && days <= 30;
+      if (currentCalibStatus === 'proximo90')  return days >= 0 && days <= 90;
+      if (currentCalibStatus === 'ok')         return days > 30;
+      return true;
+    });
+  }
+
+  const cols = isAdmin ? 10 : 9;
+  if (filtered.length === 0) {
+    const msg = equips.length === 0
+      ? 'Nenhum equipamento cadastrado.'
+      : 'Nenhum equipamento encontrado para os filtros selecionados.';
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols}">${msg}</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = equips.map(e => {
+  tbody.innerHTML = filtered.map(e => {
     const { label, cls } = calcCalibStatus(e.dataProximaCalibracao);
     return `<tr>
       <td><strong>${esc(e.nome)}</strong></td>
