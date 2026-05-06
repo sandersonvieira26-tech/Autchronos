@@ -1110,7 +1110,8 @@ async function saveMovimento() {
   });
   if (errMov) { alert('Erro: ' + errMov.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
 
-  await _sb.from('materiais').update({ quantidade: novaQtd }).eq('id', material.id);
+  const { error: errUpd } = await _sb.from('materiais').update({ quantidade: novaQtd }).eq('id', material.id);
+  if (errUpd) { alert('Erro ao atualizar estoque: ' + errUpd.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
 
   await loadAllData();
   closeMovimentoModal();
@@ -1753,13 +1754,33 @@ function importBackup(input) {
       if (data.categorias.length) {
         await _sb.from('categorias').insert(data.categorias.map(nome => ({ nome })));
       }
+      const idMap = {};
       if (data.materiais.length) {
-        await _sb.from('materiais').insert(data.materiais.map(m => ({
+        const { data: newMats, error: errMat } = await _sb.from('materiais').insert(data.materiais.map(m => ({
           nome: m.nome, categoria: m.categoria, quantidade: m.quantidade,
           unidade: m.unidade, estoque_minimo: m.estoqueMinimo || m.estoque_minimo || 0,
           valor_unitario: m.valorUnitario || m.valor_unitario || 0,
           localizacao: m.localizacao || null
-        })));
+        }))).select('id');
+        if (errMat) throw new Error(errMat.message);
+        data.materiais.forEach((m, i) => { if (newMats[i]) idMap[m.id] = newMats[i].id; });
+      }
+      if (data.movimentacoes && data.movimentacoes.length) {
+        const movRows = data.movimentacoes
+          .filter(m => idMap[m.materialId] != null)
+          .map(m => ({
+            material_id: idMap[m.materialId],
+            material_nome: m.materialNome,
+            tipo: m.tipo,
+            quantidade: m.quantidade,
+            registrado_por: m.registradoPor,
+            observacao: m.observacao || null,
+            data: m.data
+          }));
+        if (movRows.length) {
+          const { error: errMovs } = await _sb.from('movimentacoes').insert(movRows);
+          if (errMovs) throw new Error(errMovs.message);
+        }
       }
 
       await loadAllData();
@@ -1814,7 +1835,8 @@ async function saveAjuste() {
   });
   if (errMov) { alert('Erro: ' + errMov.message); if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; } return; }
 
-  await _sb.from('materiais').update({ quantidade: qtd }).eq('id', material.id);
+  const { error: errUpd } = await _sb.from('materiais').update({ quantidade: qtd }).eq('id', material.id);
+  if (errUpd) { alert('Erro ao atualizar estoque: ' + errUpd.message); if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; } return; }
 
   await loadAllData();
   closeAjusteModal();
