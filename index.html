@@ -2951,7 +2951,7 @@ function openConfirmDelete(title, msg, onConfirm) {
   document.getElementById('confirm-del-title').textContent = title;
   document.getElementById('confirm-del-msg').innerHTML = msg;
   const btn = document.getElementById('confirm-del-btn');
-  btn.onclick = () => { closeConfirmDelete(); if (_confirmDelCallback) _confirmDelCallback(); };
+  btn.onclick = () => { const cb = _confirmDelCallback; closeConfirmDelete(); if (cb) cb(); };
   document.getElementById('modal-confirm-del').style.display = 'flex';
 }
 
