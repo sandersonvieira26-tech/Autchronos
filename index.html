@@ -1529,6 +1529,8 @@ let currentCalibView = 'dashboard';
 const CALIB_PER_PAGE = 15;
 let currentMovPage = 1;
 const MOV_PER_PAGE = 25;
+let currentMatPage = 1;
+const MAT_PER_PAGE = 15;
 let currentCustomStart = '';
 let currentCustomEnd = '';
 let _realtimeChannel = null;
@@ -1583,11 +1585,11 @@ function renderDashboard(session) {
         <div id="alertas-section"></div>
         <div class="table-section">
           <div class="table-toolbar">
-            <input class="search-input" type="text" id="filter-nome" placeholder="Buscar por nome..." oninput="renderMaterialsTable()">
-            <select id="filter-cat" onchange="renderMaterialsTable()">
+            <input class="search-input" type="text" id="filter-nome" placeholder="Buscar por nome..." oninput="currentMatPage=1;renderMaterialsTable()">
+            <select id="filter-cat" onchange="currentMatPage=1;renderMaterialsTable()">
               <option value="">Todas as categorias</option>
             </select>
-            <select id="filter-status" onchange="renderMaterialsTable()">
+            <select id="filter-status" onchange="currentMatPage=1;renderMaterialsTable()">
               <option value="">Todos os status</option>
               <option value="OK">OK</option>
               <option value="Baixo">Baixo</option>
@@ -1619,6 +1621,7 @@ function renderDashboard(session) {
             </table>
           </div>
           <div class="mat-cards" id="materials-cards"></div>
+          <div id="mat-pagination" class="pagination"></div>
         </div>
       </div>
 
@@ -2068,15 +2071,21 @@ function renderMaterialsTable() {
     );
   });
 
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / MAT_PER_PAGE));
+  if (currentMatPage > totalPages) currentMatPage = totalPages;
+  const paginated = filtered.slice((currentMatPage - 1) * MAT_PER_PAGE, currentMatPage * MAT_PER_PAGE);
+
   const tbody = document.getElementById('materials-tbody');
 
-  if (filtered.length === 0) {
+  if (total === 0) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Nenhum material encontrado.</td></tr>`;
     renderMaterialCards([]);
+    renderPaginationEl('mat-pagination', 1, 1, () => {}, 0, MAT_PER_PAGE);
     return;
   }
 
-  tbody.innerHTML = filtered.map(m => {
+  tbody.innerHTML = paginated.map(m => {
     const status = calcStatus(m.quantidade, m.estoqueMinimo);
     return `<tr>
       <td>${m.id}</td>
@@ -2100,7 +2109,8 @@ function renderMaterialsTable() {
       </td>
     </tr>`;
   }).join('');
-  renderMaterialCards(filtered);
+  renderMaterialCards(paginated);
+  renderPaginationEl('mat-pagination', currentMatPage, totalPages, p => { currentMatPage = p; renderMaterialsTable(); }, total, MAT_PER_PAGE);
 }
 // === MOVIMENTAÇÃO ===
 let movimentoMaterialId = null;
@@ -2774,10 +2784,17 @@ function renderAlertas() {
     if (elMobile) elMobile.innerHTML = '<div style="text-align:center;color:var(--gray-600);padding:2rem">Nenhum alerta de estoque.</div>';
     return;
   }
+  const ALERTA_VISIBLE = 4;
+  const expanded = el.dataset.expanded === '1';
+  const visiveis = expanded ? alertas : alertas.slice(0, ALERTA_VISIBLE);
   const html = `
-    <div class="alertas-title">&#9888; Alertas de Estoque <span style="font-size:0.875rem;font-weight:400;color:var(--gray-600)">(${alertas.length} item${alertas.length > 1 ? 's' : ''})</span></div>
+    <div class="alertas-title" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+      &#9888; Alertas de Estoque
+      <span style="font-size:0.875rem;font-weight:400;color:var(--gray-600)">(${alertas.length} item${alertas.length > 1 ? 's' : ''})</span>
+      ${alertas.length > ALERTA_VISIBLE ? `<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="toggleMatAlertas()">${expanded ? '&#9650; Recolher' : '&#9660; Ver todos (' + alertas.length + ')'}</button>` : ''}
+    </div>
     <div class="alertas-grid">
-      ${alertas.map(m => {
+      ${visiveis.map(m => {
         const status = calcStatus(m.quantidade, m.estoqueMinimo);
         const fmt = v => v % 1 === 0 ? v : v.toFixed(2);
         return `<div class="alerta-card ${status === 'Crítico' ? 'critico' : ''}">
@@ -2790,6 +2807,13 @@ function renderAlertas() {
     </div>`;
   el.innerHTML = html;
   if (elMobile) elMobile.innerHTML = html;
+}
+
+function toggleMatAlertas() {
+  const el = document.getElementById('alertas-section');
+  if (!el) return;
+  el.dataset.expanded = el.dataset.expanded === '1' ? '0' : '1';
+  renderAlertas();
 }
 
 // === HISTÓRICO POR MATERIAL ===
