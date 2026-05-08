@@ -727,6 +727,38 @@ tr:hover td { background: var(--gray-50); }
   text-transform: uppercase;
   margin-top: -1rem;
 }
+
+/* === TOAST === */
+.toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; display:flex; flex-direction:column; gap:0.5rem; pointer-events:none; }
+.toast { display:flex; align-items:center; gap:0.625rem; padding:0.75rem 1rem; border-radius:var(--radius); box-shadow:var(--shadow-lg); font-size:0.875rem; font-weight:500; pointer-events:all; animation:toast-in 0.25s ease; max-width:320px; }
+.toast-success { background:#ecfdf5; color:#065f46; border-left:4px solid var(--green); }
+.toast-error { background:var(--red-50); color:var(--red); border-left:4px solid var(--red); }
+@keyframes toast-in { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+@keyframes toast-out { to { opacity:0; transform:translateX(20px); } }
+[data-theme="dark"] .toast-success { background:#052e16; }
+[data-theme="dark"] .toast-error { background:#450a0a; }
+
+/* === ROW ACTION MENU === */
+.row-actions { display:flex; gap:0.375rem; align-items:center; }
+.row-menu-wrap { position:relative; display:inline-block; }
+.row-menu { position:absolute; right:0; top:100%; margin-top:3px; background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius); box-shadow:var(--shadow-lg); min-width:148px; z-index:300; display:none; flex-direction:column; overflow:hidden; }
+.row-menu.open { display:flex; }
+.row-menu-item { padding:0.5rem 0.875rem; font-size:0.8125rem; text-align:left; background:none; border:none; cursor:pointer; color:var(--gray-900); white-space:nowrap; width:100%; }
+.row-menu-item:hover { background:var(--gray-100); }
+.row-menu-item.danger { color:var(--red); }
+.row-menu-item.danger:hover { background:var(--red-50); }
+
+/* === ALERTA PROGRESS BAR === */
+.alerta-progress { margin-top:0.5rem; height:4px; background:var(--gray-200); border-radius:2px; overflow:hidden; }
+.alerta-progress-fill { height:100%; border-radius:2px; }
+
+/* === TAB DOT INDICATOR === */
+.desktop-tab-btn { position:relative; }
+.bottom-nav-btn { position:relative; }
+.tab-dot { width:7px; height:7px; border-radius:50%; background:var(--red); display:none; position:absolute; top:8px; right:8px; box-shadow:0 0 0 2px var(--white); }
+.tab-dot.visible { display:block; }
+.bottom-nav-btn .tab-dot { top:5px; right:calc(50% - 16px); box-shadow:0 0 0 2px var(--white); }
+[data-theme="dark"] .tab-dot { box-shadow:0 0 0 2px #0f172a; }
   </style>
 </head>
 <body>
@@ -882,6 +914,7 @@ tr:hover td { background: var(--gray-50); }
       </div>
       <div class="modal-body" style="padding:0">
         <div id="historico-list"></div>
+        <div id="historico-pagination" class="pagination" style="border-top:1px solid var(--gray-200);margin:0;padding:0.75rem 1rem"></div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeHistoricoModal()">Fechar</button>
@@ -1248,6 +1281,51 @@ function guardAdmin() {
   return !!(currentSession && currentSession.papel === 'admin');
 }
 
+function showToast(msg, type = 'success') {
+  let c = document.getElementById('toast-container');
+  if (!c) { c = document.createElement('div'); c.id = 'toast-container'; c.className = 'toast-container'; document.body.appendChild(c); }
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toast-out 0.3s ease forwards';
+    setTimeout(() => t.remove(), 300);
+  }, 2800);
+}
+
+function toggleRowMenu(id) {
+  document.querySelectorAll('.row-menu').forEach(m => { if (m.id !== 'rm-' + id) m.classList.remove('open'); });
+  const menu = document.getElementById('rm-' + id);
+  if (menu) menu.classList.toggle('open');
+}
+
+function updateTabIndicators() {
+  const matCount = getMateriais().filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK').length;
+  const calibCount = getEquipamentos().filter(e => calcCalibStatus(e.dataProximaCalibracao).days <= 30).length;
+  ['dot-dtab-materiais','dot-tab-materiais','dot-tab-alertas'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('visible', matCount > 0);
+  });
+  ['dot-dtab-calibracoes','dot-tab-calibracoes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('visible', calibCount > 0);
+  });
+}
+
+function updateReposicaoBadge() {
+  const count = getMateriais().filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK').length;
+  const btn = document.getElementById('btn-reposicao');
+  if (!btn) return;
+  if (count > 0) {
+    btn.textContent = `⚠ Reposição (${count})`;
+    btn.style.cssText = 'width:auto;background:var(--red-50);color:var(--red);border-color:var(--red)';
+  } else {
+    btn.textContent = '⚠ Reposição';
+    btn.style.cssText = 'width:auto';
+  }
+}
+
 async function recordMovimento(materialId, materialNome, qtdAnterior, qtdNova, registradoPor, observacao = '') {
   const diff = qtdNova - qtdAnterior;
   if (diff === 0) return;
@@ -1481,6 +1559,9 @@ document.addEventListener('click', e => {
   if (menu && !menu.contains(e.target) && toggle && !toggle.contains(e.target)) {
     menu.classList.remove('open');
   }
+  if (!e.target.closest('.row-menu-wrap')) {
+    document.querySelectorAll('.row-menu.open').forEach(m => m.classList.remove('open'));
+  }
 });
 
 // === TEMA ===
@@ -1534,6 +1615,10 @@ const MAT_PER_PAGE = 15;
 let currentCustomStart = '';
 let currentCustomEnd = '';
 let _realtimeChannel = null;
+let _histMovs = [];
+let _histMaterial = null;
+let histPage = 1;
+const HIST_PER_PAGE = 20;
 
 function renderDashboard(session) {
   currentSession = session;
@@ -1563,11 +1648,11 @@ function renderDashboard(session) {
     <nav class="desktop-tabs">
       <button class="desktop-tab-btn active" id="dtab-materiais" onclick="setMobileTab('materiais')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        Materiais
+        Materiais<span class="tab-dot" id="dot-dtab-materiais"></span>
       </button>
       <button class="desktop-tab-btn" id="dtab-calibracoes" onclick="setMobileTab('calibracoes')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 4.93 19.07"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
-        Calibrações
+        Calibrações<span class="tab-dot" id="dot-dtab-calibracoes"></span>
       </button>
       <button class="desktop-tab-btn" id="dtab-movimentacoes" onclick="setMobileTab('movimentacoes')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
@@ -1598,7 +1683,7 @@ function renderDashboard(session) {
             <div class="table-actions" style="margin-left:auto">
               ${isAdmin ? `<button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Categorias</button>
               <button class="btn btn-primary btn-sm" style="width:auto" onclick="openMaterialModal()">+ Material</button>` : ''}
-              <button class="btn btn-secondary btn-sm" style="width:auto" onclick="openReposicaoModal()" title="Lista de materiais em Baixo ou Crítico">&#9888; Reposição</button>
+              <button class="btn btn-secondary btn-sm" style="width:auto" id="btn-reposicao" onclick="openReposicaoModal()" title="Lista de materiais em Baixo ou Crítico">&#9888; Reposição</button>
               <button class="btn btn-secondary btn-sm" style="width:auto" onclick="exportMateriaisCSV()" title="Exportar lista atual para Excel/CSV">&#8595; CSV</button>
             </div>
           </div>
@@ -1750,6 +1835,7 @@ function renderDashboard(session) {
     <!-- Bottom Nav (mobile) -->
     <nav class="bottom-nav">
       <button class="bottom-nav-btn active" id="tab-materiais" onclick="setMobileTab('materiais')">
+        <span class="tab-dot" id="dot-tab-materiais"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
           <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
@@ -1757,6 +1843,7 @@ function renderDashboard(session) {
         <span>Materiais</span>
       </button>
       <button class="bottom-nav-btn" id="tab-alertas" onclick="setMobileTab('alertas')">
+        <span class="tab-dot" id="dot-tab-alertas"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -1770,6 +1857,7 @@ function renderDashboard(session) {
         <span>Movimentos</span>
       </button>
       <button class="bottom-nav-btn" id="tab-calibracoes" onclick="setMobileTab('calibracoes')">
+        <span class="tab-dot" id="dot-tab-calibracoes"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
         </svg>
@@ -1989,6 +2077,8 @@ function refreshAllSections() {
   renderMaterialsTable();
   renderMovements();
   renderEquipamentos();
+  updateReposicaoBadge();
+  updateTabIndicators();
 }
 
 function renderCards() {
@@ -2099,13 +2189,20 @@ function renderMaterialsTable() {
       <td>${m.estoqueMinimo % 1 === 0 ? m.estoqueMinimo : m.estoqueMinimo.toFixed(2)}</td>
       <td>${stockBadge(status)}</td>
       <td>
-        <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'entrada')">+ Entrada</button>
-        <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'saída')">− Saída</button>
-        <button class="btn btn-secondary btn-sm" onclick="openHistoricoModal(${m.id})">Histórico</button>
-        ${isAdmin ? `
-        <button class="btn btn-secondary btn-sm" onclick="openAjusteModal(${m.id})">Ajustar</button>
-        <button class="btn btn-secondary btn-sm" onclick="openMaterialModal(${m.id})">Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMaterial(${m.id})">Excluir</button>` : ''}
+        <div class="row-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'entrada')">+ Entrada</button>
+          <button class="btn btn-secondary btn-sm" onclick="openMovimentoModal(${m.id},'saída')">− Saída</button>
+          <div class="row-menu-wrap">
+            <button class="btn btn-secondary btn-sm" onclick="toggleRowMenu(${m.id})" title="Mais ações">⋮</button>
+            <div class="row-menu" id="rm-${m.id}">
+              <button class="row-menu-item" onclick="openHistoricoModal(${m.id});toggleRowMenu(${m.id})">Histórico</button>
+              ${isAdmin ? `
+              <button class="row-menu-item" onclick="openAjusteModal(${m.id});toggleRowMenu(${m.id})">Ajustar</button>
+              <button class="row-menu-item" onclick="openMaterialModal(${m.id});toggleRowMenu(${m.id})">Editar</button>
+              <button class="row-menu-item danger" onclick="deleteMaterial(${m.id});toggleRowMenu(${m.id})">Excluir</button>` : ''}
+            </div>
+          </div>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -2217,6 +2314,7 @@ async function saveMovimento() {
   await loadAllData();
   closeMovimentoModal();
   refreshAllSections();
+  showToast('Movimentação registrada!');
 }
 
 function getFilterWindow(period) {
@@ -2569,6 +2667,7 @@ async function deleteMaterial(id) {
       if (error) { alert('Erro ao excluir: ' + error.message); return; }
       await loadAllData();
       refreshAllSections();
+      showToast('Material excluído.');
     }
   );
 }
@@ -2636,10 +2735,12 @@ async function saveMaterial() {
     if (error) { alert('Erro ao salvar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } return; }
   }
 
+  const wasEditing = !!editingMaterialId;
   await loadAllData();
   if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
   closeMaterialModal();
   refreshAllSections();
+  showToast(wasEditing ? 'Material atualizado!' : 'Material adicionado!');
 }
 function openCategoryModal() {
   if (!guardAdmin()) return;
@@ -2798,11 +2899,14 @@ function renderAlertas() {
       ${visiveis.map(m => {
         const status = calcStatus(m.quantidade, m.estoqueMinimo);
         const fmt = v => v % 1 === 0 ? v : v.toFixed(2);
+        const pct = m.estoqueMinimo > 0 ? Math.min(100, Math.round((m.quantidade / m.estoqueMinimo) * 100)) : 100;
+        const barColor = status === 'Crítico' ? 'var(--red)' : 'var(--amber)';
         return `<div class="alerta-card ${status === 'Crítico' ? 'critico' : ''}">
           <div class="alerta-nome">${esc(m.nome)}</div>
           <div class="alerta-detalhe">Estoque: <strong>${fmt(m.quantidade)} ${esc(m.unidade)}</strong> &nbsp;|&nbsp; Mín: <strong>${fmt(m.estoqueMinimo)}</strong></div>
           <span class="badge ${status === 'Crítico' ? 'badge-critico' : 'badge-baixo'}">${status}</span>
           <span style="font-size:0.8125rem;color:var(--gray-600);margin-left:0.375rem">${esc(m.categoria)}</span>
+          <div class="alerta-progress"><div class="alerta-progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
         </div>`;
       }).join('')}
     </div>`;
@@ -2819,52 +2923,68 @@ function toggleMatAlertas() {
 
 // === HISTÓRICO POR MATERIAL ===
 function openHistoricoModal(id) {
-  const material = getMateriais().find(m => m.id === id);
+  _histMaterial = getMateriais().find(m => m.id === id) || null;
   document.getElementById('modal-historico-title').textContent =
-    `Histórico — ${material ? esc(material.nome) : '#' + id}`;
-  const movs = getMovimentacoes()
+    `Histórico — ${_histMaterial ? esc(_histMaterial.nome) : '#' + id}`;
+  _histMovs = getMovimentacoes()
     .filter(m => m.materialId === id)
     .sort((a, b) => new Date(b.data) - new Date(a.data));
-  const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
-  const valorUnit = material ? (material.valorUnitario || 0) : 0;
-  const list = document.getElementById('historico-list');
-  if (movs.length === 0) {
-    list.innerHTML = '<p style="text-align:center;color:var(--gray-600);padding:2rem 1rem">Nenhuma movimentação registrada.</p>';
-  } else {
-    let custoTotalSaidas = 0;
-    const cards = movs.map(m => {
-      const d = new Date(m.data);
-      const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const tipoInfo = { entrada:['badge-entrada','Entrada'], saída:['badge-saida','Saída'], ajuste:['badge-ajuste','Ajuste'] };
-      const [badgeClass, label] = tipoInfo[m.tipo] || ['badge-saida', m.tipo];
-      const custo = valorUnit > 0 ? m.quantidade * valorUnit : 0;
-      if (m.tipo === 'saída') custoTotalSaidas += custo;
-      const custoStr = custo > 0
-        ? `<div class="hist-entry-row"><span class="hist-entry-key">Valor</span><span class="hist-entry-val" style="color:${m.tipo === 'saída' ? 'var(--red)' : 'var(--green)'}">${m.tipo === 'saída' ? '−' : '+'} ${fmtBRL(custo)}</span></div>`
-        : '';
-      return `<div class="hist-entry">
-        <div class="hist-entry-header">
-          <span class="hist-entry-date">${dateStr}</span>
-          <span class="badge ${badgeClass}">${label}</span>
-        </div>
-        <div class="hist-entry-row">
-          <span class="hist-entry-key">Quantidade</span>
-          <span class="hist-entry-val">${fmt(m.quantidade)}${material ? ' ' + esc(material.unidade) : ''}</span>
-        </div>
-        ${custoStr}
-        ${m.retiradorPor ? `<div class="hist-entry-row"><span class="hist-entry-key">Retirado por</span><span class="hist-entry-val">${esc(m.retiradorPor)}</span></div>` : ''}
-        ${m.destino ? `<div class="hist-entry-row"><span class="hist-entry-key">Destino</span><span class="hist-entry-val">${esc(m.destino)}</span></div>` : ''}
-        ${m.observacao ? `<div class="hist-entry-row"><span class="hist-entry-key">Obs.</span><span class="hist-entry-val" style="color:var(--gray-600);font-style:italic;font-weight:400">${esc(m.observacao)}</span></div>` : ''}
-      </div>`;
-    }).join('');
-    const totLine = custoTotalSaidas > 0
-      ? `<div style="padding:0.75rem 1rem;background:var(--gray-100);border-top:1px solid var(--gray-200);font-size:0.875rem;display:flex;justify-content:space-between;align-items:center">
-           <span style="color:var(--gray-600)">Total em saídas</span>
-           <strong style="color:var(--red)">${fmtBRL(custoTotalSaidas)}</strong>
-         </div>` : '';
-    list.innerHTML = cards + totLine;
-  }
+  histPage = 1;
+  renderHistoricoPage();
   document.getElementById('modal-historico').style.display = 'flex';
+}
+
+function renderHistoricoPage() {
+  const list = document.getElementById('historico-list');
+  const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
+  const valorUnit = _histMaterial ? (_histMaterial.valorUnitario || 0) : 0;
+
+  if (_histMovs.length === 0) {
+    list.innerHTML = '<p style="text-align:center;color:var(--gray-600);padding:2rem 1rem">Nenhuma movimentação registrada.</p>';
+    const pg = document.getElementById('historico-pagination');
+    if (pg) pg.innerHTML = '';
+    return;
+  }
+
+  const total = _histMovs.length;
+  const totalPages = Math.max(1, Math.ceil(total / HIST_PER_PAGE));
+  if (histPage > totalPages) histPage = totalPages;
+  const paginated = _histMovs.slice((histPage - 1) * HIST_PER_PAGE, histPage * HIST_PER_PAGE);
+
+  const custoTotalSaidas = _histMovs.filter(m => m.tipo === 'saída').reduce((s, m) => s + m.quantidade * valorUnit, 0);
+
+  const cards = paginated.map(m => {
+    const d = new Date(m.data);
+    const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const tipoInfo = { entrada:['badge-entrada','Entrada'], saída:['badge-saida','Saída'], ajuste:['badge-ajuste','Ajuste'] };
+    const [badgeClass, label] = tipoInfo[m.tipo] || ['badge-saida', m.tipo];
+    const custo = valorUnit > 0 ? m.quantidade * valorUnit : 0;
+    const custoStr = custo > 0
+      ? `<div class="hist-entry-row"><span class="hist-entry-key">Valor</span><span class="hist-entry-val" style="color:${m.tipo === 'saída' ? 'var(--red)' : 'var(--green)'}">${m.tipo === 'saída' ? '−' : '+'} ${fmtBRL(custo)}</span></div>`
+      : '';
+    return `<div class="hist-entry">
+      <div class="hist-entry-header">
+        <span class="hist-entry-date">${dateStr}</span>
+        <span class="badge ${badgeClass}">${label}</span>
+      </div>
+      <div class="hist-entry-row">
+        <span class="hist-entry-key">Quantidade</span>
+        <span class="hist-entry-val">${fmt(m.quantidade)}${_histMaterial ? ' ' + esc(_histMaterial.unidade) : ''}</span>
+      </div>
+      ${custoStr}
+      ${m.retiradorPor ? `<div class="hist-entry-row"><span class="hist-entry-key">Retirado por</span><span class="hist-entry-val">${esc(m.retiradorPor)}</span></div>` : ''}
+      ${m.destino ? `<div class="hist-entry-row"><span class="hist-entry-key">Destino</span><span class="hist-entry-val">${esc(m.destino)}</span></div>` : ''}
+      ${m.observacao ? `<div class="hist-entry-row"><span class="hist-entry-key">Obs.</span><span class="hist-entry-val" style="color:var(--gray-600);font-style:italic;font-weight:400">${esc(m.observacao)}</span></div>` : ''}
+    </div>`;
+  }).join('');
+
+  const totLine = custoTotalSaidas > 0
+    ? `<div style="padding:0.75rem 1rem;background:var(--gray-100);border-top:1px solid var(--gray-200);font-size:0.875rem;display:flex;justify-content:space-between;align-items:center">
+         <span style="color:var(--gray-600)">Total em saídas (tudo)</span>
+         <strong style="color:var(--red)">${fmtBRL(custoTotalSaidas)}</strong>
+       </div>` : '';
+  list.innerHTML = cards + totLine;
+  renderPaginationEl('historico-pagination', histPage, totalPages, p => { histPage = p; renderHistoricoPage(); }, total, HIST_PER_PAGE);
 }
 
 function closeHistoricoModal() {
@@ -3095,6 +3215,7 @@ async function deleteUser(id) {
       if (error) { alert('Erro ao excluir usuário: ' + error.message); return; }
       await loadAllData();
       renderUserList();
+      showToast('Usuário excluído.');
     }
   );
 }
@@ -3792,6 +3913,7 @@ async function saveRenovarCalib() {
   renderEquipamentos();
   renderCards();
   renderDaySummary();
+  showToast('Calibração renovada!');
 }
 
 let editingEquipamentoId = null;
@@ -3908,9 +4030,12 @@ async function saveEquipamento() {
     });
   }
 
+  const wasEditingEq = !!editingEquipamentoId;
   await loadAllData();
+  if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
   closeEquipamentoModal();
   renderEquipamentos();
+  showToast(wasEditingEq ? 'Equipamento atualizado!' : 'Equipamento adicionado!');
 }
 
 async function deleteEquipamento(id) {
@@ -3925,6 +4050,7 @@ async function deleteEquipamento(id) {
       if (error) { alert('Erro ao excluir: ' + error.message); return; }
       await loadAllData();
       renderEquipamentos();
+      showToast('Equipamento excluído.');
     }
   );
 }
