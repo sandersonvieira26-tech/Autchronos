@@ -741,7 +741,7 @@ tr:hover td { background: var(--gray-50); }
 /* === ROW ACTION MENU === */
 .row-actions { display:flex; gap:0.375rem; align-items:center; }
 .row-menu-wrap { position:relative; display:inline-block; }
-.row-menu { position:absolute; right:0; top:100%; margin-top:3px; background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius); box-shadow:var(--shadow-lg); min-width:148px; z-index:300; display:none; flex-direction:column; overflow:hidden; }
+.row-menu { position:fixed; background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius); box-shadow:var(--shadow-lg); min-width:148px; z-index:300; display:none; flex-direction:column; overflow:hidden; }
 .row-menu.open { display:flex; }
 .row-menu-item { padding:0.5rem 0.875rem; font-size:0.8125rem; text-align:left; background:none; border:none; cursor:pointer; color:var(--gray-900); white-space:nowrap; width:100%; }
 .row-menu-item:hover { background:var(--gray-100); }
@@ -1297,7 +1297,15 @@ function showToast(msg, type = 'success') {
 function toggleRowMenu(id) {
   document.querySelectorAll('.row-menu').forEach(m => { if (m.id !== 'rm-' + id) m.classList.remove('open'); });
   const menu = document.getElementById('rm-' + id);
-  if (menu) menu.classList.toggle('open');
+  if (!menu) return;
+  if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
+  const trigger = menu.previousElementSibling;
+  if (trigger) {
+    const r = trigger.getBoundingClientRect();
+    menu.style.top = (r.bottom + 3) + 'px';
+    menu.style.right = (window.innerWidth - r.right) + 'px';
+  }
+  menu.classList.add('open');
 }
 
 function updateTabIndicators() {
