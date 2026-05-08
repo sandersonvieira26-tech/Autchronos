@@ -2637,6 +2637,7 @@ async function saveMaterial() {
   }
 
   await loadAllData();
+  if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
   closeMaterialModal();
   refreshAllSections();
 }
