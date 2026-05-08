@@ -178,6 +178,9 @@ body.saldo-oculto .brl-mask { display: inline; }
   z-index: 100;
 }
 .header-left { display: flex; align-items: center; }
+.logo-brand { display: flex; flex-direction: column; }
+.logo-tagline { font-size: 0.625rem; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; line-height: 1; margin-top: 1px; }
+@media (max-width: 767px) { .logo-tagline { display: none; } }
 .header-right { display: flex; align-items: center; gap: 0.75rem; }
 .user-info { display: flex; align-items: center; gap: 0.625rem; color: var(--white); font-size: 0.875rem; }
 .avatar {
@@ -1409,6 +1412,7 @@ function renderRegister() {
     <div class="auth-card">
       <div class="auth-logo">${logoSVG(28)}</div>
       <div class="auth-title">Criar Conta</div>
+      <div class="auth-subtitle">ESVJ - Gestão de Almoxarifado</div>
       <div class="auth-error" id="reg-error"></div>
       <div class="form-group">
         <label for="reg-nome">Nome completo</label>
@@ -1519,7 +1523,7 @@ function renderLogin() {
     <div class="auth-card">
       <div class="auth-logo">${logoSVG(28)}</div>
       <div class="auth-title">Acesso ao Sistema</div>
-      <div class="auth-subtitle">ESVJ Engenharia · Gestão de Almoxarifado</div>
+      <div class="auth-subtitle">ESVJ - Gestão de Almoxarifado</div>
       <div class="auth-error" id="login-error"></div>
       <div class="form-group">
         <label for="login-email">E-mail</label>
@@ -1679,7 +1683,7 @@ function renderDashboard(session) {
 
   document.getElementById('screen-dashboard').innerHTML = `
     <header class="dashboard-header">
-      <div class="header-left">${logoSVG(22)}</div>
+      <div class="header-left"><div class="logo-brand">${logoSVG(22)}<div class="logo-tagline">ESVJ - Gestão de Almoxarifado</div></div></div>
       <div class="header-right">
         <div class="user-info">
           <div class="avatar">${esc(getInitials(session.nomeCompleto))}</div>
@@ -4494,6 +4498,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   <!-- Loading Screen -->
   <div id="screen-loading" style="display:none">
     <div class="loading-logo"></div>
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.45);letter-spacing:0.05em;margin-top:0.375rem;text-align:center">ESVJ - Gestão de Almoxarifado</div>
     <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
     <div class="loading-label">Carregando...</div>
   </div>
