@@ -240,6 +240,7 @@ tr:hover td { background: var(--gray-50); }
 .badge-calib-ok { background: #dcfce7; color: var(--green); }
 .badge-calib-proximo { background: #fef3c7; color: var(--amber); }
 .badge-calib-vencido { background: var(--red-50); color: var(--red); }
+.badge-calib-em-calib { background: #dbeafe; color: #1d4ed8; }
 
 /* === MODAL === */
 @keyframes modal-overlay-in {
@@ -421,7 +422,7 @@ tr:hover td { background: var(--gray-50); }
 .view-toggle-btn.active { background:var(--orange); color:#fff; }
 
 /* === CALIB DASHBOARD === */
-.cdash-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:0.75rem; margin:1.25rem 1.25rem 0; }
+.cdash-cards { display:grid; grid-template-columns:repeat(6,1fr); gap:0.75rem; margin:1.25rem 1.25rem 0; }
 .cdash-card { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); padding:1rem 1.25rem; text-align:center; border-top:3px solid transparent; }
 .cdash-card.clickable { cursor:pointer; transition:box-shadow 0.15s; }
 .cdash-card.clickable:hover { box-shadow:var(--shadow-lg); }
@@ -436,6 +437,8 @@ tr:hover td { background: var(--gray-50); }
 .cdash-red .cdash-val { color:var(--red); }
 .cdash-orange{ border-top-color:var(--orange); }
 .cdash-orange .cdash-val { color:var(--orange); }
+.cdash-blue  { border-top-color:#3b82f6; }
+.cdash-blue .cdash-val { color:#3b82f6; }
 
 .cdash-row { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin:0.75rem 1.25rem; }
 .cdash-panel { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); padding:1.125rem 1.25rem; }
@@ -586,13 +589,14 @@ tr:hover td { background: var(--gray-50); }
 
   /* Layout geral */
   .dashboard-body { padding: 0.75rem; gap: 0.75rem; display: flex; flex-direction: column; }
-  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 0.625rem; margin-bottom: 0; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0; }
+  .cards-grid .card:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .table-section { margin-bottom: 0; overflow: hidden; }
   .movements-section { overflow: hidden; }
 
   /* Cards menores e compactos */
-  .card { padding: 0.75rem 0.875rem; }
-  .card-label { font-size: 0.7rem; margin-bottom: 0.25rem; }
+  .card { padding: 0.75rem; }
+  .card-label { font-size: 0.72rem; margin-bottom: 0.25rem; }
   .card-value { font-size: 1.25rem; }
 
   /* Tabela de materiais */
@@ -1202,7 +1206,8 @@ const normEquipamento = e => ({
   dataUltimaCalibracao: e.data_ultima_calibracao,
   validadeMeses: +e.validade_meses,
   dataProximaCalibracao: e.data_proxima_calibracao,
-  responsavel: e.responsavel || ''
+  responsavel: e.responsavel || '',
+  emCalibracao: !!e.em_calibracao
 });
 
 // Getters síncronos (trabalham no cache)
@@ -1328,7 +1333,7 @@ function toggleRowMenu(id) {
 
 function updateTabIndicators() {
   const matCount = getMateriais().filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK').length;
-  const calibCount = getEquipamentos().filter(e => calcCalibStatus(e.dataProximaCalibracao).days <= 30).length;
+  const calibCount = getEquipamentos().filter(e => !e.emCalibracao && calcCalibStatus(e.dataProximaCalibracao).days <= 30).length;
   ['dot-dtab-materiais','dot-tab-materiais','dot-tab-alertas'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('visible', matCount > 0);
@@ -1580,6 +1585,20 @@ function toggleAdminMenu() {
 function closeAdminMenu() {
   document.getElementById('admin-btns')?.classList.remove('open');
 }
+async function toggleEmCalibracao(id) {
+  if (!guardAdmin()) return;
+  const equip = getEquipamentos().find(e => e.id === id);
+  if (!equip) return;
+  const novoStatus = !equip.emCalibracao;
+  const { error } = await _sb.from('equipamentos_calibracao').update({ em_calibracao: novoStatus }).eq('id', id);
+  if (error) { showToast('Erro ao atualizar: ' + error.message, 'error'); return; }
+  await loadAllData();
+  renderEquipamentos();
+  renderCards();
+  updateTabIndicators();
+  showToast(novoStatus ? 'Equipamento marcado como em calibração.' : 'Equipamento retornou da calibração!');
+}
+
 function toggleMatFilters() {
   const el = document.getElementById('mat-filters');
   const btn = document.getElementById('btn-filter-toggle');
@@ -1775,6 +1794,7 @@ function renderDashboard(session) {
                 <option value="proximo30">Vence em até 30 dias</option>
                 <option value="proximo90">Vence em até 3 meses</option>
                 <option value="ok">OK</option>
+                <option value="em_calibracao">Em Calibração</option>
               </select>
             </div>
             <!-- Ações: sempre visíveis -->
@@ -1799,6 +1819,7 @@ function renderDashboard(session) {
               <span class="badge badge-calib-ok has-tip" data-tip="Próxima calibração em mais de 30 dias">OK</span>
               <span class="badge badge-calib-proximo has-tip" data-tip="Calibração vence nos próximos 30 dias">Vence em breve</span>
               <span class="badge badge-calib-vencido has-tip" data-tip="Prazo de calibração ultrapassado">Vencido</span>
+              <span class="badge badge-calib-em-calib has-tip" data-tip="Equipamento enviado para calibração">Em Calibração</span>
             </div>
             <div id="calib-alertas" style="padding:0 1.25rem"></div>
             <div class="table-wrapper">
@@ -2135,15 +2156,16 @@ function renderCards() {
     .reduce((s, m) => s + m.quantidade, 0);
 
   const equips = getEquipamentos();
-  const calibVencidos = equips.filter(e => calcCalibStatus(e.dataProximaCalibracao).days < 0).length;
-  const calibProximos = equips.filter(e => { const d = calcCalibStatus(e.dataProximaCalibracao).days; return d >= 0 && d <= 30; }).length;
+  const emCalibCount = equips.filter(e => e.emCalibracao).length;
+  const calibVencidos = equips.filter(e => !e.emCalibracao && calcCalibStatus(e.dataProximaCalibracao).days < 0).length;
+  const calibProximos = equips.filter(e => { if (e.emCalibracao) return false; const d = calcCalibStatus(e.dataProximaCalibracao).days; return d >= 0 && d <= 30; }).length;
   const calibUrgentes = calibVencidos + calibProximos;
   const calibCls = calibVencidos > 0 ? 'red' : calibProximos > 0 ? 'amber' : '';
   const calibSub = calibVencidos > 0
-    ? `${calibVencidos} vencido${calibVencidos > 1 ? 's' : ''}`
+    ? `${calibVencidos} vencido${calibVencidos > 1 ? 's' : ''}${emCalibCount > 0 ? ` · ${emCalibCount} em calib.` : ''}`
     : calibProximos > 0
       ? `${calibProximos} vence${calibProximos > 1 ? 'm' : ''} em breve`
-      : 'Tudo em dia';
+      : emCalibCount > 0 ? `${emCalibCount} em calibração` : 'Tudo em dia';
 
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const baixoColor = baixoEstoque > 0 ? 'var(--red)' : 'var(--green)';
@@ -3469,7 +3491,8 @@ function addMonthsToDate(dateStr, months) {
   return d.toISOString().split('T')[0];
 }
 
-function calcCalibStatus(dataProxima) {
+function calcCalibStatus(dataProxima, emCalibracao = false) {
+  if (emCalibracao) return { label: 'Em Calibração', cls: 'badge-calib-em-calib', days: Infinity };
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const next = new Date(dataProxima + 'T00:00:00');
@@ -3581,6 +3604,8 @@ function renderEquipamentos() {
   if (currentCalibCat) filtered = filtered.filter(e => e.categoria === currentCalibCat);
   if (currentCalibStatus) {
     filtered = filtered.filter(e => {
+      if (currentCalibStatus === 'em_calibracao') return !!e.emCalibracao;
+      if (e.emCalibracao) return false;
       const { days } = calcCalibStatus(e.dataProximaCalibracao);
       if (currentCalibStatus === 'vencido')   return days < 0;
       if (currentCalibStatus === 'proximo30') return days >= 0 && days <= 30;
@@ -3608,7 +3633,11 @@ function renderEquipamentos() {
 
   // Desktop table
   tbody.innerHTML = paginated.map(e => {
-    const { label, cls } = calcCalibStatus(e.dataProximaCalibracao);
+    const { label, cls } = calcCalibStatus(e.dataProximaCalibracao, e.emCalibracao);
+    const calibToggleBtn = isAdmin ? (e.emCalibracao
+      ? `<button class="btn btn-sm" style="background:#dcfce7;color:var(--green);margin-top:0.25rem;font-size:0.72rem;padding:0.2rem 0.5rem" onclick="toggleEmCalibracao(${e.id})">&#10003; Retornou</button>`
+      : `<button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8;margin-top:0.25rem;font-size:0.72rem;padding:0.2rem 0.5rem" onclick="toggleEmCalibracao(${e.id})">&#128640; Em Calibração</button>`)
+      : '';
     return `<tr>
       <td><strong>${esc(e.nome)}</strong></td>
       <td>${esc(e.identificacao) || '—'}</td>
@@ -3621,6 +3650,7 @@ function renderEquipamentos() {
       <td>
         ${calibBadge(label, cls)}
         ${e.certificadoPath ? `<br><button class="cert-btn" onclick="viewCertificado('${e.certificadoPath.replace(/'/g,"\\'")}')">&#128196; Certificado</button>` : ''}
+        ${calibToggleBtn ? `<br>${calibToggleBtn}` : ''}
       </td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="openHistoricoCalib(${e.id})">&#128203; Hist.</button>
@@ -3667,8 +3697,9 @@ function renderCalibDashboard() {
   }
 
   // ── Contadores de status ──────────────────────────────────────────────
-  let ok = 0, prox30 = 0, prox90 = 0, venc = 0;
+  let ok = 0, prox30 = 0, prox90 = 0, venc = 0, emCalib = 0;
   equips.forEach(e => {
+    if (e.emCalibracao) { emCalib++; return; }
     const d = calcCalibStatus(e.dataProximaCalibracao).days;
     if (d < 0) venc++;
     else if (d <= 30) prox30++;
@@ -3762,6 +3793,10 @@ function renderCalibDashboard() {
         <div class="cdash-val">${venc}</div>
         <div class="cdash-label">Vencidas</div>
       </div>
+      <div class="cdash-card cdash-blue ${emCalib>0?'clickable':''}" onclick="${emCalib>0?"setCalibView('lista');setCalibStatus('em_calibracao')":""}">
+        <div class="cdash-val">${emCalib}</div>
+        <div class="cdash-label">Em Calibração</div>
+      </div>
     </div>
 
     <div class="cdash-row">
@@ -3843,10 +3878,10 @@ function renderCalibCards(items, isAdmin) {
     return;
   }
   container.innerHTML = items.map(e => {
-    const { label, cls, days } = calcCalibStatus(e.dataProximaCalibracao);
-    const clsSimple = cls === 'badge-calib-ok' ? 'ok' : cls === 'badge-calib-proximo' ? 'proximo' : 'vencido';
-    const daysLabel = days < 0
-      ? `Vencido há ${Math.abs(days)} dia${Math.abs(days) > 1 ? 's' : ''}`
+    const { label, cls, days } = calcCalibStatus(e.dataProximaCalibracao, e.emCalibracao);
+    const clsSimple = e.emCalibracao ? 'em-calib' : cls === 'badge-calib-ok' ? 'ok' : cls === 'badge-calib-proximo' ? 'proximo' : 'vencido';
+    const daysLabel = e.emCalibracao ? 'Enviado para calibração'
+      : days < 0 ? `Vencido há ${Math.abs(days)} dia${Math.abs(days) > 1 ? 's' : ''}`
       : days === 0 ? 'Vence hoje!'
       : `Vence em ${days} dia${days > 1 ? 's' : ''}`;
 
@@ -3859,7 +3894,7 @@ function renderCalibCards(items, isAdmin) {
         <span class="badge ${cls}">${label}</span>
       </div>
 
-      <div class="calib-card-dates ${clsSimple}">
+      <div class="calib-card-dates ${clsSimple}" style="${e.emCalibracao ? 'background:#dbeafe;color:#1d4ed8' : ''}">
         &#128197; Próxima: ${fmtDate(e.dataProximaCalibracao)} &nbsp;·&nbsp; ${daysLabel}
       </div>
 
@@ -3880,6 +3915,10 @@ function renderCalibCards(items, isAdmin) {
         <button class="btn btn-secondary btn-sm" onclick="openHistoricoCalib(${e.id})">&#128203; Histórico</button>
         ${e.certificadoPath ? `<button class="cert-btn" style="flex:1;justify-content:center" onclick="viewCertificado('${e.certificadoPath.replace(/'/g,"\\'")}')">&#128196; Certificado</button>` : ''}
         ${isAdmin ? `
+        ${e.emCalibracao
+          ? `<button class="btn btn-sm" style="background:#dcfce7;color:var(--green);flex:1" onclick="toggleEmCalibracao(${e.id})">&#10003; Retornou</button>`
+          : `<button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8;flex:1" onclick="toggleEmCalibracao(${e.id})">&#128640; Em Calibração</button>`
+        }
         <button class="btn btn-primary btn-sm" onclick="openRenovarCalibModal(${e.id})">&#8635; Renovar</button>
         <button class="btn btn-secondary btn-sm" onclick="openEquipamentoModal(${e.id})">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteEquipamento(${e.id})">Excluir</button>` : ''}
