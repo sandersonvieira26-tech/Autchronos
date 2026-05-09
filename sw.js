@@ -1,5 +1,5 @@
 // INCREMENT THIS STRING on every new deploy so returning users get fresh cache
-const CACHE = 'autchronos-v2';
+const CACHE = 'autchronos-v3';
 
 self.addEventListener('install', e => {
   e.waitUntil(

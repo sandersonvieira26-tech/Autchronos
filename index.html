@@ -1185,6 +1185,20 @@ const _sb = window.supabase.createClient(
   { auth: { persistSession: true, autoRefreshToken: true } }
 );
 
+// === WEBHOOK ===
+const WEBHOOK_URL = 'https://webhook01.autchronos.site/webhook/1e8dfa5e-e446-4828-9532-570f9a11ff81';
+async function dispararWebhook(payload) {
+  try {
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, timestamp: new Date().toISOString() })
+    });
+  } catch (e) {
+    console.warn('Webhook falhou:', e.message);
+  }
+}
+
 // === IN-MEMORY CACHE ===
 let _materiais = [], _categorias = [], _movimentacoes = [], _profiles = [], _equipamentos = [];
 
@@ -1596,6 +1610,13 @@ async function toggleEmCalibracao(id) {
   const novoStatus = !equip.emCalibracao;
   const { error } = await _sb.from('equipamentos_calibracao').update({ em_calibracao: novoStatus }).eq('id', id);
   if (error) { showToast('Erro ao atualizar: ' + error.message, 'error'); return; }
+  dispararWebhook({
+    evento: 'calibracao_status',
+    equipamento: equip.nome,
+    status: novoStatus ? 'Em Calibração' : 'Retornou da Calibração',
+    usuario: currentSession?.nomeCompleto || 'admin',
+    data: new Date().toISOString()
+  });
   await loadAllData();
   renderEquipamentos();
   renderCards();
@@ -2407,6 +2428,29 @@ async function saveMovimento() {
 
   const { error: errUpd } = await _sb.from('materiais').update({ quantidade: novaQtd }).eq('id', material.id);
   if (errUpd) { alert('Erro ao atualizar estoque: ' + errUpd.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
+
+  dispararWebhook({
+    evento: 'movimentacao',
+    tipo: tipo,
+    material: material.nome,
+    quantidade: qtd,
+    unidade: material.unidade,
+    usuario: currentSession.nomeCompleto,
+    data: new Date().toISOString()
+  });
+  const novoStatusMat = calcStatus(novaQtd, material.estoqueMinimo);
+  if (novoStatusMat !== 'OK') {
+    dispararWebhook({
+      evento: 'estoque_minimo',
+      status: novoStatusMat,
+      material: material.nome,
+      quantidade: novaQtd,
+      estoque_minimo: material.estoqueMinimo,
+      unidade: material.unidade,
+      usuario: currentSession.nomeCompleto,
+      data: new Date().toISOString()
+    });
+  }
 
   await loadAllData();
   closeMovimentoModal();
@@ -3475,6 +3519,20 @@ function showLoadingScreen(session) {
 
   renderDashboard(session);
   showScreen('dashboard');
+
+  if (!sessionStorage.getItem('wh_calib_checked')) {
+    sessionStorage.setItem('wh_calib_checked', '1');
+    getEquipamentos().filter(e => {
+      const st = calcCalibStatus(e.dataProximaCalibracao, e.emCalibracao);
+      return st.days < 0;
+    }).forEach(e => dispararWebhook({
+      evento: 'calibracao_vencida',
+      equipamento: e.nome,
+      data_vencimento: e.dataProximaCalibracao,
+      usuario: session.nomeCompleto,
+      data: new Date().toISOString()
+    }));
+  }
 
   setTimeout(() => {
     el.classList.add('fade-out');
