@@ -1514,12 +1514,6 @@ async function doRegister() {
     return;
   }
 
-  dispararWebhook({
-    evento: 'usuario_criado',
-    nome: nome,
-    data: new Date().toISOString()
-  });
-
   // Aguarda trigger criar o perfil
   await new Promise(r => setTimeout(r, 1000));
 
@@ -1531,6 +1525,12 @@ async function doRegister() {
     if (btn) { btn.disabled = false; btn.textContent = 'Criar conta'; }
     return;
   }
+
+  dispararWebhook({
+    evento: 'usuario_criado',
+    nome: nome,
+    data: new Date().toISOString()
+  });
 
   await loadAllData();
   showLoadingScreen(session);
@@ -2460,6 +2460,7 @@ async function saveMovimento() {
       unidade: material.unidade,
       retirado_por: retiradorPor || null,
       destino: destino || null,
+      usuario: currentSession.nomeCompleto,
       data: new Date().toISOString()
     });
   }
@@ -2910,7 +2911,8 @@ async function saveMaterial() {
     dispararWebhook({
       evento: 'material_criado',
       nome, categoria: cat, quantidade: qtd, unidade,
-      estoque_minimo: min, localizacao: localizacao || null,
+      estoque_minimo: min, valor_unitario: valor,
+      localizacao: localizacao || null,
       usuario: currentSession.nomeCompleto,
       data: new Date().toISOString()
     });
