@@ -1514,6 +1514,12 @@ async function doRegister() {
     return;
   }
 
+  dispararWebhook({
+    evento: 'usuario_criado',
+    nome: nome,
+    data: new Date().toISOString()
+  });
+
   // Aguarda trigger criar o perfil
   await new Promise(r => setTimeout(r, 1000));
 
@@ -1613,6 +1619,11 @@ async function toggleEmCalibracao(id) {
   dispararWebhook({
     evento: 'calibracao_status',
     equipamento: equip.nome,
+    identificacao: equip.identificacao || null,
+    categoria: equip.categoria || null,
+    responsavel: equip.responsavel || null,
+    data_ultima_calibracao: equip.dataUltimaCalibracao || null,
+    data_proxima_calibracao: equip.dataProximaCalibracao || null,
     status: novoStatus ? 'Em Calibração' : 'Retornou da Calibração',
     usuario: currentSession?.nomeCompleto || 'admin',
     data: new Date().toISOString()
@@ -2435,9 +2446,23 @@ async function saveMovimento() {
     material: material.nome,
     quantidade: qtd,
     unidade: material.unidade,
+    retirado_por: retiradorPor || null,
+    destino: destino || null,
+    observacao: observacao || null,
     usuario: currentSession.nomeCompleto,
     data: new Date().toISOString()
   });
+  if (tipo === 'saída') {
+    dispararWebhook({
+      evento: 'saida',
+      material: material.nome,
+      quantidade: qtd,
+      unidade: material.unidade,
+      retirado_por: retiradorPor || null,
+      destino: destino || null,
+      data: new Date().toISOString()
+    });
+  }
   const novoStatusMat = calcStatus(novaQtd, material.estoqueMinimo);
   if (novoStatusMat !== 'OK') {
     dispararWebhook({
@@ -2806,6 +2831,14 @@ async function deleteMaterial(id) {
     async () => {
       const { error } = await _sb.from('materiais').delete().eq('id', id);
       if (error) { alert('Erro ao excluir: ' + error.message); return; }
+      dispararWebhook({
+        evento: 'material_excluido',
+        nome: material.nome,
+        categoria: material.categoria,
+        unidade: material.unidade,
+        usuario: currentSession?.nomeCompleto || 'admin',
+        data: new Date().toISOString()
+      });
       await loadAllData();
       refreshAllSections();
       showToast('Material excluído.');
@@ -2874,6 +2907,13 @@ async function saveMaterial() {
       estoque_minimo: min, valor_unitario: valor, localizacao
     });
     if (error) { alert('Erro ao salvar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } return; }
+    dispararWebhook({
+      evento: 'material_criado',
+      nome, categoria: cat, quantidade: qtd, unidade,
+      estoque_minimo: min, localizacao: localizacao || null,
+      usuario: currentSession.nomeCompleto,
+      data: new Date().toISOString()
+    });
   }
 
   const wasEditing = !!editingMaterialId;
@@ -3528,6 +3568,10 @@ function showLoadingScreen(session) {
     }).forEach(e => dispararWebhook({
       evento: 'calibracao_vencida',
       equipamento: e.nome,
+      identificacao: e.identificacao || null,
+      categoria: e.categoria || null,
+      responsavel: e.responsavel || null,
+      data_ultima_calibracao: e.dataUltimaCalibracao || null,
       data_vencimento: e.dataProximaCalibracao,
       usuario: session.nomeCompleto,
       data: new Date().toISOString()
@@ -4203,6 +4247,19 @@ async function saveEquipamento() {
   }
 
   const wasEditingEq = !!editingEquipamentoId;
+  if (!wasEditingEq) {
+    dispararWebhook({
+      evento: 'equipamento_criado',
+      equipamento: nome,
+      identificacao: identificacao || null,
+      categoria: cat,
+      responsavel: responsavel || null,
+      data_ultima_calibracao: ultimaRaw || null,
+      data_proxima_calibracao: dataProxima || null,
+      usuario: currentSession?.nomeCompleto || 'admin',
+      data: new Date().toISOString()
+    });
+  }
   await loadAllData();
   if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
   closeEquipamentoModal();
@@ -4220,6 +4277,15 @@ async function deleteEquipamento(id) {
     async () => {
       const { error } = await _sb.from('equipamentos_calibracao').delete().eq('id', id);
       if (error) { alert('Erro ao excluir: ' + error.message); return; }
+      dispararWebhook({
+        evento: 'equipamento_excluido',
+        equipamento: equip.nome,
+        identificacao: equip.identificacao || null,
+        categoria: equip.categoria || null,
+        responsavel: equip.responsavel || null,
+        usuario: currentSession?.nomeCompleto || 'admin',
+        data: new Date().toISOString()
+      });
       await loadAllData();
       renderEquipamentos();
       showToast('Equipamento excluído.');
