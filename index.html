@@ -1249,6 +1249,7 @@ async function sincronizarWebhook() {
 
 // === IN-MEMORY CACHE ===
 let _materiais = [], _categorias = [], _movimentacoes = [], _profiles = [], _equipamentos = [];
+let _colaboradores = [], _ferramentas_cautela = [], _cautelas = [];
 
 // Supabase snake_case → camelCase
 const normMaterial = m => ({
@@ -1275,27 +1276,54 @@ const normEquipamento = e => ({
   emCalibracao: !!e.em_calibracao
 });
 
+const normColaborador = c => ({
+  id: c.id, nome: c.nome, cpf: c.cpf, setor: c.setor || '', createdAt: c.created_at
+});
+const normFerramentaCautela = f => ({
+  id: f.id, nome: f.nome, codigo: f.codigo || '', categoria: f.categoria,
+  quantidadeTotal: f.quantidade_total, quantidadeDisponivel: f.quantidade_disponivel,
+  createdAt: f.created_at
+});
+const normCautela = c => ({
+  id: c.id,
+  colaboradorId: c.colaborador_id, colaboradorNome: c.colaborador_nome,
+  ferramentaId: c.ferramenta_id, ferramentaNome: c.ferramenta_nome,
+  ferramentaCodigo: c.ferramenta_codigo || '',
+  setor: c.setor, quantidade: c.quantidade, observacao: c.observacao || '',
+  dataRetirada: c.data_retirada, dataDevolucao: c.data_devolucao || null,
+  condicaoDevolucao: c.condicao_devolucao || null, alertaEnviado: !!c.alerta_enviado
+});
+
 // Getters síncronos (trabalham no cache)
 const getMateriais = () => _materiais;
 const getCategorias = () => _categorias;
 const getUsuarios = () => _profiles;
 const getMovimentacoes = () => _movimentacoes;
 const getEquipamentos = () => _equipamentos;
+const getColaboradores = () => _colaboradores;
+const getFerramentasCautela = () => _ferramentas_cautela;
+const getCautelas = () => _cautelas;
 
 // Carrega todos os dados do Supabase para o cache
 async function loadAllData() {
-  const [mr, cr, movr, pr, er] = await Promise.all([
+  const [mr, cr, movr, pr, er, colr, ferr, cautr] = await Promise.all([
     _sb.from('materiais').select('*').order('id'),
     _sb.from('categorias').select('nome').order('nome'),
     _sb.from('movimentacoes').select('*').order('data', { ascending: false }),
     _sb.from('profiles').select('*').order('nome_completo'),
-    _sb.from('equipamentos_calibracao').select('*').order('data_proxima_calibracao')
+    _sb.from('equipamentos_calibracao').select('*').order('data_proxima_calibracao'),
+    _sb.from('colaboradores').select('id, nome, cpf, setor, created_at').order('nome'),
+    _sb.from('ferramentas_cautela').select('*').order('nome'),
+    _sb.from('cautelas').select('*').order('data_retirada', { ascending: false })
   ]);
-  _materiais     = (mr.data  || []).map(normMaterial);
-  _categorias    = (cr.data  || []).map(c => c.nome);
-  _movimentacoes = (movr.data|| []).map(normMovimento);
-  _profiles      = (pr.data  || []).map(normProfile);
-  _equipamentos  = (er.data  || []).map(normEquipamento);
+  _materiais           = (mr.data   || []).map(normMaterial);
+  _categorias          = (cr.data   || []).map(c => c.nome);
+  _movimentacoes       = (movr.data || []).map(normMovimento);
+  _profiles            = (pr.data   || []).map(normProfile);
+  _equipamentos        = (er.data   || []).map(normEquipamento);
+  _colaboradores       = (colr.data || []).map(normColaborador);
+  _ferramentas_cautela = (ferr.data || []).map(normFerramentaCautela);
+  _cautelas            = (cautr.data|| []).map(normCautela);
 }
 
 // === SESSION ===
@@ -1752,6 +1780,7 @@ const MAT_PER_PAGE = 15;
 let currentCustomStart = '';
 let currentCustomEnd = '';
 let _realtimeChannel = null;
+let _cautelaAlertInterval = null;
 let _histMovs = [];
 let _histMaterial = null;
 let histPage = 1;
@@ -2222,9 +2251,12 @@ function refreshAllSections() {
   renderMaterialsTable();
   renderMovements();
   renderEquipamentos();
+  renderCautela();
   updateReposicaoBadge();
   updateTabIndicators();
 }
+
+function renderCautela() { /* stub — implemented in Task 6 */ }
 
 function renderCards() {
   const materiais = getMateriais();
@@ -3348,6 +3380,15 @@ function setupRealtime() {
       await loadAllData(); refreshAllSections();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'equipamentos_calibracao' }, async () => {
+      await loadAllData(); refreshAllSections();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, async () => {
+      await loadAllData(); refreshAllSections();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ferramentas_cautela' }, async () => {
+      await loadAllData(); refreshAllSections();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cautelas' }, async () => {
       await loadAllData(); refreshAllSections();
     })
     .subscribe();
