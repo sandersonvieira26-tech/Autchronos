@@ -70,11 +70,11 @@ _sb.from('colaboradores').select('id, nome, cpf, setor, created_at')
 | `ferramenta_nome` | text | NOT NULL | Denormalizado na retirada |
 | `ferramenta_codigo` | text | | Denormalizado na retirada |
 | `setor` | text | NOT NULL | Local de uso na retirada |
-| `quantidade` | int | NOT NULL, default 1, CHECK (> 0) | Unidades retiradas |
+| `quantidade` | int | NOT NULL, default 1, CHECK (quantidade > 0) | Unidades retiradas |
 | `observacao` | text | | Opcional |
 | `data_retirada` | timestamptz | NOT NULL, default now() | |
 | `data_devolucao` | timestamptz | | NULL = em aberto |
-| `condicao_devolucao` | text | CHECK IN ('Boa','Com defeito','Danificada') | Preenchido na devolução |
+| `condicao_devolucao` | text | CHECK (condicao_devolucao IN ('Boa','Com defeito','Danificada')) | Preenchido na devolução |
 | `alerta_enviado` | boolean | NOT NULL, default false | Evita reenvio do webhook 24h |
 
 **RLS:**
@@ -86,6 +86,12 @@ _sb.from('colaboradores').select('id, nome, cpf, setor, created_at')
 **FK behavior:**
 - `ON DELETE RESTRICT` em `colaborador_id` e `ferramenta_id`
 - UI exibe ao falhar: "Este registro possui cautela em aberto e não pode ser excluído"
+
+**Índices:**
+```sql
+CREATE INDEX cautelas_colaborador_idx ON cautelas(colaborador_id);
+CREATE INDEX cautelas_abertas_idx ON cautelas(colaborador_id) WHERE data_devolucao IS NULL;
+```
 
 ---
 
@@ -111,7 +117,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION verificar_senha_colaborador TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION verificar_senha_colaborador TO authenticated;
 ```
 
 ### `definir_senha_colaborador(p_id uuid, p_hash text, p_salt text) → boolean`
@@ -124,16 +130,17 @@ RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-DECLARE v_existing text;
+DECLARE v_existing text; v_found bool;
 BEGIN
-  SELECT senha_hash INTO v_existing FROM colaboradores WHERE id = p_id;
+  SELECT senha_hash, true INTO v_existing, v_found FROM colaboradores WHERE id = p_id;
+  IF NOT v_found THEN RAISE EXCEPTION 'colaborador_nao_encontrado'; END IF;
   IF v_existing IS NOT NULL THEN RETURN false; END IF;
   UPDATE colaboradores SET senha_hash = p_hash, senha_salt = p_salt WHERE id = p_id;
   RETURN true;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION definir_senha_colaborador TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION definir_senha_colaborador TO authenticated;
 ```
 
 ### `resetar_senha_colaborador(p_id uuid) → void`
@@ -171,7 +178,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION buscar_salt_colaborador TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION buscar_salt_colaborador TO authenticated;
 ```
 
 ### `registrar_retirada(p_colaborador_id uuid, p_ferramenta_id uuid, p_quantidade int, p_setor text, p_observacao text, p_colaborador_nome text, p_ferramenta_nome text, p_ferramenta_codigo text) → uuid`
@@ -191,10 +198,13 @@ DECLARE
   v_disponivel int;
   v_cautela_id uuid;
 BEGIN
+  IF p_quantidade <= 0 THEN RAISE EXCEPTION 'quantidade_invalida'; END IF;
+
   -- Lock da linha para evitar race condition
   SELECT quantidade_disponivel INTO v_disponivel
     FROM ferramentas_cautela WHERE id = p_ferramenta_id FOR UPDATE;
 
+  IF NOT FOUND THEN RAISE EXCEPTION 'ferramenta_nao_encontrada'; END IF;
   IF v_disponivel < p_quantidade THEN
     RAISE EXCEPTION 'quantidade_insuficiente';
   END IF;
@@ -215,7 +225,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION registrar_retirada TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION registrar_retirada TO authenticated;
 ```
 
 **Tratamento de erro no client:** se a exceção for `quantidade_insuficiente`, exibir "Quantidade insuficiente. Outro colaborador pode ter retirado ao mesmo tempo."
@@ -232,12 +242,20 @@ SECURITY DEFINER
 AS $$
 DECLARE v_qtd int; v_ferramenta_id uuid;
 BEGIN
+  IF p_condicao NOT IN ('Boa','Com defeito','Danificada') THEN
+    RAISE EXCEPTION 'condicao_invalida';
+  END IF;
+
+  -- Lock da cautela
   SELECT quantidade, ferramenta_id INTO v_qtd, v_ferramenta_id
     FROM cautelas WHERE id = p_cautela_id AND data_devolucao IS NULL FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'cautela_nao_encontrada';
   END IF;
+
+  -- Lock da ferramenta para evitar race condition no contador
+  PERFORM id FROM ferramentas_cautela WHERE id = v_ferramenta_id FOR UPDATE;
 
   UPDATE cautelas
     SET data_devolucao = now(), condicao_devolucao = p_condicao
@@ -249,7 +267,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION registrar_devolucao TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION registrar_devolucao TO authenticated;
 ```
 
 ---
@@ -344,7 +362,7 @@ async function derivarHash(senha, salt) {
 - Condição: `Boa` / `Com defeito` / `Danificada`
 - Assinatura: mesmo fluxo de verificação (busca salt → calcula hash → `verificar_senha_colaborador`)
 - Chama RPC `registrar_devolucao(cautela_id, condicao)` — atômico (UPDATE cautela + UPDATE ferramentas)
-- Dispara webhook `cautela_devolvida` com `horas_em_posse = Math.floor((Date.now() - data_retirada) / 3_600_000)`
+- Dispara webhook `cautela_devolvida` com `horas_em_posse = Math.floor((new Date(data_devolucao) - new Date(data_retirada)) / 3_600_000)` — usa as timestamps retornadas pelo banco, não o relógio do browser
 - Atualiza cache e tela
 
 ---
@@ -475,6 +493,8 @@ Novos canais no `setupRealtime()`:
 .on('postgres_changes', { event: '*', schema: 'public', table: 'ferramentas_cautela' }, loadAndRefresh)
 .on('postgres_changes', { event: '*', schema: 'public', table: 'cautelas' }, loadAndRefresh)
 ```
+
+**Atenção — Realtime e colunas sensíveis:** o payload de Realtime é gerado a partir do WAL (Write-Ahead Log) pelo role `supabase_realtime`, que não respeita o `REVOKE SELECT` aplicado ao role `authenticated`. Dependendo da versão do Supabase e configuração da publicação, `senha_hash` e `senha_salt` podem aparecer no payload `new`/`old` entregue ao client. Antes do deploy, verificar se a publicação `supabase_realtime` exclui essas colunas ou configurar column-level filtering na publicação Postgres.
 
 ---
 
