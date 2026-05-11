@@ -51,8 +51,8 @@ _sb.from('colaboradores').select('id, nome, cpf, setor, created_at')
 | `nome` | text | NOT NULL | |
 | `codigo` | text | | Código/patrimônio |
 | `categoria` | text | NOT NULL | |
-| `quantidade_total` | int | NOT NULL, default 1, CHECK (> 0) | Total de unidades cadastradas |
-| `quantidade_disponivel` | int | NOT NULL, default 1, CHECK (>= 0 AND <= quantidade_total) | Unidades disponíveis |
+| `quantidade_total` | int | NOT NULL, default 1, CHECK (quantidade_total > 0) | Total de unidades cadastradas |
+| `quantidade_disponivel` | int | NOT NULL, default 1, CHECK (quantidade_disponivel >= 0 AND quantidade_disponivel <= quantidade_total) | Unidades disponíveis |
 | `created_at` | timestamptz | default now() | |
 
 **RLS:**
@@ -130,10 +130,10 @@ RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-DECLARE v_existing text; v_found bool;
+DECLARE v_existing text;
 BEGIN
-  SELECT senha_hash, true INTO v_existing, v_found FROM colaboradores WHERE id = p_id;
-  IF NOT v_found THEN RAISE EXCEPTION 'colaborador_nao_encontrado'; END IF;
+  SELECT senha_hash INTO v_existing FROM colaboradores WHERE id = p_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'colaborador_nao_encontrado'; END IF;
   IF v_existing IS NOT NULL THEN RETURN false; END IF;
   UPDATE colaboradores SET senha_hash = p_hash, senha_salt = p_salt WHERE id = p_id;
   RETURN true;
@@ -153,8 +153,11 @@ RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE v_count int;
 BEGIN
   UPDATE colaboradores SET senha_hash = NULL, senha_salt = NULL WHERE id = p_id;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  IF v_count = 0 THEN RAISE EXCEPTION 'colaborador_nao_encontrado'; END IF;
 END;
 $$;
 
@@ -228,7 +231,19 @@ $$;
 GRANT EXECUTE ON FUNCTION registrar_retirada TO authenticated;
 ```
 
-**Tratamento de erro no client:** se a exceção for `quantidade_insuficiente`, exibir "Quantidade insuficiente. Outro colaborador pode ter retirado ao mesmo tempo."
+**Tratamento de erros no client (todos os RPCs):**
+
+| Código da exceção | Mensagem exibida ao usuário |
+|---|---|
+| `colaborador_nao_encontrado` | "Colaborador não encontrado." |
+| `ferramenta_nao_encontrada` | "Ferramenta não encontrada." |
+| `quantidade_invalida` | "Quantidade inválida." |
+| `quantidade_insuficiente` | "Quantidade insuficiente. Outro colaborador pode ter retirado ao mesmo tempo." |
+| `cautela_nao_encontrada` | "Cautela não encontrada ou já devolvida." |
+| `condicao_invalida` | "Condição de devolução inválida." |
+| outros / inesperado | "Erro inesperado. Tente novamente." |
+
+Nota sobre `buscar_salt_colaborador`: retorna `NULL` tanto para colaborador sem senha (primeiro acesso) quanto para UUID inexistente. O client trata ambos como primeiro acesso. Se `definir_senha_colaborador` for chamada em seguida com UUID inválido, levantará `colaborador_nao_encontrado` — comportamento aceitável.
 
 ### `registrar_devolucao(p_cautela_id uuid, p_condicao text) → void`
 
@@ -472,7 +487,7 @@ let _cautelaAlertInterval = null;
 }
 ```
 
-`horas_em_posse`: inteiro calculado como `Math.floor((data_devolucao - data_retirada) / 3_600_000)`.
+`horas_em_posse`: inteiro calculado como `Math.floor((new Date(data_devolucao) - new Date(data_retirada)) / 3_600_000)` — usa timestamps retornadas pelo banco, não o relógio do browser.
 
 ---
 
