@@ -1842,6 +1842,7 @@ let currentCustomStart = '';
 let currentCustomEnd = '';
 let _realtimeChannel = null;
 let _cautelaAlertInterval = null;
+let _cautelaSubTab = 'painel';
 let _histMovs = [];
 let _histMaterial = null;
 let histPage = 1;
@@ -2332,7 +2333,113 @@ function refreshAllSections() {
   updateTabIndicators();
 }
 
-function renderCautela() { /* stub — implemented in Task 6 */ }
+function renderCautela() {
+  const sec = document.getElementById('section-cautela');
+  if (!sec) return;
+  const isAdmin = !!(currentSession && currentSession.papel === 'admin');
+  sec.innerHTML = `
+    <div style="padding:1rem">
+      <div class="cautela-subnav">
+        <button class="cautela-subnav-btn ${_cautelaSubTab==='painel'?'active':''}" onclick="setCautelaTab('painel')">Painel</button>
+        <button class="cautela-subnav-btn ${_cautelaSubTab==='ferramentas'?'active':''}" onclick="setCautelaTab('ferramentas')">Ferramentas</button>
+        <button class="cautela-subnav-btn ${_cautelaSubTab==='colaboradores'?'active':''}" onclick="setCautelaTab('colaboradores')">Colaboradores</button>
+      </div>
+      <div id="cautela-sub-content"></div>
+    </div>`;
+  renderCautelaSubTab();
+}
+
+function setCautelaTab(tab) {
+  _cautelaSubTab = tab;
+  renderCautelaSubTab();
+}
+
+function renderCautelaSubTab() {
+  if (_cautelaSubTab === 'painel')              renderCautelaPanel();
+  else if (_cautelaSubTab === 'ferramentas')    renderFerrramentasTab();
+  else if (_cautelaSubTab === 'colaboradores')  renderColaboradoresTab();
+}
+
+function renderCautelaPanel() {
+  const el = document.getElementById('cautela-sub-content');
+  if (!el) return;
+  const isAdmin = !!(currentSession && currentSession.papel === 'admin');
+  const now = new Date();
+  const todayStr = now.toLocaleDateString();
+
+  const abertas = getCautelas().filter(c => !c.dataDevolucao);
+  const devolvidasHoje = getCautelas().filter(c =>
+    c.dataDevolucao && new Date(c.dataDevolucao).toLocaleDateString() === todayStr
+  );
+  const atrasadas = abertas.filter(c =>
+    (now - new Date(c.dataRetirada)) > 24 * 60 * 60 * 1000
+  );
+  const totalFerramentas = getFerramentasCautela().length;
+
+  const bannerHtml = atrasadas.length
+    ? `<div class="cautela-banner visible">&#128308; ${atrasadas.length} ferramenta${atrasadas.length > 1 ? 's' : ''} com atraso superior a 24h</div>`
+    : `<div class="cautela-banner"></div>`;
+
+  const actionsBtns = isAdmin
+    ? `<div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+        <button class="btn btn-primary btn-sm" style="width:auto" onclick="openNovaRetiradaModal()">+ Nova Retirada</button>
+        <button class="btn btn-secondary btn-sm" style="width:auto" onclick="openDevolucaoModal()">Registrar Devolução</button>
+       </div>`
+    : '';
+
+  const abertasHtml = abertas.length === 0
+    ? '<div style="text-align:center;color:var(--gray-600);padding:2rem">Nenhuma cautela em aberto.</div>'
+    : `<div class="cautela-open-list">${abertas
+        .sort((a,b) => new Date(a.dataRetirada) - new Date(b.dataRetirada))
+        .map(c => {
+          const diff = now - new Date(c.dataRetirada);
+          const horas = Math.floor(diff / 3_600_000);
+          const mins  = Math.floor((diff % 3_600_000) / 60000);
+          const overdue = diff > 24 * 60 * 60 * 1000;
+          const tempo = horas > 0 ? `${horas}h ${mins}min` : `${mins}min`;
+          return `<div class="cautela-item${overdue?' overdue':''}">
+            <div class="cautela-item-header">
+              <span class="cautela-item-name">${esc(c.colaboradorNome)}</span>
+              <span class="cautela-item-time">${tempo} em aberto</span>
+            </div>
+            <div class="cautela-item-meta">
+              ${esc(c.ferramentaNome)}${c.ferramentaCodigo?' · '+esc(c.ferramentaCodigo):''} · Setor: ${esc(c.setor)} · Qtd: ${c.quantidade}
+            </div>
+          </div>`;
+        }).join('')}</div>`;
+
+  el.innerHTML = `
+    ${bannerHtml}
+    <div class="cautela-cards">
+      <div class="cautela-card">
+        <div class="cautela-card-label">Em aberto</div>
+        <div class="cautela-card-val" style="color:${abertas.length?'var(--amber)':'var(--green)'}">${abertas.length}</div>
+      </div>
+      <div class="cautela-card">
+        <div class="cautela-card-label">Devolvidas hoje</div>
+        <div class="cautela-card-val">${devolvidasHoje.length}</div>
+      </div>
+      <div class="cautela-card">
+        <div class="cautela-card-label">Ferramentas</div>
+        <div class="cautela-card-val">${totalFerramentas}</div>
+      </div>
+    </div>
+    ${actionsBtns}
+    <div style="font-weight:600;margin-bottom:0.5rem">Cautelas em aberto</div>
+    ${abertasHtml}`;
+}
+
+function renderFerrramentasTab() {
+  const el = document.getElementById('cautela-sub-content');
+  if (el) el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray-600)">Ferramentas — em breve</div>';
+}
+function renderColaboradoresTab() {
+  const el = document.getElementById('cautela-sub-content');
+  if (el) el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray-600)">Colaboradores — em breve</div>';
+}
+
+function openNovaRetiradaModal() { /* stub — Task 9 */ }
+function openDevolucaoModal() { /* stub — Task 10 */ }
 
 function renderCards() {
   const materiais = getMateriais();
