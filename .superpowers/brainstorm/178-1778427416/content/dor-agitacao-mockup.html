@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup Dor + Agitação</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; }
+
+  .label-bar {
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    padding: 10px 20px;
+    font-size: 12px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .label-bar span { background: #dc2626; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+
+  section { max-width: 860px; margin: 0 auto; padding: 64px 40px; }
+
+  /* ── DOR ── */
+  .section-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #f97316;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    margin-bottom: 32px;
+  }
+  .section-title em { color: #f97316; font-style: normal; }
+
+  .frases-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .frase-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-left: 3px solid #dc2626;
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-size: 15px;
+    color: #cbd5e1;
+    font-style: italic;
+  }
+  .frase-card::before { content: '"'; color: #dc2626; font-size: 20px; font-style: normal; font-weight: 900; line-height: 1; display: block; margin-bottom: 4px; }
+
+  .dores-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .dor-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .dor-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .dor-item p { font-size: 14px; color: #94a3b8; line-height: 1.5; }
+  .dor-item strong { color: #f1f5f9; display: block; font-size: 15px; margin-bottom: 2px; }
+
+  .divider { border: none; border-top: 1px solid #1e293b; margin: 0; }
+
+  /* ── AGITAÇÃO ── */
+  .agit-section { background: #120a0a; padding: 64px 40px; }
+  .agit-inner { max-width: 860px; margin: 0 auto; }
+
+  .custo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 32px;
+  }
+  .custo-card {
+    background: #1c0f0f;
+    border: 1px solid #3f1818;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .custo-valor { font-size: 32px; font-weight: 900; color: #dc2626; }
+  .custo-label { font-size: 13px; color: #94a3b8; margin-top: 6px; line-height: 1.5; }
+  .custo-detalhe { font-size: 11px; color: #475569; margin-top: 8px; }
+
+  .agit-conclusao {
+    margin-top: 36px;
+    background: #1c0f0f;
+    border: 1px solid #3f1818;
+    border-radius: 10px;
+    padding: 20px 24px;
+    font-size: 16px;
+    color: #fca5a5;
+    line-height: 1.7;
+    text-align: center;
+  }
+  .agit-conclusao strong { color: #f87171; }
+
+  /* ── FEEDBACK ── */
+  .feedback-bar {
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    padding: 16px 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .feedback-bar p { color: #94a3b8; font-size: 13px; margin: 0; }
+  .btn { padding: 8px 20px; border-radius: 6px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .btn-approve { background: #16a34a; color: #fff; }
+  .btn-change { background: #334155; color: #f1f5f9; }
+</style>
+</head>
+<body>
+
+<div class="label-bar">
+  <span>MOCKUP</span>
+  Seções 2 e 3 — Dor (espelho do avatar) + Agitação (custo real do caos)
+</div>
+
+<!-- SEÇÃO 2: DOR -->
+<section>
+  <p class="section-tag">Você se identifica?</p>
+  <h2 class="section-title">Isso acontece toda semana<br>no seu <em>almoxarifado</em></h2>
+
+  <div class="frases-grid">
+    <div class="frase-card">Ninguém sabe com quem tá</div>
+    <div class="frase-card">Toda semana some alguma coisa</div>
+    <div class="frase-card">Quando precisa, nunca acha</div>
+    <div class="frase-card">Isso aqui tá uma bagunça</div>
+  </div>
+
+  <div class="dores-lista">
+    <div class="dor-item">
+      <div class="dor-icon">😤</div>
+      <div>
+        <strong>Vergonha na frente da diretoria</strong>
+        <p>A reunião chegou. Perguntaram onde está a ferramenta X. Você não sabe. E esse silêncio custa caro.</p>
+      </div>
+    </div>
+    <div class="dor-item">
+      <div class="dor-icon">📋</div>
+      <div>
+        <strong>Já tentou planilha. Já tentou caderno. Não funcionou.</strong>
+        <p>A equipe não preenche. Ou preenche errado. Ou para de preencher depois de dois dias. O caos volta.</p>
+      </div>
+    </div>
+    <div class="dor-item">
+      <div class="dor-icon">🔄</div>
+      <div>
+        <strong>Você cobra. Para um dia. Volta o caos.</strong>
+        <p>Toda pressão manual depende de você. Quando você desvia a atenção, o controle desaparece.</p>
+      </div>
+    </div>
+    <div class="dor-item">
+      <div class="dor-icon">📊</div>
+      <div>
+        <strong>Não sabe qual setor ou obra consome mais</strong>
+        <p>Materiais de consumo saem sem rastreio. Você não sabe quem pediu mais, qual obra está gastando fora do padrão — e não consegue cortar onde precisa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- SEÇÃO 3: AGITAÇÃO -->
+<div class="agit-section">
+  <div class="agit-inner">
+    <p class="section-tag" style="color:#dc2626;">O custo invisível do caos</p>
+    <h2 class="section-title">Cada dia sem controle tem<br>um <em style="color:#dc2626;">preço real</em></h2>
+
+    <div class="custo-grid">
+      <div class="custo-card">
+        <div class="custo-valor">R$?</div>
+        <div class="custo-label">em ferramentas compradas duas vezes porque a primeira "sumiu"</div>
+        <div class="custo-detalhe">Compra duplicada invisível</div>
+      </div>
+      <div class="custo-card">
+        <div class="custo-valor">Horas</div>
+        <div class="custo-label">perdidas por semana procurando material que deveria estar catalogado</div>
+        <div class="custo-detalhe">Produtividade desperdiçada</div>
+      </div>
+      <div class="custo-card">
+        <div class="custo-valor">0%</div>
+        <div class="custo-label">de visibilidade sobre qual setor ou obra está consumindo fora do padrão</div>
+        <div class="custo-detalhe">Decisão às cegas</div>
+      </div>
+    </div>
+
+    <div class="agit-conclusao">
+      O problema não é sua equipe.<br>
+      O problema é que <strong>o sistema atual não cria responsabilidade automática.</strong><br>
+      Sem rastro, sem pressão. Sem pressão, sem controle.
+    </div>
+  </div>
+</div>
+
+<div class="feedback-bar">
+  <p>Seções 2 e 3 aprovadas?</p>
+  <button class="btn btn-approve">✓ Aprovado</button>
+  <button class="btn btn-change">✎ Ajustar</button>
+</div>
+
+</body>
+</html>

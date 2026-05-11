@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup Solução + Método</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; }
+
+  .label-bar {
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    padding: 10px 20px;
+    font-size: 12px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .label-bar .tag { background: #16a34a; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+  .label-bar .tag2 { background: #6366f1; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+
+  .section-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+  }
+  .section-sub {
+    font-size: 16px;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 40px;
+    max-width: 580px;
+  }
+
+  /* ── SOLUÇÃO ── */
+  .solucao-section { max-width: 860px; margin: 0 auto; padding: 64px 40px; }
+
+  .antes-depois {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 40px;
+  }
+  .lado { background: #1e293b; border-radius: 10px; padding: 20px; }
+  .lado-antes { border-top: 3px solid #dc2626; }
+  .lado-depois { border-top: 3px solid #16a34a; }
+  .lado-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .lado-antes .lado-label { color: #dc2626; }
+  .lado-depois .lado-label { color: #16a34a; }
+  .lado ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .lado ul li { font-size: 14px; color: #94a3b8; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
+  .lado-antes ul li::before { content: '✗'; color: #dc2626; font-weight: 900; flex-shrink: 0; }
+  .lado-depois ul li::before { content: '✓'; color: #16a34a; font-weight: 900; flex-shrink: 0; }
+  .seta { font-size: 28px; color: #f97316; text-align: center; font-weight: 900; }
+
+  .diferenciais {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .dif-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .dif-icon { font-size: 24px; margin-bottom: 8px; }
+  .dif-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .dif-card p { font-size: 12px; color: #64748b; line-height: 1.4; }
+
+  .divider { border: none; border-top: 1px solid #1e293b; }
+
+  /* ── MÉTODO ── */
+  .metodo-section { background: #0a0f1e; padding: 64px 40px; }
+  .metodo-inner { max-width: 860px; margin: 0 auto; }
+
+  .pilares {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .pilar {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .pilar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .pilar-1::before { background: #f97316; }
+  .pilar-2::before { background: #6366f1; }
+  .pilar-3::before { background: #d97706; }
+  .pilar-4::before { background: #16a34a; }
+
+  .pilar-num { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #475569; margin-bottom: 8px; }
+  .pilar h3 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .pilar-funcao { font-size: 13px; color: #64748b; margin-bottom: 10px; font-style: italic; }
+  .pilar ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .pilar ul li { font-size: 13px; color: #94a3b8; display: flex; gap: 7px; }
+  .pilar ul li::before { content: '→'; color: #f97316; flex-shrink: 0; }
+
+  .metodo-cta {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 28px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .metodo-cta-text h3 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+  .metodo-cta-text p { font-size: 14px; color: #64748b; }
+  .wpp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: #25d366;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    padding: 14px 24px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 0 24px rgba(37,211,102,0.25);
+  }
+
+  /* ── FEEDBACK ── */
+  .feedback-bar {
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    padding: 16px 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .feedback-bar p { color: #94a3b8; font-size: 13px; margin: 0; }
+  .btn { padding: 8px 20px; border-radius: 6px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .btn-approve { background: #16a34a; color: #fff; }
+  .btn-change { background: #334155; color: #f1f5f9; }
+</style>
+</head>
+<body>
+
+<div class="label-bar">
+  <span class="tag">4</span> Solução &nbsp;|&nbsp; <span class="tag2">5</span> Método — Gestão de almoxarifado
+</div>
+
+<!-- SEÇÃO 4: SOLUÇÃO -->
+<div class="solucao-section">
+  <p class="section-tag" style="color:#16a34a;">A saída do caos</p>
+  <h2 class="section-title">Autchronos — controle que<br>a equipe <span style="color:#f97316;">realmente usa</span></h2>
+  <p class="section-sub">Sem treinamento complexo. Sem formulários que ninguém preenche. O sistema cria a responsabilidade automaticamente — com ou sem a sua presença.</p>
+
+  <div class="antes-depois">
+    <div class="lado lado-antes">
+      <div class="lado-label">Antes</div>
+      <ul>
+        <li>Ferramenta some, ninguém sabe com quem</li>
+        <li>Planilha desatualizada há semanas</li>
+        <li>Você cobra, para um dia, volta o caos</li>
+        <li>Não sabe qual obra gasta mais</li>
+        <li>Compra duplicada sem perceber</li>
+      </ul>
+    </div>
+    <div class="seta">→</div>
+    <div class="lado lado-depois">
+      <div class="lado-label">Depois</div>
+      <ul>
+        <li>Cada ferramenta vinculada a um responsável</li>
+        <li>Histórico atualizado em tempo real</li>
+        <li>Alertas automáticos após 24h sem devolução</li>
+        <li>Dashboard por setor e obra com consumo de materiais</li>
+        <li>Zero saída sem identificação</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diferenciais">
+    <div class="dif-card">
+      <div class="dif-icon">📱</div>
+      <h4>Funciona pelo celular</h4>
+      <p>Qualquer colaborador registra a retirada direto do celular, sem app para instalar</p>
+    </div>
+    <div class="dif-card">
+      <div class="dif-icon">⚡</div>
+      <h4>Implantado em 7 dias</h4>
+      <p>Do zero ao controle total em uma semana — sem parar a operação</p>
+    </div>
+    <div class="dif-card">
+      <div class="dif-icon">🔔</div>
+      <h4>Pressão automática</h4>
+      <p>O sistema cobra. Você não precisa ser o vilão da operação</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- SEÇÃO 5: MÉTODO -->
+<div class="metodo-section">
+  <div class="metodo-inner">
+    <p class="section-tag" style="color:#6366f1;">Como funciona</p>
+    <h2 class="section-title">Gestão de <span style="color:#f97316;">almoxarifado</span></h2>
+    <p class="section-sub" style="margin-bottom:32px;">4 pilares que transformam um ambiente caótico em operação rastreável — em até 7 dias.</p>
+
+    <div class="pilares">
+      <div class="pilar pilar-1">
+        <div class="pilar-num">Pilar 01</div>
+        <h3>Mapeamento Operacional</h3>
+        <p class="pilar-funcao">Identifica onde o controle quebra</p>
+        <ul>
+          <li>Diagnóstico do fluxo de ferramentas e materiais</li>
+          <li>Identificação de falhas no processo atual</li>
+          <li>Mapeamento de responsabilidades por setor e obra</li>
+        </ul>
+      </div>
+      <div class="pilar pilar-2">
+        <div class="pilar-num">Pilar 02</div>
+        <h3>Rastreio Ativo</h3>
+        <p class="pilar-funcao">Cria vínculo material → responsável</p>
+        <ul>
+          <li>Registro de retirada com identificação clara</li>
+          <li>Base rastreável por colaborador, setor e obra</li>
+          <li>Histórico completo de consumo de materiais</li>
+        </ul>
+      </div>
+      <div class="pilar pilar-3">
+        <div class="pilar-num">Pilar 03</div>
+        <h3>Alerta Automático</h3>
+        <p class="pilar-funcao">Elimina dependência de cobrança manual</p>
+        <ul>
+          <li>Notificação automática após 24h sem devolução</li>
+          <li>Pressão sistêmica sem desgaste humano</li>
+          <li>Correção rápida de desvios</li>
+        </ul>
+      </div>
+      <div class="pilar pilar-4">
+        <div class="pilar-num">Pilar 04</div>
+        <h3>Controle em Tempo Real</h3>
+        <p class="pilar-funcao">Visibilidade total da operação</p>
+        <ul>
+          <li>Dashboard com consumo por setor e obra</li>
+          <li>Identificação de quem consome fora do padrão</li>
+          <li>Decisões baseadas em dados, não em suposição</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="metodo-cta">
+      <div class="metodo-cta-text">
+        <h3>Pronto para implantar em 7 dias?</h3>
+        <p>Sem planilha. Sem cobrança manual. Sem caos.</p>
+      </div>
+      <button class="wpp-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.852L0 24l6.296-1.518A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-4.964-1.342l-.357-.212-3.737.9.947-3.64-.233-.374A9.818 9.818 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182S21.818 6.578 21.818 12 17.422 21.818 12 21.818z"/></svg>
+        Falar no WhatsApp agora
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="feedback-bar">
+  <p>Seções 4 e 5 aprovadas?</p>
+  <button class="btn btn-approve">✓ Aprovado</button>
+  <button class="btn btn-change">✎ Ajustar</button>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,135 @@
+- generic [ref=e1]:
+  - generic [ref=e30]:
+    - banner [ref=e31]:
+      - img [ref=e33]:
+        - generic [ref=e42]: AUTCHRONOS
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]: AD
+          - generic [ref=e46]: Administrador
+        - button "Usuários" [ref=e47] [cursor=pointer]
+        - button "Backup" [ref=e48] [cursor=pointer]
+        - generic [ref=e49] [cursor=pointer]: Restaurar
+        - button "Sair" [ref=e50] [cursor=pointer]
+    - generic [ref=e51]:
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - generic [ref=e116]: Total de Itens
+          - generic [ref=e117]: "0"
+        - generic [ref=e118]:
+          - generic [ref=e119]: Itens em Baixo Estoque
+          - generic [ref=e120]: "0"
+        - generic [ref=e121]:
+          - generic [ref=e122]: Valor Total do Estoque
+          - generic [ref=e123]: R$ 0,00
+        - generic [ref=e124]:
+          - generic [ref=e125]: Entradas do Mês
+          - generic [ref=e126]: "0"
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - textbox "Buscar por nome..." [ref=e54]
+          - combobox [ref=e55]:
+            - option "Todas as categorias" [selected]
+            - option "Elétrico"
+            - option "Hidráulico"
+            - option "Civil"
+            - option "Ferramentas"
+            - option "EPI"
+          - combobox [ref=e56]:
+            - option "Todos os status" [selected]
+            - option "OK"
+            - option "Baixo"
+            - option "Crítico"
+          - generic [ref=e57]:
+            - button "Gerenciar Categorias" [ref=e58] [cursor=pointer]
+            - button "+ Adicionar Material" [active] [ref=e59] [cursor=pointer]
+        - table [ref=e61]:
+          - rowgroup [ref=e62]:
+            - row "ID Nome Categoria Quantidade Unidade Est. Mínimo Status Ações" [ref=e63]:
+              - columnheader "ID" [ref=e64]
+              - columnheader "Nome" [ref=e65]
+              - columnheader "Categoria" [ref=e66]
+              - columnheader "Quantidade" [ref=e67]
+              - columnheader "Unidade" [ref=e68]
+              - columnheader "Est. Mínimo" [ref=e69]
+              - columnheader "Status" [ref=e70]
+              - columnheader "Ações" [ref=e71]
+          - rowgroup [ref=e127]:
+            - row "Nenhum material encontrado." [ref=e128]:
+              - cell "Nenhum material encontrado." [ref=e129]
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]: Movimentações de Estoque
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - button "Hoje" [ref=e78] [cursor=pointer]
+              - button "7 dias" [ref=e79] [cursor=pointer]
+              - button "14 dias" [ref=e80] [cursor=pointer]
+              - button "30 dias" [ref=e81] [cursor=pointer]
+              - button "Personalizado" [ref=e82] [cursor=pointer]
+            - combobox [ref=e83]:
+              - option "Todas as categorias" [selected]
+              - option "Civil"
+              - option "EPI"
+              - option "Elétrico"
+              - option "Ferramentas"
+              - option "Hidráulico"
+        - generic [ref=e130]: Sem movimentações neste período.
+        - generic [ref=e86]:
+          - textbox "Buscar por material..." [ref=e87]
+          - combobox [ref=e88]:
+            - option "Entradas e Saídas" [selected]
+            - option "Só Entradas"
+            - option "Só Saídas"
+          - button "↓ Exportar CSV" [ref=e89] [cursor=pointer]
+        - table [ref=e91]:
+          - rowgroup [ref=e92]:
+            - row "Data/Hora Material Tipo Quantidade Registrado por" [ref=e93]:
+              - columnheader "Data/Hora" [ref=e94]
+              - columnheader "Material" [ref=e95]
+              - columnheader "Tipo" [ref=e96]
+              - columnheader "Quantidade" [ref=e97]
+              - columnheader "Registrado por" [ref=e98]
+          - rowgroup [ref=e131]:
+            - row "Nenhuma movimentação encontrada neste período." [ref=e132]:
+              - cell "Nenhuma movimentação encontrada neste período." [ref=e133]
+  - generic [ref=e135]:
+    - generic [ref=e136]:
+      - heading "Adicionar Material" [level=2] [ref=e137]
+      - button "✕" [ref=e138] [cursor=pointer]
+    - generic [ref=e140]:
+      - generic [ref=e141]:
+        - generic [ref=e142]: Nome *
+        - textbox "Nome *" [ref=e143]
+      - generic [ref=e144]:
+        - generic [ref=e145]: Categoria *
+        - combobox "Categoria *" [ref=e146]:
+          - option "Selecione..." [selected]
+          - option "Civil"
+          - option "EPI"
+          - option "Elétrico"
+          - option "Ferramentas"
+          - option "Hidráulico"
+      - generic [ref=e147]:
+        - generic [ref=e148]: Unidade *
+        - textbox "Unidade *" [ref=e149]:
+          - /placeholder: "ex: m, kg, un"
+      - generic [ref=e150]:
+        - generic [ref=e151]: Quantidade *
+        - textbox "Quantidade *" [ref=e152]:
+          - /placeholder: "0"
+      - generic [ref=e153]:
+        - generic [ref=e154]: Estoque Mínimo *
+        - textbox "Estoque Mínimo *" [ref=e155]:
+          - /placeholder: "0"
+      - generic [ref=e156]:
+        - generic [ref=e157]: Valor Unitário (R$)
+        - textbox "Valor Unitário (R$)" [ref=e158]:
+          - /placeholder: 0,00
+      - generic [ref=e159]:
+        - generic [ref=e160]: Localização (opcional)
+        - textbox "Localização (opcional)" [ref=e161]:
+          - /placeholder: "Ex: Depósito A, Prateleira 3, Obra SP..."
+    - generic [ref=e162]:
+      - button "Cancelar" [ref=e163] [cursor=pointer]
+      - button "Salvar" [ref=e164] [cursor=pointer]

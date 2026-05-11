@@ -1,0 +1,22 @@
+- generic [ref=e3]:
+  - img [ref=e5]:
+    - generic [ref=e14]: AUTCHRONOS
+  - generic [ref=e15]: Acesso ao Sistema
+  - generic [ref=e16]:
+    - generic [ref=e17]: Usuário
+    - textbox "Usuário" [ref=e18]:
+      - /placeholder: Digite seu usuário
+  - generic [ref=e19]:
+    - generic [ref=e20]: Senha
+    - textbox "Senha" [ref=e21]:
+      - /placeholder: Digite sua senha
+  - generic [ref=e22]:
+    - checkbox "Lembrar-me" [ref=e23]
+    - generic [ref=e24]: Lembrar-me
+  - button "Entrar" [ref=e25] [cursor=pointer]
+  - link "Esqueci minha senha" [ref=e27] [cursor=pointer]:
+    - /url: "#"
+  - generic [ref=e28]:
+    - text: Não tem conta?
+    - link "Criar conta" [ref=e29] [cursor=pointer]:
+      - /url: "#"

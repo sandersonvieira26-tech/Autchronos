@@ -1,0 +1,136 @@
+- generic [ref=e1]:
+  - generic [ref=e30]:
+    - banner [ref=e31]:
+      - img [ref=e33]:
+        - generic [ref=e42]: AUTCHRONOS
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]: AD
+          - generic [ref=e46]: Administrador
+        - button "Usuários" [ref=e47] [cursor=pointer]
+        - button "Backup" [ref=e48] [cursor=pointer]
+        - generic [ref=e49] [cursor=pointer]: Restaurar
+        - button "Sair" [ref=e50] [cursor=pointer]
+    - generic [ref=e51]:
+      - generic [ref=e114]:
+        - generic [ref=e165]:
+          - generic [ref=e166]: Total de Itens
+          - generic [ref=e167]: "1"
+        - generic [ref=e168]:
+          - generic [ref=e169]: Itens em Baixo Estoque
+          - generic [ref=e170]: "0"
+        - generic [ref=e171]:
+          - generic [ref=e172]: Valor Total do Estoque
+          - generic [ref=e173]: R$ 175,00
+        - generic [ref=e174]:
+          - generic [ref=e175]: Entradas do Mês
+          - generic [ref=e176]: "0"
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - textbox "Buscar por nome..." [ref=e54]
+          - combobox [ref=e55]:
+            - option "Todas as categorias" [selected]
+            - option "Elétrico"
+            - option "Hidráulico"
+            - option "Civil"
+            - option "Ferramentas"
+            - option "EPI"
+          - combobox [ref=e56]:
+            - option "Todos os status" [selected]
+            - option "OK"
+            - option "Baixo"
+            - option "Crítico"
+          - generic [ref=e57]:
+            - button "Gerenciar Categorias" [ref=e58] [cursor=pointer]
+            - button "+ Adicionar Material" [ref=e59] [cursor=pointer]
+        - table [ref=e61]:
+          - rowgroup [ref=e62]:
+            - row "ID Nome Categoria Quantidade Unidade Est. Mínimo Status Ações" [ref=e63]:
+              - columnheader "ID" [ref=e64]
+              - columnheader "Nome" [ref=e65]
+              - columnheader "Categoria" [ref=e66]
+              - columnheader "Quantidade" [ref=e67]
+              - columnheader "Unidade" [ref=e68]
+              - columnheader "Est. Mínimo" [ref=e69]
+              - columnheader "Status" [ref=e70]
+              - columnheader "Ações" [ref=e71]
+          - rowgroup [ref=e127]:
+            - row "1 Cabo Elétrico 2,5mm Depósito A, Prateleira 2 Elétrico 50 m 20 OK + Entrada − Saída Histórico Ajustar Editar Excluir" [ref=e177]:
+              - cell "1" [ref=e178]
+              - cell "Cabo Elétrico 2,5mm Depósito A, Prateleira 2" [ref=e179]:
+                - text: Cabo Elétrico 2,5mm
+                - generic [ref=e180]: Depósito A, Prateleira 2
+              - cell "Elétrico" [ref=e181]
+              - cell "50" [ref=e182]
+              - cell "m" [ref=e183]
+              - cell "20" [ref=e184]
+              - cell "OK" [ref=e185]:
+                - generic [ref=e186]: OK
+              - cell "+ Entrada − Saída Histórico Ajustar Editar Excluir" [ref=e187]:
+                - button "+ Entrada" [ref=e188] [cursor=pointer]
+                - button "− Saída" [ref=e189] [cursor=pointer]
+                - button "Histórico" [ref=e190] [cursor=pointer]
+                - button "Ajustar" [ref=e191] [cursor=pointer]
+                - button "Editar" [ref=e192] [cursor=pointer]
+                - button "Excluir" [ref=e193] [cursor=pointer]
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]: Movimentações de Estoque
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - button "Hoje" [ref=e78] [cursor=pointer]
+              - button "7 dias" [ref=e79] [cursor=pointer]
+              - button "14 dias" [ref=e80] [cursor=pointer]
+              - button "30 dias" [ref=e81] [cursor=pointer]
+              - button "Personalizado" [ref=e82] [cursor=pointer]
+            - combobox [ref=e83]:
+              - option "Todas as categorias" [selected]
+              - option "Civil"
+              - option "EPI"
+              - option "Elétrico"
+              - option "Ferramentas"
+              - option "Hidráulico"
+        - generic [ref=e194]: Sem movimentações neste período.
+        - generic [ref=e86]:
+          - textbox "Buscar por material..." [ref=e87]
+          - combobox [ref=e88]:
+            - option "Entradas e Saídas" [selected]
+            - option "Só Entradas"
+            - option "Só Saídas"
+          - button "↓ Exportar CSV" [ref=e89] [cursor=pointer]
+        - table [ref=e91]:
+          - rowgroup [ref=e92]:
+            - row "Data/Hora Material Tipo Quantidade Registrado por" [ref=e93]:
+              - columnheader "Data/Hora" [ref=e94]
+              - columnheader "Material" [ref=e95]
+              - columnheader "Tipo" [ref=e96]
+              - columnheader "Quantidade" [ref=e97]
+              - columnheader "Registrado por" [ref=e98]
+          - rowgroup [ref=e131]:
+            - row "Nenhuma movimentação encontrada neste período." [ref=e195]:
+              - cell "Nenhuma movimentação encontrada neste período." [ref=e196]
+  - generic [ref=e198]:
+    - generic [ref=e199]:
+      - heading "Registrar Entrada" [level=2] [ref=e200]
+      - button "✕" [ref=e201] [cursor=pointer]
+    - generic [ref=e202]:
+      - generic [ref=e203]: Cabo Elétrico 2,5mm
+      - generic [ref=e204]:
+        - text: "Estoque atual:"
+        - strong [ref=e205]: 50 m
+      - generic [ref=e206]:
+        - generic [ref=e207]: Tipo
+        - generic [ref=e208]:
+          - generic [ref=e209] [cursor=pointer]: + Entrada
+          - generic [ref=e210] [cursor=pointer]: − Saída
+      - generic [ref=e211]:
+        - generic [ref=e212]: Quantidade *
+        - textbox "Quantidade *" [active] [ref=e213]:
+          - /placeholder: "0"
+      - generic [ref=e214]:
+        - generic [ref=e215]: Observação (opcional)
+        - textbox "Observação (opcional)" [ref=e216]:
+          - /placeholder: "Ex: Obra João Pessoa, devolvido, avaria..."
+    - generic [ref=e217]:
+      - button "Cancelar" [ref=e218] [cursor=pointer]
+      - button "Registrar" [ref=e219] [cursor=pointer]

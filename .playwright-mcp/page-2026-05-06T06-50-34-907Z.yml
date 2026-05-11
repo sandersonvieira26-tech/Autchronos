@@ -1,0 +1,22 @@
+- generic [ref=e3]:
+  - img [ref=e5]:
+    - generic [ref=e14]: AUTCHRONOS
+  - generic [ref=e15]: Acesso ao Sistema
+  - generic [ref=e27]: E-mail ou senha incorretos.
+  - generic [ref=e16]:
+    - generic [ref=e17]: E-mail
+    - textbox "E-mail" [ref=e18]:
+      - /placeholder: seu@email.com
+      - text: sandersonvieira26@gmail.com
+  - generic [ref=e19]:
+    - generic [ref=e20]: Senha
+    - textbox "Senha" [ref=e21]:
+      - /placeholder: Digite sua senha
+      - text: "123456"
+  - button "Entrar" [ref=e22] [cursor=pointer]
+  - link "Esqueci minha senha" [ref=e24] [cursor=pointer]:
+    - /url: "#"
+  - generic [ref=e25]:
+    - text: Não tem conta?
+    - link "Criar conta" [ref=e26] [cursor=pointer]:
+      - /url: "#"

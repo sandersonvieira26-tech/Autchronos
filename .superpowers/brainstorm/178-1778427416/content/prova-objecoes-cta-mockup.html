@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup Prova + Objeções + CTA Final</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; }
+
+  .label-bar {
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    padding: 10px 20px;
+    font-size: 12px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .tag { padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+
+  .section-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 34px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+  }
+  .divider { border: none; border-top: 1px solid #1e293b; }
+
+  /* ── PROVA ── */
+  .prova-section { max-width: 860px; margin: 0 auto; padding: 64px 40px; }
+
+  .case-card {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .case-header {
+    background: #1e293b;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .case-header h4 { font-size: 15px; font-weight: 700; }
+  .case-header span { font-size: 12px; color: #64748b; }
+  .case-body { padding: 24px; }
+  .case-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .metric { text-align: center; }
+  .metric-val { font-size: 28px; font-weight: 900; color: #f97316; }
+  .metric-label { font-size: 12px; color: #64748b; margin-top: 4px; line-height: 1.4; }
+  .case-depoimento {
+    background: #1e293b;
+    border-left: 3px solid #f97316;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: #cbd5e1;
+    font-style: italic;
+    line-height: 1.6;
+  }
+  .case-autor { font-size: 12px; color: #475569; margin-top: 8px; font-style: normal; }
+
+  .prova-placeholder {
+    background: #1e293b;
+    border: 2px dashed #334155;
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .prova-placeholder strong { color: #64748b; display: block; margin-bottom: 4px; font-size: 14px; }
+
+  /* ── OBJEÇÕES ── */
+  .objecoes-section { background: #080d1a; padding: 64px 40px; }
+  .objecoes-inner { max-width: 860px; margin: 0 auto; }
+
+  .faq { display: flex; flex-direction: column; gap: 12px; }
+  .faq-item {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .faq-q {
+    padding: 18px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #f1f5f9;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .faq-q .icon { color: #f97316; font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .faq-a {
+    padding: 0 20px 18px 50px;
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.7;
+  }
+  .faq-a strong { color: #f1f5f9; }
+
+  /* ── CTA FINAL ── */
+  .cta-section {
+    background: linear-gradient(135deg, #0c1220 0%, #0f172a 50%, #0c1a10 100%);
+    padding: 80px 40px;
+    text-align: center;
+    border-top: 1px solid #1e293b;
+  }
+  .cta-inner { max-width: 640px; margin: 0 auto; }
+  .cta-badge {
+    display: inline-block;
+    background: rgba(37,211,102,0.1);
+    border: 1px solid rgba(37,211,102,0.3);
+    color: #25d366;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  .cta-section h2 {
+    font-size: 38px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    margin-bottom: 16px;
+  }
+  .cta-section h2 em { color: #f97316; font-style: normal; }
+  .cta-section p { font-size: 16px; color: #94a3b8; line-height: 1.6; margin-bottom: 36px; }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #25d366;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 800;
+    padding: 18px 36px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 48px rgba(37,211,102,0.35);
+    margin-bottom: 14px;
+  }
+  .cta-sub { font-size: 13px; color: #475569; }
+  .cta-sub strong { color: #64748b; }
+
+  .garantias {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 36px;
+    flex-wrap: wrap;
+  }
+  .garantia {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: #64748b;
+  }
+  .garantia .dot { width: 5px; height: 5px; border-radius: 50%; background: #25d366; }
+
+  .footer-strip {
+    background: #080d1a;
+    border-top: 1px solid #0f172a;
+    padding: 20px 40px;
+    text-align: center;
+    font-size: 12px;
+    color: #334155;
+  }
+
+  /* ── FEEDBACK ── */
+  .feedback-bar {
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    padding: 16px 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .feedback-bar p { color: #94a3b8; font-size: 13px; margin: 0; }
+  .btn { padding: 8px 20px; border-radius: 6px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .btn-approve { background: #16a34a; color: #fff; }
+  .btn-change { background: #334155; color: #f1f5f9; }
+</style>
+</head>
+<body>
+
+<div class="label-bar">
+  <span class="tag" style="background:#0891b2;color:#fff;">6</span> Prova &nbsp;|&nbsp;
+  <span class="tag" style="background:#db2777;color:#fff;">7</span> Objeções &nbsp;|&nbsp;
+  <span class="tag" style="background:#f97316;color:#fff;">8</span> CTA Final
+</div>
+
+<!-- SEÇÃO 6: PROVA -->
+<div class="prova-section">
+  <p class="section-tag" style="color:#0891b2;">Resultado comprovado</p>
+  <h2 class="section-title">De caso real para <span style="color:#f97316;">número real</span></h2>
+
+  <div class="case-card">
+    <div class="case-header">
+      <h4>Almoxarifado industrial — equipe de 40+ colaboradores</h4>
+      <span>Implantação em até 7 dias</span>
+    </div>
+    <div class="case-body">
+      <div class="case-metrics">
+        <div class="metric">
+          <div class="metric-val">0</div>
+          <div class="metric-label">ferramentas sem responsável identificado após implantação</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val">até 7 dias</div>
+          <div class="metric-label">do caos ao controle total rastreável</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val">100%</div>
+          <div class="metric-label">das retiradas registradas sem cobrança manual</div>
+        </div>
+      </div>
+      <div class="case-depoimento">
+        "Antes a gente não sabia nem quantas ferramentas tinha, muito menos com quem estava. Hoje o sistema avisa sozinho quando passa de 24h sem devolução."
+        <div class="case-autor">— Gerente de operações · indústria de grande porte</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prova-placeholder">
+    <strong>📸 Espaço para print do sistema ou foto do almoxarifado</strong>
+    Adicione aqui uma captura de tela real do Autchronos ou uma imagem do ambiente implantado.<br>
+    Conteúdo visual próprio aumenta conversão em até 3×.
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- SEÇÃO 7: OBJEÇÕES -->
+<div class="objecoes-section">
+  <div class="objecoes-inner">
+    <p class="section-tag" style="color:#db2777;">Suas dúvidas respondidas</p>
+    <h2 class="section-title" style="margin-bottom:32px;">O que eu ouço antes<br>de todo cliente <span style="color:#f97316;">dizer sim</span></h2>
+
+    <div class="faq">
+      <div class="faq-item">
+        <div class="faq-q">
+          <span class="icon">?</span>
+          "Minha equipe não vai usar. Já tentei de tudo."
+        </div>
+        <div class="faq-a">
+          A diferença é que o Autchronos não depende da boa vontade da equipe. O registro é parte do processo de retirada — sem registrar, não sai. <strong>O sistema cria a obrigação, você não precisa criar.</strong>
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">
+          <span class="icon">?</span>
+          "É muito complexo pra implantar no meio da operação."
+        </div>
+        <div class="faq-a">
+          A implantação acontece em paralelo com a operação. <strong>Em até 7 dias você tem controle total sem parar nada.</strong> O processo foi desenhado para ambientes industriais em funcionamento.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">
+          <span class="icon">?</span>
+          "Já usei sistema genérico e a equipe rejeitou."
+        </div>
+        <div class="faq-a">
+          Sistemas genéricos exigem adaptação. O Autchronos foi construído para almoxarifado industrial — <strong>o fluxo já é o fluxo da sua operação.</strong> Não é você que se adapta ao sistema.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">
+          <span class="icon">?</span>
+          "Como vou saber que está funcionando de verdade?"
+        </div>
+        <div class="faq-a">
+          Você acompanha em tempo real: quem retirou, quando, de qual setor ou obra — e quanto cada um consumiu no mês. <strong>Se algo sair do padrão, você vê antes de virar problema.</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEÇÃO 8: CTA FINAL -->
+<div class="cta-section">
+  <div class="cta-inner">
+    <div class="cta-badge">Disponível agora</div>
+    <h2>Chega de procurar.<br>Chega de <em>perder</em>.<br>Implante em até 7 dias.</h2>
+    <p>Entre em contato agora e descubra como o Autchronos se encaixa na sua operação. Sem compromisso, sem enrolação.</p>
+
+    <div>
+      <button class="cta-btn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.852L0 24l6.296-1.518A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-4.964-1.342l-.357-.212-3.737.9.947-3.64-.233-.374A9.818 9.818 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182S21.818 6.578 21.818 12 17.422 21.818 12 21.818z"/></svg>
+        Quero implantar o Autchronos
+      </button>
+      <p class="cta-sub">Sem planilha. Sem cobrança manual. <strong>Sem enrolação.</strong></p>
+    </div>
+
+    <div class="garantias">
+      <div class="garantia"><div class="dot"></div>Resposta em até 2h</div>
+      <div class="garantia"><div class="dot"></div>Diagnóstico gratuito da operação</div>
+      <div class="garantia"><div class="dot"></div>Sem contrato longo prazo</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-strip">
+  Autchronos · Gestão de Almoxarifado · ESVJ
+</div>
+
+<div class="feedback-bar">
+  <p>Seções 6, 7 e 8 aprovadas? Esse é o design completo da página.</p>
+  <button class="btn btn-approve">✓ Aprovado — design completo</button>
+  <button class="btn btn-change">✎ Ajustar algo</button>
+</div>
+
+</body>
+</html>
