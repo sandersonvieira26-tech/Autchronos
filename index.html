@@ -2642,8 +2642,19 @@ async function processarImportColaboradores() {
 
   if (ext === 'csv') {
     const text = await file.text();
+    const parseCSVLine = line => {
+      const cols = []; let cur = ''; let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+        else cur += ch;
+      }
+      cols.push(cur.trim());
+      return cols;
+    };
     const lines = text.split(/\r?\n/).filter(l => l.trim());
-    const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,'').toLowerCase());
+    const header = parseCSVLine(lines[0]).map(h => h.toLowerCase());
     const iNome = header.indexOf('nome');
     const iCpf  = header.indexOf('cpf');
     const iSetor = header.indexOf('setor');
@@ -2651,7 +2662,7 @@ async function processarImportColaboradores() {
       showToast('CSV deve ter colunas "nome" e "cpf".', 'error'); return;
     }
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
+      const cols = parseCSVLine(lines[i]);
       if (!cols[iNome] || !cols[iCpf]) continue;
       rows.push({ nome: cols[iNome], cpf: cols[iCpf].replace(/\D/g,''), setor: iSetor >= 0 ? cols[iSetor] || null : null });
     }
@@ -2682,9 +2693,16 @@ async function processarImportColaboradores() {
   const ignorados = rows.length - novos.length;
 
   let importados = 0;
-  for (const r of novos) {
-    const { error } = await _sb.from('colaboradores').insert({ nome: r.nome, cpf: r.cpf, setor: r.setor });
-    if (!error) importados++;
+  if (novos.length > 0) {
+    const { data, error } = await _sb.from('colaboradores').insert(
+      novos.map(r => ({ nome: r.nome, cpf: r.cpf, setor: r.setor }))
+    ).select('id');
+    if (error) {
+      showToast('Erro ao importar colaboradores. Verifique o arquivo e tente novamente.', 'error');
+      closeImportColaboradoresModal();
+      return;
+    }
+    importados = data ? data.length : novos.length;
   }
 
   closeImportColaboradoresModal();
