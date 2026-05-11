@@ -1280,7 +1280,7 @@ const normColaborador = c => ({
   id: c.id, nome: c.nome, cpf: c.cpf, setor: c.setor || '', createdAt: c.created_at
 });
 const normFerramentaCautela = f => ({
-  id: f.id, nome: f.nome, codigo: f.codigo || '', categoria: f.categoria,
+  id: f.id, nome: f.nome, codigo: f.codigo || '', categoria: f.categoria || '',
   quantidadeTotal: f.quantidade_total, quantidadeDisponivel: f.quantidade_disponivel,
   createdAt: f.created_at
 });
@@ -1289,7 +1289,7 @@ const normCautela = c => ({
   colaboradorId: c.colaborador_id, colaboradorNome: c.colaborador_nome,
   ferramentaId: c.ferramenta_id, ferramentaNome: c.ferramenta_nome,
   ferramentaCodigo: c.ferramenta_codigo || '',
-  setor: c.setor, quantidade: c.quantidade, observacao: c.observacao || '',
+  setor: c.setor || '', quantidade: c.quantidade ?? 1, observacao: c.observacao || '',
   dataRetirada: c.data_retirada, dataDevolucao: c.data_devolucao || null,
   condicaoDevolucao: c.condicao_devolucao || null, alertaEnviado: !!c.alerta_enviado
 });
