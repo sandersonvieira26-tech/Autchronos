@@ -1488,6 +1488,10 @@ function toggleRowMenu(id) {
 function updateTabIndicators() {
   const matCount = getMateriais().filter(m => calcStatus(m.quantidade, m.estoqueMinimo) !== 'OK').length;
   const calibCount = getEquipamentos().filter(e => !e.emCalibracao && calcCalibStatus(e.dataProximaCalibracao).days <= 30).length;
+  const now = new Date();
+  const cautelaCount = getCautelas().filter(c =>
+    !c.dataDevolucao && (now - new Date(c.dataRetirada)) > 24 * 60 * 60 * 1000
+  ).length;
   ['dot-dtab-materiais','dot-tab-materiais','dot-tab-alertas'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('visible', matCount > 0);
@@ -1495,6 +1499,10 @@ function updateTabIndicators() {
   ['dot-dtab-calibracoes','dot-tab-calibracoes'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('visible', calibCount > 0);
+  });
+  ['dot-dtab-cautela','dot-tab-cautela'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('visible', cautelaCount > 0);
   });
 }
 
@@ -3092,6 +3100,39 @@ async function devConfirmar() {
     const b = document.getElementById('dev-confirmar-btn');
     if (b) { b.disabled = false; b.textContent = 'Confirmar Devolução'; }
   }
+}
+
+async function verificarAtrasosCautela() {
+  const now = new Date();
+  const atrasadas = getCautelas().filter(c =>
+    !c.dataDevolucao && !c.alertaEnviado &&
+    (now - new Date(c.dataRetirada)) > 24 * 60 * 60 * 1000
+  );
+
+  for (const c of atrasadas) {
+    const horas = Math.floor((now - new Date(c.dataRetirada)) / 3_600_000);
+    const { data } = await _sb
+      .from('cautelas')
+      .update({ alerta_enviado: true })
+      .eq('id', c.id)
+      .eq('alerta_enviado', false)
+      .select('id');
+    if (data && data.length > 0) {
+      const col = getColaboradores().find(col => col.id === c.colaboradorId);
+      const cpfHash = col ? await hashCPF(col.cpf) : '';
+      dispararWebhook({
+        evento: 'cautela_atraso',
+        colaborador: c.colaboradorNome, cpf_hash: cpfHash,
+        ferramenta: c.ferramentaNome, codigo: c.ferramentaCodigo || null,
+        setor: c.setor, quantidade: c.quantidade, horas_em_aberto: horas,
+        data_retirada: c.dataRetirada
+      });
+    }
+  }
+
+  await loadAllData();
+  updateTabIndicators();
+  renderCautelaPanel();
 }
 
 function renderCards() {
