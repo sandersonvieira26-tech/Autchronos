@@ -2090,6 +2090,7 @@ function renderDashboard(session) {
 
 async function doLogout() {
   if (_realtimeChannel) { _sb.removeChannel(_realtimeChannel); _realtimeChannel = null; }
+  if (_cautelaAlertInterval) { clearInterval(_cautelaAlertInterval); _cautelaAlertInterval = null; }
   await _sb.auth.signOut();
   currentSession = null;
   currentPeriod = 'hoje';
