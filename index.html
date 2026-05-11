@@ -3001,14 +3001,15 @@ function renderDevStep() {
 }
 
 function devBuscar() {
-  const q = document.getElementById('dev-busca').value.trim();
+  const q = document.getElementById('dev-busca')?.value.trim() || '';
   const errEl = document.getElementById('dev-step1-err');
   const listEl = document.getElementById('dev-cautelas-list');
   const lower = q.toLowerCase();
   const col = getColaboradores().find(c =>
     c.cpf === q.replace(/\D/g,'') || c.nome.toLowerCase() === lower
   );
-  if (!col) { errEl.textContent = 'Colaborador não cadastrado.'; listEl.innerHTML = ''; return; }
+  if (!col) { errEl.textContent = 'Digite o CPF completo ou o nome exato do colaborador.'; listEl.innerHTML = ''; return; }
+  _devCautelaId = null;
   _devColaborador = { ...col };
   _devCautelas = getCautelas().filter(c => c.colaboradorId === col.id && !c.dataDevolucao);
   if (_devCautelas.length === 0) {
@@ -3035,11 +3036,12 @@ function devBuscar() {
 function devSelecionarCautela() {
   const sel = document.querySelector('input[name="dev-caute"]:checked');
   if (!sel) { showToast('Selecione uma cautela.', 'error'); return; }
-  _devCautelaId = sel.value;
+  _devCautelaId = Number(sel.value);
   _devStep = 2; renderDevStep();
 }
 
 async function devConfirmar() {
+  if (_devStep !== 2 || !_devCautelaId) return;
   const btn = document.getElementById('dev-confirmar-btn');
   const errEl = document.getElementById('dev-step2-err');
   const condicao = document.getElementById('dev-condicao').value;
@@ -3087,7 +3089,8 @@ async function devConfirmar() {
     refreshAllSections();
     showToast('Devolução registrada!');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar Devolução'; }
+    const b = document.getElementById('dev-confirmar-btn');
+    if (b) { b.disabled = false; b.textContent = 'Confirmar Devolução'; }
   }
 }
 
