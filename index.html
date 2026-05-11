@@ -2336,7 +2336,6 @@ function refreshAllSections() {
 function renderCautela() {
   const sec = document.getElementById('section-cautela');
   if (!sec) return;
-  const isAdmin = !!(currentSession && currentSession.papel === 'admin');
   sec.innerHTML = `
     <div style="padding:1rem">
       <div class="cautela-subnav">
@@ -2356,7 +2355,7 @@ function setCautelaTab(tab) {
 
 function renderCautelaSubTab() {
   if (_cautelaSubTab === 'painel')              renderCautelaPanel();
-  else if (_cautelaSubTab === 'ferramentas')    renderFerrramentasTab();
+  else if (_cautelaSubTab === 'ferramentas')    renderFerramentasTab();
   else if (_cautelaSubTab === 'colaboradores')  renderColaboradoresTab();
 }
 
@@ -2365,11 +2364,11 @@ function renderCautelaPanel() {
   if (!el) return;
   const isAdmin = !!(currentSession && currentSession.papel === 'admin');
   const now = new Date();
-  const todayStr = now.toLocaleDateString();
+  const todayISO = now.toISOString().slice(0, 10);
 
   const abertas = getCautelas().filter(c => !c.dataDevolucao);
   const devolvidasHoje = getCautelas().filter(c =>
-    c.dataDevolucao && new Date(c.dataDevolucao).toLocaleDateString() === todayStr
+    c.dataDevolucao && new Date(c.dataDevolucao).toISOString().slice(0, 10) === todayISO
   );
   const atrasadas = abertas.filter(c =>
     (now - new Date(c.dataRetirada)) > 24 * 60 * 60 * 1000
@@ -2429,7 +2428,7 @@ function renderCautelaPanel() {
     ${abertasHtml}`;
 }
 
-function renderFerrramentasTab() {
+function renderFerramentasTab() {
   const el = document.getElementById('cautela-sub-content');
   if (el) el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray-600)">Ferramentas — em breve</div>';
 }
