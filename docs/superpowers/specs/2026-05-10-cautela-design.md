@@ -8,7 +8,7 @@
 
 Sistema de rastreamento de retirada e devolução de ferramentas por colaboradores. Uma ferramenta retirada fica vinculada ao colaborador até a devolução. Se não devolvida em 24h, um alerta visual e um webhook são emitidos.
 
-Ferramentas são itens **únicos** (um registro = um item físico). `quantidade` na cautela representa o número de unidades do mesmo modelo retiradas — portanto `ferramentas_cautela` armazena um contador `quantidade_total` / `quantidade_disponivel`, não um boolean.
+Ferramentas são itens que podem ter múltiplas unidades físicas (ex: 5 multímetros do mesmo modelo). `quantidade` na cautela representa unidades retiradas de um mesmo item. `ferramentas_cautela` armazena `quantidade_total` e `quantidade_disponivel` como contadores inteiros.
 
 ---
 
@@ -20,16 +20,28 @@ Ferramentas são itens **únicos** (um registro = um item físico). `quantidade`
 |---|---|---|---|
 | `id` | uuid | PK, default gen_random_uuid() | |
 | `nome` | text | NOT NULL | Nome completo |
-| `cpf` | text | NOT NULL, UNIQUE | CPF sem formatação (armazenado em texto plano — ver seção Segurança) |
-| `setor` | text | | Setor padrão (pré-preenche o campo de retirada) |
-| `senha_hash` | text | | PBKDF2 derivado da senha. NULL = primeiro acesso |
-| `senha_salt` | text | | Salt aleatório por colaborador (gerado no primeiro acesso) |
+| `cpf` | text | NOT NULL, UNIQUE | CPF sem formatação (plaintext — ver Segurança) |
+| `setor` | text | | Setor padrão |
+| `senha_hash` | text | | PBKDF2 derivado. NULL = primeiro acesso |
+| `senha_salt` | text | | Salt por colaborador, gerado no primeiro acesso |
 | `created_at` | timestamptz | default now() | |
 
 **RLS:**
-- Leitura de `id`, `nome`, `cpf`, `setor`: qualquer usuário autenticado
-- Leitura de `senha_hash`, `senha_salt`: nenhum papel (colunas nunca retornadas por SELECT direto — verificação feita via função Postgres RPC)
-- Escrita (INSERT/UPDATE/DELETE): somente `papel = 'admin'`
+- SELECT de `id, nome, cpf, setor, created_at`: qualquer usuário autenticado
+- SELECT de `senha_hash, senha_salt`: **bloqueado via REVOKE** (ver abaixo)
+- INSERT/UPDATE/DELETE: somente `papel = 'admin'` (exceto via SECURITY DEFINER RPCs)
+
+**Proteção de colunas sensíveis (não é RLS — é GRANT):**
+```sql
+REVOKE SELECT (senha_hash, senha_salt) ON colaboradores FROM authenticated, anon;
+```
+Isso impede que qualquer SELECT direto retorne essas colunas, independente de RLS. A leitura só ocorre dentro das funções SECURITY DEFINER.
+
+**Cache no app:** o SELECT do app usa colunas explícitas:
+```js
+_sb.from('colaboradores').select('id, nome, cpf, setor, created_at')
+```
+`senha_hash` e `senha_salt` nunca são buscados pelo cliente.
 
 ### Tabela `ferramentas_cautela`
 
@@ -39,15 +51,13 @@ Ferramentas são itens **únicos** (um registro = um item físico). `quantidade`
 | `nome` | text | NOT NULL | |
 | `codigo` | text | | Código/patrimônio |
 | `categoria` | text | NOT NULL | |
-| `quantidade_total` | int | NOT NULL, default 1 | Total de unidades cadastradas |
-| `quantidade_disponivel` | int | NOT NULL, default 1 | Unidades disponíveis no momento |
+| `quantidade_total` | int | NOT NULL, default 1, CHECK (> 0) | Total de unidades cadastradas |
+| `quantidade_disponivel` | int | NOT NULL, default 1, CHECK (>= 0 AND <= quantidade_total) | Unidades disponíveis |
 | `created_at` | timestamptz | default now() | |
 
 **RLS:**
-- Leitura: qualquer usuário autenticado
-- Escrita: somente `papel = 'admin'`
-
-**Regra:** `quantidade_disponivel` nunca pode ser negativo. Ferramenta só aparece disponível para retirada quando `quantidade_disponivel > 0`.
+- SELECT: qualquer usuário autenticado
+- INSERT/UPDATE/DELETE: somente `papel = 'admin'`
 
 ### Tabela `cautelas`
 
@@ -55,43 +65,198 @@ Ferramentas são itens **únicos** (um registro = um item físico). `quantidade`
 |---|---|---|---|
 | `id` | uuid | PK, default gen_random_uuid() | |
 | `colaborador_id` | uuid | FK → colaboradores.id ON DELETE RESTRICT | |
-| `colaborador_nome` | text | NOT NULL | Denormalizado no momento da retirada |
+| `colaborador_nome` | text | NOT NULL | Denormalizado na retirada |
 | `ferramenta_id` | uuid | FK → ferramentas_cautela.id ON DELETE RESTRICT | |
-| `ferramenta_nome` | text | NOT NULL | Denormalizado no momento da retirada |
-| `ferramenta_codigo` | text | | Denormalizado no momento da retirada |
-| `setor` | text | NOT NULL | Local/setor de uso no momento da retirada |
-| `quantidade` | int | NOT NULL, default 1 | Unidades retiradas |
+| `ferramenta_nome` | text | NOT NULL | Denormalizado na retirada |
+| `ferramenta_codigo` | text | | Denormalizado na retirada |
+| `setor` | text | NOT NULL | Local de uso na retirada |
+| `quantidade` | int | NOT NULL, default 1, CHECK (> 0) | Unidades retiradas |
 | `observacao` | text | | Opcional |
 | `data_retirada` | timestamptz | NOT NULL, default now() | |
-| `data_devolucao` | timestamptz | | NULL = ainda em aberto |
-| `condicao_devolucao` | text | | NULL, 'Boa', 'Com defeito', 'Danificada' |
-| `alerta_enviado` | boolean | default false | Evita reenvio do webhook de 24h |
+| `data_devolucao` | timestamptz | | NULL = em aberto |
+| `condicao_devolucao` | text | CHECK IN ('Boa','Com defeito','Danificada') | Preenchido na devolução |
+| `alerta_enviado` | boolean | NOT NULL, default false | Evita reenvio do webhook 24h |
 
 **RLS:**
-- Leitura: qualquer usuário autenticado
-- INSERT: qualquer usuário autenticado (retirada via assinatura do colaborador)
-- UPDATE: qualquer usuário autenticado (devolução via assinatura do colaborador)
+- SELECT: qualquer usuário autenticado
+- INSERT: qualquer usuário autenticado (a autenticidade é garantida pela assinatura do colaborador via RPC)
+- UPDATE: qualquer usuário autenticado, apenas em linhas onde `data_devolucao IS NULL` (política: `USING (data_devolucao IS NULL)`)
 - DELETE: somente `papel = 'admin'`
 
 **FK behavior:**
-- `ON DELETE RESTRICT` em ambas as FKs — impede exclusão de colaborador ou ferramenta com cautela aberta
-- UI exibe: "Este colaborador/ferramenta possui cautela em aberto e não pode ser excluído"
+- `ON DELETE RESTRICT` em `colaborador_id` e `ferramenta_id`
+- UI exibe ao falhar: "Este registro possui cautela em aberto e não pode ser excluído"
 
-**Índice único parcial (previne race condition):**
+---
+
+## Funções Postgres (SECURITY DEFINER RPCs)
+
+Todas as operações que tocam `senha_hash`/`senha_salt` ou atualizam `quantidade_disponivel` atomicamente são feitas via RPCs chamadas pelo Supabase client (`_sb.rpc(...)`).
+
+### `verificar_senha_colaborador(p_id uuid, p_hash text) → boolean`
+
+Retorna `true` se o hash fornecido bate com o armazenado. Retorna `false` se não bate **ou se `senha_hash IS NULL`** (primeiro acesso — o client não deve chamar esta função nesse caso).
+
 ```sql
-CREATE UNIQUE INDEX cautelas_ferramenta_aberta_idx
-  ON cautelas (ferramenta_id, quantidade)
-  WHERE data_devolucao IS NULL;
+CREATE OR REPLACE FUNCTION verificar_senha_colaborador(p_id uuid, p_hash text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE v_stored text;
+BEGIN
+  SELECT senha_hash INTO v_stored FROM colaboradores WHERE id = p_id;
+  IF v_stored IS NULL THEN RETURN false; END IF;
+  RETURN v_stored = p_hash;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION verificar_senha_colaborador TO authenticated, anon;
 ```
-Se dois admins tentarem registrar a mesma ferramenta simultaneamente, o segundo INSERT falha com violação de unicidade — capturado pelo app com mensagem "Ferramenta já retirada por outro colaborador".
+
+### `definir_senha_colaborador(p_id uuid, p_hash text, p_salt text) → boolean`
+
+Define hash e salt para um colaborador. Só funciona quando `senha_hash IS NULL` (primeiro acesso). Retorna `false` sem fazer nada se a senha já estiver definida — evita sobrescrita acidental.
+
+```sql
+CREATE OR REPLACE FUNCTION definir_senha_colaborador(p_id uuid, p_hash text, p_salt text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE v_existing text;
+BEGIN
+  SELECT senha_hash INTO v_existing FROM colaboradores WHERE id = p_id;
+  IF v_existing IS NOT NULL THEN RETURN false; END IF;
+  UPDATE colaboradores SET senha_hash = p_hash, senha_salt = p_salt WHERE id = p_id;
+  RETURN true;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION definir_senha_colaborador TO authenticated, anon;
+```
+
+### `resetar_senha_colaborador(p_id uuid) → void`
+
+Chamada pelo admin para redefinir a assinatura de um colaborador.
+
+```sql
+CREATE OR REPLACE FUNCTION resetar_senha_colaborador(p_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE colaboradores SET senha_hash = NULL, senha_salt = NULL WHERE id = p_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION resetar_senha_colaborador TO authenticated;
+```
+
+### `buscar_salt_colaborador(p_id uuid) → text`
+
+Retorna apenas o salt do colaborador para o client calcular o hash antes de verificar. Retorna `NULL` se o colaborador não tiver senha definida (primeiro acesso).
+
+```sql
+CREATE OR REPLACE FUNCTION buscar_salt_colaborador(p_id uuid)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE v_salt text;
+BEGIN
+  SELECT senha_salt INTO v_salt FROM colaboradores WHERE id = p_id;
+  RETURN v_salt;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION buscar_salt_colaborador TO authenticated, anon;
+```
+
+### `registrar_retirada(p_colaborador_id uuid, p_ferramenta_id uuid, p_quantidade int, p_setor text, p_observacao text, p_colaborador_nome text, p_ferramenta_nome text, p_ferramenta_codigo text) → uuid`
+
+Atomic: INSERT em `cautelas` + decremento de `quantidade_disponivel`. Se `quantidade_disponivel < p_quantidade`, levanta exceção. Retorna o `id` da cautela criada.
+
+```sql
+CREATE OR REPLACE FUNCTION registrar_retirada(
+  p_colaborador_id uuid, p_ferramenta_id uuid, p_quantidade int,
+  p_setor text, p_observacao text,
+  p_colaborador_nome text, p_ferramenta_nome text, p_ferramenta_codigo text
+) RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_disponivel int;
+  v_cautela_id uuid;
+BEGIN
+  -- Lock da linha para evitar race condition
+  SELECT quantidade_disponivel INTO v_disponivel
+    FROM ferramentas_cautela WHERE id = p_ferramenta_id FOR UPDATE;
+
+  IF v_disponivel < p_quantidade THEN
+    RAISE EXCEPTION 'quantidade_insuficiente';
+  END IF;
+
+  UPDATE ferramentas_cautela
+    SET quantidade_disponivel = quantidade_disponivel - p_quantidade
+    WHERE id = p_ferramenta_id;
+
+  INSERT INTO cautelas (
+    colaborador_id, colaborador_nome, ferramenta_id, ferramenta_nome,
+    ferramenta_codigo, setor, quantidade, observacao
+  ) VALUES (
+    p_colaborador_id, p_colaborador_nome, p_ferramenta_id, p_ferramenta_nome,
+    p_ferramenta_codigo, p_setor, p_quantidade, p_observacao
+  ) RETURNING id INTO v_cautela_id;
+
+  RETURN v_cautela_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION registrar_retirada TO authenticated, anon;
+```
+
+**Tratamento de erro no client:** se a exceção for `quantidade_insuficiente`, exibir "Quantidade insuficiente. Outro colaborador pode ter retirado ao mesmo tempo."
+
+### `registrar_devolucao(p_cautela_id uuid, p_condicao text) → void`
+
+Atomic: UPDATE em `cautelas` + incremento de `quantidade_disponivel`.
+
+```sql
+CREATE OR REPLACE FUNCTION registrar_devolucao(p_cautela_id uuid, p_condicao text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE v_qtd int; v_ferramenta_id uuid;
+BEGIN
+  SELECT quantidade, ferramenta_id INTO v_qtd, v_ferramenta_id
+    FROM cautelas WHERE id = p_cautela_id AND data_devolucao IS NULL FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'cautela_nao_encontrada';
+  END IF;
+
+  UPDATE cautelas
+    SET data_devolucao = now(), condicao_devolucao = p_condicao
+    WHERE id = p_cautela_id;
+
+  UPDATE ferramentas_cautela
+    SET quantidade_disponivel = quantidade_disponivel + v_qtd
+    WHERE id = v_ferramenta_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION registrar_devolucao TO authenticated, anon;
+```
 
 ---
 
 ## Segurança e Privacidade
 
 ### Senha / Assinatura — PBKDF2 com Salt
-
-A senha de assinatura é derivada com PBKDF2 usando Web Crypto API (nativa, sem dependência externa):
 
 ```js
 async function derivarHash(senha, salt) {
@@ -107,119 +272,111 @@ async function derivarHash(senha, salt) {
 }
 ```
 
-- Salt: UUID aleatório gerado no primeiro acesso (`crypto.randomUUID()`)
-- Iterações: 100.000 (resistente a ataque offline)
-- Verificação: via Postgres RPC `verificar_senha_colaborador(id, hash)` — nunca expõe `senha_hash` ou `senha_salt` em SELECT direto
-
 ### CPF
 
-- Armazenado em texto plano no banco (necessário para busca/importação)
-- Base legal LGPD: legítimo interesse para controle de patrimônio da empresa
-- Exibição na UI: sempre mascarado (`***.***.***-XX`)
-- Busca: aceita CPF completo digitado pelo admin (compara contra o campo plaintext)
-- Webhooks: enviado como `cpf_hash` (SHA-256 do CPF) — nunca em texto claro
-
-### RLS Summary
-
-`senha_hash` e `senha_salt` nunca são selecionados diretamente pelo app. A verificação é feita por uma Postgres Function (SECURITY DEFINER) que recebe o hash derivado do lado cliente e retorna `boolean`. Isso impede que o anon key exponha esses campos.
+- Armazenado em texto plano (necessário para busca e importação)
+- Base legal LGPD: legítimo interesse para controle de patrimônio
+- UI: sempre mascarado (`***.***.***-XX`)
+- Busca: CPF completo digitado compara contra plaintext no cache
+- Webhooks: `cpf_hash` = SHA-256 sem salt do CPF (known limitation: CPF space é finito; aceito pois webhooks são internos)
 
 ---
 
 ## Fluxo de Importação de Colaboradores
 
-- Acesso: admin, sub-seção "Colaboradores" na aba Cautela
-- Formatos aceitos: CSV e XLSX
-- XLSX parseado via **SheetJS** (CDN `https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js`) — carregado sob demanda quando o admin clica "Importar"
-- Loading state: botão desabilitado + spinner enquanto a lib carrega ou o arquivo é processado
-- Timeout/erro CDN: mensagem "Não foi possível carregar o parser de Excel. Tente importar como CSV."
-- Colunas obrigatórias: `nome`, `cpf`
-- Coluna opcional: `setor`
-- CPFs duplicados (já existentes no banco): ignorados silenciosamente
-- Ao finalizar: toast com `X importados, Y ignorados (já existiam)`
+- Formatos: CSV e XLSX
+- SheetJS via CDN `https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js` (versão fixada)
+- Carregado sob demanda; botão desabilitado + spinner durante carregamento
+- Erro de CDN: "Não foi possível carregar o parser. Tente importar como CSV."
+- Colunas obrigatórias: `nome`, `cpf` | Opcional: `setor`
+- CPFs duplicados: ignorados silenciosamente
+- Toast final: `X importados, Y ignorados (já existiam)`
+- Após importar: `loadAllData()` para atualizar cache
 
 ---
 
 ## Fluxo de Retirada (3 passos)
 
 ### Passo 1 — Identificar colaborador
-- Admin digita CPF (completo) ou nome
-- Sistema busca no cache `_colaboradores`
-- Se não encontrado: "Colaborador não cadastrado"
+- Admin digita CPF completo ou nome → busca no cache `_colaboradores`
+- Não encontrado: "Colaborador não cadastrado"
 
 ### Passo 2 — Preencher cautela
-- Selecionar ferramenta (dropdown com apenas as que têm `quantidade_disponivel > 0`)
-- Quantidade (1 até `quantidade_disponivel` da ferramenta)
-- Setor/local de uso (pré-preenchido com `colaborador.setor` se existir)
-- Observação (opcional)
+- Ferramenta: dropdown com `quantidade_disponivel > 0`
+- Quantidade: 1 até `quantidade_disponivel` (validado no client e no servidor via RPC)
+- Setor: pré-preenchido com `colaborador.setor` se existir
+- Observação: opcional
 
 ### Passo 3 — Assinatura
-- Exibe: "Confirme sua identidade, [Nome]"
-- Campo de senha
-- **Primeiro acesso** (`senha_hash IS NULL`): "Crie sua senha de retirada" + campo de confirmação
-- Processo de verificação:
-  1. Client deriva `hash = PBKDF2(senha, salt)` — se primeiro acesso, gera novo salt
-  2. Chama RPC `verificar_senha_colaborador(id, hash)` que retorna `true/false`
-  3. Se primeiro acesso: chama RPC `definir_senha_colaborador(id, hash, salt)`
-- Ao confirmar com sucesso:
-  - INSERT em `cautelas` (com campos denormalizados)
-  - UPDATE `ferramentas_cautela.quantidade_disponivel -= quantidade`
-  - Dispara webhook `cautela_retirada`
-  - Atualiza cache e tela
+**Primeiro acesso** (`senha_hash IS NULL` no cache — o campo não existe no cache; o client verifica chamando `buscar_salt_colaborador` que retorna `null`):
+1. Exibe campos "Crie sua senha" + "Confirme sua senha"
+2. Client gera `salt = crypto.randomUUID()`
+3. Client calcula `hash = PBKDF2(senha, salt)`
+4. Chama `definir_senha_colaborador(id, hash, salt)` — retorna `true`
+5. Prossegue para `registrar_retirada`
+
+**Acesso subsequente** (salt retornado por `buscar_salt_colaborador`):
+1. Exibe campo "Sua senha de retirada"
+2. Client calcula `hash = PBKDF2(senha, salt_retornado)`
+3. Chama `verificar_senha_colaborador(id, hash)` — se `false`: "Senha incorreta"
+4. Prossegue para `registrar_retirada`
+
+**Confirmar retirada:**
+- Chama RPC `registrar_retirada(...)` — atômico (INSERT + UPDATE em transação)
+- Se `quantidade_insuficiente`: "Quantidade insuficiente. Tente novamente."
+- Se sucesso: dispara webhook `cautela_retirada`, atualiza cache, fecha modal
 
 ### Senha esquecida
-- Não há auto-atendimento (sem email/SMS em escopo)
-- Admin pode resetar: botão "Redefinir assinatura" na listagem de colaboradores (admin only)
-- Ação: UPDATE `colaboradores SET senha_hash = NULL, senha_salt = NULL` → colaborador cria nova senha na próxima retirada
-- Toast: "Assinatura redefinida. O colaborador criará uma nova senha na próxima retirada."
+- Admin clica "Redefinir assinatura" na listagem de colaboradores
+- Chama `resetar_senha_colaborador(id)` — define `senha_hash = NULL, senha_salt = NULL`
+- Toast: "Assinatura redefinida. O colaborador criará nova senha na próxima retirada."
 
 ---
 
 ## Fluxo de Devolução (2 passos)
 
 ### Passo 1 — Identificar cautelas abertas
-- Admin ou colaborador informa CPF
-- Sistema lista todas as cautelas abertas daquele colaborador
-- Exibe por card: ferramenta, código/patrimônio, setor, tempo em aberto (vermelho se >24h)
+- Admin informa CPF → lista cautelas com `data_devolucao IS NULL`
+- Card: colaborador, ferramenta, código, setor, tempo em aberto (vermelho se >24h)
 
 ### Passo 2 — Confirmar devolução
-- Selecionar a ferramenta a devolver (se houver mais de uma em aberto)
-- Condição da ferramenta: `Boa` / `Com defeito` / `Danificada`
-- Assinatura (senha do colaborador — mesma verificação via RPC)
-- Ao confirmar:
-  - UPDATE `cautelas SET data_devolucao = now(), condicao_devolucao = X`
-  - UPDATE `ferramentas_cautela.quantidade_disponivel += quantidade`
-  - Dispara webhook `cautela_devolvida`
-  - Atualiza cache e tela
+- Selecionar ferramenta (se >1 em aberto)
+- Condição: `Boa` / `Com defeito` / `Danificada`
+- Assinatura: mesmo fluxo de verificação (busca salt → calcula hash → `verificar_senha_colaborador`)
+- Chama RPC `registrar_devolucao(cautela_id, condicao)` — atômico (UPDATE cautela + UPDATE ferramentas)
+- Dispara webhook `cautela_devolvida` com `horas_em_posse = Math.floor((Date.now() - data_retirada) / 3_600_000)`
+- Atualiza cache e tela
 
 ---
 
 ## Layout da Aba Cautela
 
-A aba "Cautela" é adicionada à navegação principal do dashboard, seguindo o padrão visual existente.
+A aba "Cautela" é adicionada à navegação principal, seguindo padrão visual existente.
 
 ### Sub-seção: Painel (tela inicial)
 
-- **Banner de alerta** (vermelho, visível quando há atrasos):
-  `🔴 N ferramentas com atraso superior a 24h`
-- **Cards de resumo**: Em aberto / Devolvidas hoje (timezone local) / Ferramentas cadastradas
-- **Botões de ação**: `+ Nova Retirada` | `Registrar Devolução`
-- **Lista de cautelas abertas**, ordenada por `data_retirada` crescente:
-  - Cada card: colaborador, ferramenta, código/patrimônio, setor, tempo em aberto
-  - Card vermelho: quando `data_retirada` há mais de 24h
+- Banner vermelho (visível quando há atrasos): `🔴 N ferramentas com atraso superior a 24h`
+- Cards de resumo: Em aberto / Devolvidas hoje* / Ferramentas cadastradas
+- Botões: `+ Nova Retirada` | `Registrar Devolução`
+- Lista de cautelas abertas (ordem por `data_retirada` crescente):
+  - Card normal: colaborador, ferramenta, código, setor, tempo em aberto
+  - Card vermelho: `data_retirada` > 24h atrás
+
+*"Devolvidas hoje": comparação feita no client com `toLocaleDateString()` (timezone local do browser) contra `data_devolucao`.
 
 ### Sub-seção: Ferramentas
 
-- Tabela: nome, código/patrimônio, categoria, disponível/total
-- Botão `+ Nova Ferramenta` (admin only)
+- Tabela: nome, código, categoria, `disponivel/total`
+- `+ Nova Ferramenta` (admin only)
 - Busca por nome ou código
-- Ferramenta com cautela aberta: bloqueada para exclusão (FK RESTRICT)
+- Exclusão bloqueada se houver cautela aberta (erro FK RESTRICT com mensagem amigável)
 
 ### Sub-seção: Colaboradores
 
 - Lista: nome + CPF mascarado (`***.***.***-XX`)
-- Botão `Importar CSV/XLSX` (admin only)
-- Botão "Redefinir assinatura" por colaborador (admin only)
-- Busca aceita CPF completo ou nome (busca contra valor plaintext no cache)
+- `Importar CSV/XLSX` (admin only)
+- `Redefinir assinatura` por colaborador (admin only)
+- Busca por nome ou CPF completo (contra plaintext no cache)
 
 ---
 
@@ -231,31 +388,17 @@ A aba "Cautela" é adicionada à navegação principal do dashboard, seguindo o 
 let _cautelaAlertInterval = null;
 ```
 
-Gerenciada junto com a troca de abas:
-- Ao entrar na aba Cautela: inicia o intervalo
-- Ao sair da aba Cautela: `clearInterval(_cautelaAlertInterval)` antes de iniciar outro — evita acúmulo
-
-### Verificação de atraso
-
-- Roda ao entrar na aba Cautela
-- Roda a cada 30 minutos via `setInterval` enquanto a aba estiver ativa
-- Critério: `data_devolucao IS NULL AND data_retirada < now() - 24h`
-
-### Badge visual
-
-- Aparece na aba "Cautela" na navegação (igual ao badge de alertas de estoque)
-- Número indica quantidade de cautelas em atraso
+- Ao entrar na aba Cautela: `_cautelaAlertInterval = setInterval(verificarAtrasosCautela, 30 * 60 * 1000)`
+- Ao sair da aba Cautela: `clearInterval(_cautelaAlertInterval); _cautelaAlertInterval = null`
+- Gerenciado na função `setMobileTab` / troca de aba, igual ao padrão de `_realtimeChannel`
 
 ### Ordem de operação do alerta
 
-Para evitar envio duplo ou perda silenciosa:
-1. UPDATE `cautelas SET alerta_enviado = true` WHERE id = X
-2. Se UPDATE suceder: dispara webhook `cautela_atraso`
-3. Se webhook falhar: log no console (fire-and-forget — mesmo padrão existente)
+1. UPDATE `cautelas SET alerta_enviado = true WHERE id = X AND alerta_enviado = false`
+2. Se 1 linha afetada: dispara webhook `cautela_atraso`
+3. Se 0 linhas afetadas: alerta já enviado, ignorar
 
 ### Webhook `cautela_atraso`
-
-Disparado **uma única vez por cautela** (`alerta_enviado = false → true`).
 
 ```json
 {
@@ -311,38 +454,34 @@ Disparado **uma única vez por cautela** (`alerta_enviado = false → true`).
 }
 ```
 
-### `cautela_atraso`
-
-*(ver seção Sistema de Alertas)*
+`horas_em_posse`: inteiro calculado como `Math.floor((data_devolucao - data_retirada) / 3_600_000)`.
 
 ---
 
 ## Cache e Realtime
 
-Dois novos arrays globais:
+Novos arrays globais adicionados ao `loadAllData()`:
 
 ```js
-let _colaboradores = [];
+let _colaboradores = [];       // select explícito: id, nome, cpf, setor, created_at
 let _ferramentas_cautela = [];
-let _cautelas = [];
+let _cautelas = [];            // somente cautelas abertas (data_devolucao IS NULL)
+                               // + devolvidas hoje para o card de resumo
 ```
 
-Adicionados ao `loadAllData()` existente. Novos canais Realtime (dentro de `setupRealtime()`):
-
+Novos canais no `setupRealtime()`:
 ```js
-.on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, async () => { ... })
-.on('postgres_changes', { event: '*', schema: 'public', table: 'ferramentas_cautela' }, async () => { ... })
-.on('postgres_changes', { event: '*', schema: 'public', table: 'cautelas' }, async () => { ... })
+.on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, loadAndRefresh)
+.on('postgres_changes', { event: '*', schema: 'public', table: 'ferramentas_cautela' }, loadAndRefresh)
+.on('postgres_changes', { event: '*', schema: 'public', table: 'cautelas' }, loadAndRefresh)
 ```
-
-Após importação de colaboradores: `loadAllData()` chamado para atualizar o cache.
 
 ---
 
 ## Dependências Externas
 
-- **SheetJS (xlsx)** — parsing de `.xlsx` no browser, CDN `https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js`, carregado sob demanda
-- **Web Crypto API** — nativa nos browsers modernos (Chrome 37+, Firefox 34+, Safari 11+), sem dependência externa
+- **SheetJS 0.18.5** — CDN `https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js`, carregado sob demanda
+- **Web Crypto API** — nativa (Chrome 37+, Firefox 34+, Safari 11+)
 
 ---
 
@@ -351,5 +490,5 @@ Após importação de colaboradores: `loadAllData()` chamado para atualizar o ca
 - Notificações por SMS, WhatsApp ou e-mail ao colaborador
 - Foto de ferramenta
 - Edição de cautela após confirmação
-- Relatórios/exportação de histórico de cautelas
+- Relatórios/exportação de histórico
 - Auto-atendimento de recuperação de senha pelo colaborador
