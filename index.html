@@ -2710,7 +2710,217 @@ async function processarImportColaboradores() {
   showToast(`${importados} importado${importados!==1?'s':''}, ${ignorados} ignorado${ignorados!==1?'s':''} (já existiam).`);
 }
 
-function openNovaRetiradaModal() { /* stub — Task 9 */ }
+let _nrColaborador = null;
+let _nrStep = 1;
+
+function openNovaRetiradaModal() {
+  if (!guardAdmin()) return;
+  _nrColaborador = null;
+  _nrStep = 1;
+  document.getElementById('modal-nova-retirada').style.display = 'flex';
+  renderNrStep();
+}
+
+function closeNovaRetiradaModal() {
+  document.getElementById('modal-nova-retirada').style.display = 'none';
+}
+
+function renderNrStep() {
+  const title  = document.getElementById('nr-title');
+  const body   = document.getElementById('nr-body');
+  const footer = document.getElementById('nr-footer');
+  title.textContent = `Nova Retirada — Passo ${_nrStep} de 3`;
+
+  if (_nrStep === 1) {
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <label>CPF ou nome do colaborador
+          <input class="form-input" id="nr-busca" type="text" placeholder="Digite CPF completo ou nome">
+        </label>
+        <div id="nr-busca-result" style="font-size:0.875rem;color:var(--red)"></div>
+      </div>`;
+    footer.innerHTML = `
+      <button class="btn btn-secondary" onclick="closeNovaRetiradaModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="nrBuscarColaborador()">Próximo</button>`;
+    const inp = document.getElementById('nr-busca');
+    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') nrBuscarColaborador(); });
+
+  } else if (_nrStep === 2) {
+    const ferramentas = getFerramentasCautela().filter(f => f.quantidadeDisponivel > 0);
+    const opts = ferramentas.length === 0
+      ? '<option value="">Nenhuma disponível</option>'
+      : ferramentas.map(f =>
+          `<option value="${f.id}" data-max="${f.quantidadeDisponivel}">${esc(f.nome)}${f.codigo?' ('+esc(f.codigo)+')':''} — ${f.quantidadeDisponivel} disp.</option>`
+        ).join('');
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <div style="font-size:0.875rem;color:var(--gray-600)">Colaborador: <strong>${esc(_nrColaborador.nome)}</strong></div>
+        <label>Ferramenta *
+          <select class="form-input" id="nr-ferramenta" onchange="nrUpdateMaxQtd()">${opts}</select>
+        </label>
+        <label>Quantidade *
+          <input class="form-input" id="nr-quantidade" type="number" min="1" value="1">
+        </label>
+        <label>Setor *
+          <input class="form-input" id="nr-setor" type="text" value="${esc(_nrColaborador.setor||'')}">
+        </label>
+        <label>Observação
+          <input class="form-input" id="nr-obs" type="text" placeholder="Opcional">
+        </label>
+        <div id="nr-step2-err" style="font-size:0.875rem;color:var(--red)"></div>
+      </div>`;
+    footer.innerHTML = `
+      <button class="btn btn-secondary" onclick="_nrStep=1;renderNrStep()">Voltar</button>
+      <button class="btn btn-primary" onclick="nrValidarStep2()">Próximo</button>`;
+    nrUpdateMaxQtd();
+
+  } else if (_nrStep === 3) {
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <div style="font-size:0.875rem;color:var(--gray-600)">Colaborador: <strong>${esc(_nrColaborador.nome)}</strong></div>
+        <div id="nr-senha-fields"></div>
+        <div id="nr-step3-err" style="font-size:0.875rem;color:var(--red)"></div>
+      </div>`;
+    footer.innerHTML = `
+      <button class="btn btn-secondary" onclick="_nrStep=2;renderNrStep()">Voltar</button>
+      <button class="btn btn-primary" id="nr-confirmar-btn" onclick="nrConfirmar()">Confirmar Retirada</button>`;
+    nrCarregarSenhaFields();
+  }
+}
+
+function nrUpdateMaxQtd() {
+  const sel = document.getElementById('nr-ferramenta');
+  const qtdInput = document.getElementById('nr-quantidade');
+  if (!sel || !qtdInput) return;
+  const opt = sel.options[sel.selectedIndex];
+  const max = opt ? parseInt(opt.dataset.max, 10) : 1;
+  qtdInput.max = max;
+  if (parseInt(qtdInput.value, 10) > max) qtdInput.value = max;
+}
+
+function nrBuscarColaborador() {
+  const q = document.getElementById('nr-busca')?.value.trim() || '';
+  const errEl = document.getElementById('nr-busca-result');
+  const cpfDigits = q.replace(/\D/g, '');
+  const lower = q.toLowerCase();
+  const col = getColaboradores().find(c =>
+    (cpfDigits.length === 11 && c.cpf === cpfDigits) ||
+    c.nome.toLowerCase() === lower
+  );
+  if (!col) { if (errEl) errEl.textContent = 'Colaborador não cadastrado.'; return; }
+  _nrColaborador = col;
+  _nrStep = 2;
+  renderNrStep();
+}
+
+function nrValidarStep2() {
+  const sel = document.getElementById('nr-ferramenta');
+  const qtdInput = document.getElementById('nr-quantidade');
+  const setor = document.getElementById('nr-setor')?.value.trim() || '';
+  const errEl = document.getElementById('nr-step2-err');
+  if (!sel || !sel.value) { if (errEl) errEl.textContent = 'Selecione uma ferramenta.'; return; }
+  const qtd = parseInt(qtdInput?.value, 10);
+  const max = parseInt(sel.options[sel.selectedIndex].dataset.max, 10);
+  if (isNaN(qtd) || qtd < 1 || qtd > max) {
+    if (errEl) errEl.textContent = `Quantidade deve ser entre 1 e ${max}.`; return;
+  }
+  if (!setor) { if (errEl) errEl.textContent = 'Informe o setor.'; return; }
+  _nrStep = 3;
+  renderNrStep();
+}
+
+async function nrCarregarSenhaFields() {
+  const container = document.getElementById('nr-senha-fields');
+  if (!container) return;
+  const { data: salt } = await _sb.rpc('buscar_salt_colaborador', { p_id: _nrColaborador.id });
+  _nrColaborador._salt = salt || null;
+  if (!salt) {
+    container.innerHTML = `
+      <p style="font-size:0.875rem">Primeiro acesso. Crie sua senha de retirada:</p>
+      <label>Senha * <input class="form-input" id="nr-senha1" type="password" placeholder="Mínimo 4 caracteres"></label>
+      <label>Confirme a senha * <input class="form-input" id="nr-senha2" type="password"></label>`;
+  } else {
+    container.innerHTML = `
+      <label>Senha de retirada * <input class="form-input" id="nr-senha1" type="password" placeholder="Sua senha"></label>`;
+  }
+}
+
+async function nrConfirmar() {
+  const btn = document.getElementById('nr-confirmar-btn');
+  const errEl = document.getElementById('nr-step3-err');
+  const sel = document.getElementById('nr-ferramenta');
+  const qtd = parseInt(document.getElementById('nr-quantidade')?.value, 10);
+  const setor = document.getElementById('nr-setor')?.value.trim() || '';
+  const obs = document.getElementById('nr-obs')?.value.trim() || null;
+  const senha1 = document.getElementById('nr-senha1')?.value || '';
+
+  if (!senha1) { if (errEl) errEl.textContent = 'Informe a senha.'; return; }
+
+  const ferramenta = getFerramentasCautela().find(f => f.id === sel?.value);
+  if (!ferramenta) { if (errEl) errEl.textContent = 'Ferramenta inválida.'; return; }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Aguarde...'; }
+
+  try {
+    const salt = _nrColaborador._salt;
+    if (!salt) {
+      if (senha1.length < 4) { if (errEl) errEl.textContent = 'Senha deve ter ao menos 4 caracteres.'; return; }
+      const senha2 = document.getElementById('nr-senha2')?.value || '';
+      if (senha1 !== senha2) { if (errEl) errEl.textContent = 'Senhas não conferem.'; return; }
+      const newSalt = crypto.randomUUID();
+      const hash = await derivarHash(senha1, newSalt);
+      const { data: ok, error: defErr } = await _sb.rpc('definir_senha_colaborador', { p_id: _nrColaborador.id, p_hash: hash, p_salt: newSalt });
+      if (defErr || !ok) { if (errEl) errEl.textContent = 'Erro ao definir senha. Tente novamente.'; return; }
+    } else {
+      const hash = await derivarHash(senha1, salt);
+      const { data: ok } = await _sb.rpc('verificar_senha_colaborador', { p_id: _nrColaborador.id, p_hash: hash });
+      if (!ok) { if (errEl) errEl.textContent = 'Senha incorreta.'; return; }
+    }
+
+    const cpfHash = await hashCPF(_nrColaborador.cpf);
+    const { data: cautelaId, error: rErr } = await _sb.rpc('registrar_retirada', {
+      p_colaborador_id: _nrColaborador.id,
+      p_ferramenta_id: ferramenta.id,
+      p_quantidade: qtd,
+      p_setor: setor,
+      p_observacao: obs,
+      p_colaborador_nome: _nrColaborador.nome,
+      p_ferramenta_nome: ferramenta.nome,
+      p_ferramenta_codigo: ferramenta.codigo
+    });
+
+    if (rErr) {
+      const msgs = {
+        quantidade_insuficiente: 'Quantidade insuficiente. Outro colaborador pode ter retirado ao mesmo tempo.',
+        ferramenta_nao_encontrada: 'Ferramenta não encontrada.',
+        quantidade_invalida: 'Quantidade inválida.',
+        colaborador_nao_encontrado: 'Colaborador não encontrado.'
+      };
+      if (errEl) errEl.textContent = msgs[rErr.message] || 'Erro inesperado. Tente novamente.';
+      return;
+    }
+
+    dispararWebhook({
+      evento: 'cautela_retirada',
+      colaborador: _nrColaborador.nome,
+      cpf_hash: cpfHash,
+      ferramenta: ferramenta.nome,
+      codigo: ferramenta.codigo || null,
+      setor,
+      quantidade: qtd,
+      observacao: obs,
+      data_retirada: new Date().toISOString()
+    });
+
+    closeNovaRetiradaModal();
+    await loadAllData();
+    refreshAllSections();
+    showToast('Retirada registrada!');
+  } finally {
+    const b = document.getElementById('nr-confirmar-btn');
+    if (b) { b.disabled = false; b.textContent = 'Confirmar Retirada'; }
+  }
+}
 function openDevolucaoModal() { /* stub — Task 10 */ }
 
 function renderCards() {
@@ -5228,6 +5438,18 @@ window.addEventListener('DOMContentLoaded', async () => {
       <button class="btn btn-secondary" onclick="closeImportColaboradoresModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="processarImportColaboradores()">Importar</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: Nova Retirada -->
+<div class="modal-overlay" id="modal-nova-retirada" style="display:none" onclick="if(event.target===this)closeNovaRetiradaModal()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 class="modal-title" id="nr-title">Nova Retirada — Passo 1 de 3</h3>
+      <button class="modal-close" onclick="closeNovaRetiradaModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="nr-body"></div>
+    <div class="modal-footer" id="nr-footer"></div>
   </div>
 </div>
 </body>
