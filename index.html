@@ -3110,27 +3110,31 @@ async function verificarAtrasosCautela() {
   );
 
   for (const c of atrasadas) {
-    const horas = Math.floor((now - new Date(c.dataRetirada)) / 3_600_000);
-    const { data } = await _sb
-      .from('cautelas')
-      .update({ alerta_enviado: true })
-      .eq('id', c.id)
-      .eq('alerta_enviado', false)
-      .select('id');
-    if (data && data.length > 0) {
-      const col = getColaboradores().find(col => col.id === c.colaboradorId);
-      const cpfHash = col ? await hashCPF(col.cpf) : '';
-      dispararWebhook({
-        evento: 'cautela_atraso',
-        colaborador: c.colaboradorNome, cpf_hash: cpfHash,
-        ferramenta: c.ferramentaNome, codigo: c.ferramentaCodigo || null,
-        setor: c.setor, quantidade: c.quantidade, horas_em_aberto: horas,
-        data_retirada: c.dataRetirada
-      });
+    try {
+      const horas = Math.floor((now - new Date(c.dataRetirada)) / 3_600_000);
+      const { data } = await _sb
+        .from('cautelas')
+        .update({ alerta_enviado: true })
+        .eq('id', c.id)
+        .eq('alerta_enviado', false)
+        .select('id');
+      if (data && data.length > 0) {
+        const col = getColaboradores().find(col => col.id === c.colaboradorId);
+        const cpfHash = col?.cpf ? await hashCPF(col.cpf) : '';
+        dispararWebhook({
+          evento: 'cautela_atraso',
+          colaborador: c.colaboradorNome, cpf_hash: cpfHash,
+          ferramenta: c.ferramentaNome, codigo: c.ferramentaCodigo || null,
+          setor: c.setor, quantidade: c.quantidade, horas_em_aberto: horas,
+          data_retirada: c.dataRetirada
+        });
+      }
+    } catch (err) {
+      console.warn('verificarAtrasosCautela: falha em cautela', c.id, err);
     }
   }
 
-  await loadAllData();
+  try { await loadAllData(); } catch (err) { console.warn('verificarAtrasosCautela: loadAllData falhou', err); }
   updateTabIndicators();
   renderCautelaPanel();
 }
