@@ -784,6 +784,46 @@ tr:hover td { background: var(--gray-50); }
 .tab-dot.visible { display:block; }
 .bottom-nav-btn .tab-dot { top:5px; right:calc(50% - 16px); box-shadow:0 0 0 2px var(--white); }
 [data-theme="dark"] .tab-dot { box-shadow:0 0 0 2px #0f172a; }
+
+/* === CAUTELA === */
+.cautela-subnav { display:flex; gap:0.5rem; margin-bottom:1rem; border-bottom:2px solid var(--gray-200); padding-bottom:0; }
+.cautela-subnav-btn { padding:0.6rem 1rem; border:none; background:none; cursor:pointer; font-size:0.875rem; font-weight:600; color:var(--gray-600); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color 0.15s; }
+.cautela-subnav-btn.active { color:var(--orange); border-bottom-color:var(--orange); }
+.cautela-subnav-btn:hover { color:var(--orange); }
+
+.cautela-banner { background:var(--red); color:#fff; border-radius:var(--radius); padding:0.75rem 1rem; margin-bottom:1rem; font-weight:600; display:none; }
+.cautela-banner.visible { display:block; }
+
+.cautela-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:0.75rem; margin-bottom:1rem; }
+@media(max-width:600px) { .cautela-cards { grid-template-columns:1fr 1fr; } }
+.cautela-card { background:var(--white); border-radius:var(--radius); padding:1rem; box-shadow:var(--shadow); }
+.cautela-card-label { font-size:0.75rem; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.05em; }
+.cautela-card-val { font-size:1.75rem; font-weight:700; margin-top:0.25rem; }
+
+.cautela-open-list { display:flex; flex-direction:column; gap:0.5rem; }
+.cautela-item { background:var(--white); border-radius:var(--radius); padding:0.875rem 1rem; box-shadow:var(--shadow); border-left:4px solid var(--gray-200); }
+.cautela-item.overdue { border-left-color:var(--red); background:var(--red-50); }
+.cautela-item-header { display:flex; justify-content:space-between; align-items:flex-start; }
+.cautela-item-name { font-weight:600; }
+.cautela-item-time { font-size:0.75rem; color:var(--gray-600); }
+.cautela-item.overdue .cautela-item-time { color:var(--red); font-weight:600; }
+.cautela-item-meta { font-size:0.8rem; color:var(--gray-600); margin-top:0.25rem; }
+
+.ferramentas-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+.ferramentas-table th { text-align:left; padding:0.5rem 0.75rem; background:var(--gray-100); color:var(--gray-600); font-weight:600; border-bottom:1px solid var(--gray-200); }
+.ferramentas-table td { padding:0.5rem 0.75rem; border-bottom:1px solid var(--gray-200); }
+.ferramentas-table tbody tr:hover { background:var(--gray-100); }
+.disp-badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:99px; font-size:0.75rem; font-weight:600; }
+.disp-ok { background:#dcfce7; color:var(--green); }
+.disp-zero { background:var(--red-50); color:var(--red); }
+
+.colab-list { display:flex; flex-direction:column; gap:0.5rem; }
+.colab-item { background:var(--white); border-radius:var(--radius); padding:0.75rem 1rem; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; }
+.colab-item-info { flex:1; }
+.colab-item-nome { font-weight:600; }
+.colab-item-cpf { font-size:0.8rem; color:var(--gray-600); }
+.colab-item-setor { font-size:0.8rem; color:var(--gray-600); }
+.colab-actions { display:flex; gap:0.5rem; }
   </style>
 </head>
 <body>
