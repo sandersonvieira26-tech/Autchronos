@@ -1185,6 +1185,25 @@ const _sb = window.supabase.createClient(
   { auth: { persistSession: true, autoRefreshToken: true } }
 );
 
+// === CAUTELA CRYPTO ===
+async function hashCPF(cpf) {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(cpf));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function derivarHash(senha, salt) {
+  const enc = new TextEncoder();
+  const keyMat = await crypto.subtle.importKey(
+    'raw', enc.encode(senha), 'PBKDF2', false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    keyMat, 256
+  );
+  return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
 // === WEBHOOK ===
 const WEBHOOK_URL = 'https://webhook01.autchronos.site/webhook/1e8dfa5e-e446-4828-9532-570f9a11ff81';
 async function dispararWebhook(payload) {
