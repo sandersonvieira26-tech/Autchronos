@@ -1846,6 +1846,10 @@ function renderDashboard(session) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
         Movimentações
       </button>
+      <button class="desktop-tab-btn" id="dtab-cautela" onclick="setMobileTab('cautela')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Cautela<span class="tab-dot" id="dot-dtab-cautela"></span>
+      </button>
     </nav>
     <div class="dashboard-body">
 
@@ -2025,6 +2029,11 @@ function renderDashboard(session) {
           <div id="mov-pagination" class="pagination"></div>
         </div>
       </div>
+
+      <!-- Seção: Cautela -->
+      <div class="mobile-section" id="section-cautela">
+        <!-- populated by renderCautela() -->
+      </div>
     </div>
 
     <!-- Bottom Nav (mobile) -->
@@ -2057,6 +2066,11 @@ function renderDashboard(session) {
           <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
         </svg>
         <span>Calibração</span>
+      </button>
+      <button class="bottom-nav-btn" id="tab-cautela" onclick="setMobileTab('cautela')">
+        <span class="tab-dot" id="dot-tab-cautela"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Cautela</span>
       </button>
     </nav>
 
@@ -4620,11 +4634,19 @@ let currentMobileTab = 'materiais';
 
 function setMobileTab(tab) {
   currentMobileTab = tab;
-  ['materiais', 'alertas', 'movimentacoes', 'calibracoes'].forEach(t => {
+  ['materiais', 'alertas', 'movimentacoes', 'calibracoes', 'cautela'].forEach(t => {
     document.getElementById('section-' + t)?.classList.toggle('active', t === tab);
     document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
     document.getElementById('dtab-' + t)?.classList.toggle('active', t === tab);
   });
+  if (tab === 'cautela') {
+    if (!_cautelaAlertInterval && typeof verificarAtrasosCautela === 'function') {
+      verificarAtrasosCautela();
+      _cautelaAlertInterval = setInterval(verificarAtrasosCautela, 30 * 60 * 1000);
+    }
+  } else {
+    if (_cautelaAlertInterval) { clearInterval(_cautelaAlertInterval); _cautelaAlertInterval = null; }
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
   closeFab();
 }
