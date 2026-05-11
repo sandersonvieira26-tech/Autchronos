@@ -2925,7 +2925,171 @@ async function nrConfirmar() {
     if (b) { b.disabled = false; b.textContent = 'Confirmar Retirada'; }
   }
 }
-function openDevolucaoModal() { /* stub — Task 10 */ }
+let _devCautelas = [];
+let _devColaborador = null;
+let _devStep = 1;
+let _devCautelaId = null;
+
+function openDevolucaoModal() {
+  if (!guardAdmin()) return;
+  _devCautelas = [];
+  _devColaborador = null;
+  _devStep = 1;
+  _devCautelaId = null;
+  document.getElementById('modal-devolucao').style.display = 'flex';
+  renderDevStep();
+}
+function closeDevolucaoModal() {
+  document.getElementById('modal-devolucao').style.display = 'none';
+}
+
+function renderDevStep() {
+  const body = document.getElementById('dev-body');
+  const footer = document.getElementById('dev-footer');
+  document.getElementById('dev-title').textContent = `Registrar Devolução — Passo ${_devStep} de 2`;
+
+  if (_devStep === 1) {
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <label>CPF ou nome do colaborador
+          <input class="form-input" id="dev-busca" type="text" placeholder="Digite CPF completo ou nome">
+        </label>
+        <div id="dev-cautelas-list"></div>
+        <div id="dev-step1-err" style="font-size:0.875rem;color:var(--red)"></div>
+      </div>`;
+    footer.innerHTML = `
+      <button class="btn btn-secondary" onclick="closeDevolucaoModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="devBuscar()">Buscar</button>`;
+    document.getElementById('dev-busca').addEventListener('keydown', e => { if(e.key==='Enter') devBuscar(); });
+
+  } else if (_devStep === 2) {
+    const now = new Date();
+    const cautela = _devCautelas.find(c => c.id === _devCautelaId);
+    if (!cautela) { closeDevolucaoModal(); return; }
+    const diff = now - new Date(cautela.dataRetirada);
+    const horas = Math.floor(diff / 3_600_000);
+    const mins  = Math.floor((diff % 3_600_000) / 60000);
+    const overdue = diff > 24 * 60 * 60 * 1000;
+
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <div class="cautela-item${overdue?' overdue':''}" style="margin-bottom:0.5rem">
+          <div class="cautela-item-header">
+            <span class="cautela-item-name">${esc(cautela.ferramentaNome)}</span>
+            <span class="cautela-item-time">${horas}h ${mins}min em aberto</span>
+          </div>
+          <div class="cautela-item-meta">
+            ${cautela.ferramentaCodigo?esc(cautela.ferramentaCodigo)+' · ':''}Qtd: ${cautela.quantidade} · Setor: ${esc(cautela.setor)}
+          </div>
+        </div>
+        <label>Condição de devolução *
+          <select class="form-input" id="dev-condicao">
+            <option value="Boa">Boa</option>
+            <option value="Com defeito">Com defeito</option>
+            <option value="Danificada">Danificada</option>
+          </select>
+        </label>
+        <label>Senha de retirada *
+          <input class="form-input" id="dev-senha" type="password" placeholder="Sua senha">
+        </label>
+        <div id="dev-step2-err" style="font-size:0.875rem;color:var(--red)"></div>
+      </div>`;
+    footer.innerHTML = `
+      <button class="btn btn-secondary" onclick="_devStep=1;renderDevStep()">Voltar</button>
+      <button class="btn btn-primary" id="dev-confirmar-btn" onclick="devConfirmar()">Confirmar Devolução</button>`;
+  }
+}
+
+function devBuscar() {
+  const q = document.getElementById('dev-busca').value.trim();
+  const errEl = document.getElementById('dev-step1-err');
+  const listEl = document.getElementById('dev-cautelas-list');
+  const lower = q.toLowerCase();
+  const col = getColaboradores().find(c =>
+    c.cpf === q.replace(/\D/g,'') || c.nome.toLowerCase() === lower
+  );
+  if (!col) { errEl.textContent = 'Colaborador não cadastrado.'; listEl.innerHTML = ''; return; }
+  _devColaborador = { ...col };
+  _devCautelas = getCautelas().filter(c => c.colaboradorId === col.id && !c.dataDevolucao);
+  if (_devCautelas.length === 0) {
+    errEl.textContent = ''; listEl.innerHTML = '';
+    showToast('Nenhuma cautela em aberto para este colaborador.'); return;
+  }
+  if (_devCautelas.length === 1) {
+    _devCautelaId = _devCautelas[0].id;
+    _devStep = 2; renderDevStep(); return;
+  }
+  errEl.textContent = '';
+  const now = new Date();
+  listEl.innerHTML = `<div style="font-size:0.875rem;margin-bottom:0.25rem">Selecione a cautela:</div>` +
+    _devCautelas.map(c => {
+      const h = Math.floor((now - new Date(c.dataRetirada)) / 3_600_000);
+      return `<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+        <input type="radio" name="dev-caute" value="${c.id}" ${_devCautelaId===c.id?'checked':''}>
+        <span>${esc(c.ferramentaNome)} — ${h}h em aberto</span>
+      </label>`;
+    }).join('') +
+    `<button class="btn btn-primary btn-sm" style="width:auto;margin-top:0.5rem" onclick="devSelecionarCautela()">Próximo</button>`;
+}
+
+function devSelecionarCautela() {
+  const sel = document.querySelector('input[name="dev-caute"]:checked');
+  if (!sel) { showToast('Selecione uma cautela.', 'error'); return; }
+  _devCautelaId = sel.value;
+  _devStep = 2; renderDevStep();
+}
+
+async function devConfirmar() {
+  const btn = document.getElementById('dev-confirmar-btn');
+  const errEl = document.getElementById('dev-step2-err');
+  const condicao = document.getElementById('dev-condicao').value;
+  const senha = document.getElementById('dev-senha').value;
+  if (!senha) { errEl.textContent = 'Informe a senha.'; return; }
+
+  btn.disabled = true; btn.textContent = 'Aguarde...';
+
+  try {
+    const { data: salt, error: saltErr } = await _sb.rpc('buscar_salt_colaborador', { p_id: _devColaborador.id });
+    if (saltErr) { errEl.textContent = 'Erro ao carregar. Tente novamente.'; return; }
+    if (!salt) { errEl.textContent = 'Colaborador sem senha definida. Realize uma nova retirada primeiro.'; return; }
+    const hash = await derivarHash(senha, salt);
+    const { data: ok } = await _sb.rpc('verificar_senha_colaborador', { p_id: _devColaborador.id, p_hash: hash });
+    if (!ok) { errEl.textContent = 'Senha incorreta.'; return; }
+
+    const { error: dErr } = await _sb.rpc('registrar_devolucao', { p_cautela_id: _devCautelaId, p_condicao: condicao });
+    if (dErr) {
+      const msgs = {
+        cautela_nao_encontrada: 'Cautela não encontrada ou já devolvida.',
+        condicao_invalida: 'Condição de devolução inválida.',
+      };
+      errEl.textContent = msgs[dErr.message] || 'Erro inesperado. Tente novamente.';
+      return;
+    }
+
+    await loadAllData();
+    const cautelaFinal = getCautelas().find(c => c.id === _devCautelaId);
+    const cpfHash = await hashCPF(_devColaborador.cpf);
+    const horas = cautelaFinal
+      ? Math.floor((new Date(cautelaFinal.dataDevolucao) - new Date(cautelaFinal.dataRetirada)) / 3_600_000)
+      : 0;
+
+    dispararWebhook({
+      evento: 'cautela_devolvida',
+      colaborador: _devColaborador.nome, cpf_hash: cpfHash,
+      ferramenta: cautelaFinal?.ferramentaNome || '', codigo: cautelaFinal?.ferramentaCodigo || null,
+      condicao_devolucao: condicao, quantidade: cautelaFinal?.quantidade || 1,
+      horas_em_posse: horas,
+      data_retirada: cautelaFinal?.dataRetirada || null,
+      data_devolucao: cautelaFinal?.dataDevolucao || null
+    });
+
+    closeDevolucaoModal();
+    refreshAllSections();
+    showToast('Devolução registrada!');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar Devolução'; }
+  }
+}
 
 function renderCards() {
   const materiais = getMateriais();
@@ -5454,6 +5618,18 @@ window.addEventListener('DOMContentLoaded', async () => {
     </div>
     <div class="modal-body" id="nr-body"></div>
     <div class="modal-footer" id="nr-footer"></div>
+  </div>
+</div>
+
+<!-- Modal: Registrar Devolução -->
+<div class="modal-overlay" id="modal-devolucao" style="display:none" onclick="if(event.target===this)closeDevolucaoModal()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 class="modal-title" id="dev-title">Registrar Devolução</h3>
+      <button class="modal-close" onclick="closeDevolucaoModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="dev-body"></div>
+    <div class="modal-footer" id="dev-footer"></div>
   </div>
 </div>
 </body>
