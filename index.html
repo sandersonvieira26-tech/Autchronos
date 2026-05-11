@@ -2430,7 +2430,102 @@ function renderCautelaPanel() {
 
 function renderFerramentasTab() {
   const el = document.getElementById('cautela-sub-content');
-  if (el) el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray-600)">Ferramentas — em breve</div>';
+  if (!el) return;
+  const isAdmin = !!(currentSession && currentSession.papel === 'admin');
+  const addBtn = isAdmin
+    ? `<button class="btn btn-primary btn-sm" style="width:auto" onclick="openFerramentaModal()">+ Nova Ferramenta</button>`
+    : '';
+
+  el.innerHTML = `
+    <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+      <input class="search-input" id="ferramentas-search" type="text" placeholder="Buscar por nome ou código..."
+        oninput="renderFerramentasFiltered(this.value)" style="flex:1">
+      ${addBtn}
+    </div>
+    <div class="table-wrapper">
+      <table class="ferramentas-table">
+        <thead><tr><th>Nome</th><th>Código</th><th>Categoria</th><th>Disponível</th>${isAdmin?'<th></th>':''}</tr></thead>
+        <tbody id="ferramentas-tbody"></tbody>
+      </table>
+    </div>`;
+  renderFerramentasFiltered('');
+}
+
+function renderFerramentasFiltered(q) {
+  const tbody = document.getElementById('ferramentas-tbody');
+  if (!tbody) return;
+  const isAdmin = !!(currentSession && currentSession.papel === 'admin');
+  const lower = q.toLowerCase();
+  const list = getFerramentasCautela().filter(f =>
+    !lower || f.nome.toLowerCase().includes(lower) || f.codigo.toLowerCase().includes(lower)
+  );
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${isAdmin?5:4}" style="text-align:center;color:var(--gray-600);padding:1.5rem">Nenhuma ferramenta encontrada.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(f => {
+    const disp = f.quantidadeDisponivel;
+    const total = f.quantidadeTotal;
+    const cls = disp === 0 ? 'disp-zero' : 'disp-ok';
+    const adminCell = isAdmin
+      ? `<td><button class="btn btn-secondary btn-sm" onclick="excluirFerramenta('${f.id}','${esc(f.nome)}')">Excluir</button></td>`
+      : '';
+    return `<tr>
+      <td>${esc(f.nome)}</td>
+      <td>${esc(f.codigo)||'—'}</td>
+      <td>${esc(f.categoria)}</td>
+      <td><span class="disp-badge ${cls}">${disp}/${total}</span></td>
+      ${adminCell}
+    </tr>`;
+  }).join('');
+}
+
+function openFerramentaModal() {
+  if (!guardAdmin()) return;
+  document.getElementById('modal-ferramenta-cautela').style.display = 'flex';
+  document.getElementById('fc-nome').value = '';
+  document.getElementById('fc-codigo').value = '';
+  document.getElementById('fc-categoria').value = '';
+  document.getElementById('fc-quantidade').value = '1';
+}
+
+function closeFerramentaModal() {
+  document.getElementById('modal-ferramenta-cautela').style.display = 'none';
+}
+
+async function salvarFerramenta() {
+  const nome = document.getElementById('fc-nome').value.trim();
+  const codigo = document.getElementById('fc-codigo').value.trim();
+  const categoria = document.getElementById('fc-categoria').value.trim();
+  const qtd = parseInt(document.getElementById('fc-quantidade').value, 10);
+  if (!nome || !categoria || isNaN(qtd) || qtd < 1) {
+    showToast('Preencha nome, categoria e quantidade.', 'error'); return;
+  }
+  const { error } = await _sb.from('ferramentas_cautela').insert({
+    nome, codigo: codigo || null, categoria,
+    quantidade_total: qtd, quantidade_disponivel: qtd
+  });
+  if (error) { showToast('Erro ao salvar ferramenta.', 'error'); return; }
+  closeFerramentaModal();
+  await loadAllData();
+  refreshAllSections();
+  showToast('Ferramenta cadastrada!');
+}
+
+async function excluirFerramenta(id, nome) {
+  if (!guardAdmin()) return;
+  if (!confirm(`Excluir "${nome}"? Não é possível excluir se houver cautelas em aberto.`)) return;
+  const { error } = await _sb.from('ferramentas_cautela').delete().eq('id', id);
+  if (error) {
+    if (error.message.includes('violates foreign key')) {
+      showToast('Esta ferramenta possui cautela em aberto e não pode ser excluída.', 'error');
+    } else {
+      showToast('Erro ao excluir.', 'error');
+    }
+    return;
+  }
+  await loadAllData(); refreshAllSections();
+  showToast('Ferramenta excluída.');
 }
 function renderColaboradoresTab() {
   const el = document.getElementById('cautela-sub-content');
@@ -4908,5 +5003,33 @@ window.addEventListener('DOMContentLoaded', async () => {
     <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
     <div class="loading-label">Carregando...</div>
   </div>
+
+<!-- Modal: Nova Ferramenta Cautela -->
+<div class="modal-overlay" id="modal-ferramenta-cautela" style="display:none" onclick="if(event.target===this)closeFerramentaModal()">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3 class="modal-title">Nova Ferramenta</h3>
+      <button class="modal-close" onclick="closeFerramentaModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:0.75rem">
+      <label>Nome *
+        <input class="form-input" id="fc-nome" type="text" placeholder="Ex: Multímetro Fluke">
+      </label>
+      <label>Código / Patrimônio
+        <input class="form-input" id="fc-codigo" type="text" placeholder="Ex: PAT-001">
+      </label>
+      <label>Categoria *
+        <input class="form-input" id="fc-categoria" type="text" placeholder="Ex: Medição">
+      </label>
+      <label>Quantidade total *
+        <input class="form-input" id="fc-quantidade" type="number" min="1" value="1">
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeFerramentaModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarFerramenta()">Salvar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
