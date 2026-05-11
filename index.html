@@ -2358,6 +2358,10 @@ function renderCautela() {
 
 function setCautelaTab(tab) {
   _cautelaSubTab = tab;
+  document.querySelectorAll('.cautela-subnav-btn').forEach(btn => {
+    const btnTab = btn.getAttribute('onclick')?.match(/setCautelaTab\('(\w+)'\)/)?.[1];
+    btn.classList.toggle('active', btnTab === tab);
+  });
   renderCautelaSubTab();
 }
 
@@ -3044,7 +3048,7 @@ function devBuscar() {
 function devSelecionarCautela() {
   const sel = document.querySelector('input[name="dev-caute"]:checked');
   if (!sel) { showToast('Selecione uma cautela.', 'error'); return; }
-  _devCautelaId = Number(sel.value);
+  _devCautelaId = sel.value;
   _devStep = 2; renderDevStep();
 }
 
