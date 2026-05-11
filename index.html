@@ -2808,7 +2808,7 @@ function nrBuscarColaborador() {
     c.nome.toLowerCase() === lower
   );
   if (!col) { if (errEl) errEl.textContent = 'Colaborador não cadastrado.'; return; }
-  _nrColaborador = col;
+  _nrColaborador = { ...col };
   _nrStep = 2;
   renderNrStep();
 }
@@ -2832,7 +2832,11 @@ function nrValidarStep2() {
 async function nrCarregarSenhaFields() {
   const container = document.getElementById('nr-senha-fields');
   if (!container) return;
-  const { data: salt } = await _sb.rpc('buscar_salt_colaborador', { p_id: _nrColaborador.id });
+  const { data: salt, error: saltErr } = await _sb.rpc('buscar_salt_colaborador', { p_id: _nrColaborador.id });
+  if (saltErr) {
+    container.innerHTML = '<p style="color:var(--red)">Erro ao carregar. Tente novamente.</p>';
+    return;
+  }
   _nrColaborador._salt = salt || null;
   if (!salt) {
     container.innerHTML = `
