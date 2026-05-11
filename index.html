@@ -2527,9 +2527,169 @@ async function excluirFerramenta(id, nome) {
   await loadAllData(); refreshAllSections();
   showToast('Ferramenta excluída.');
 }
+function mascaraCPF(cpf) {
+  return cpf ? '***.***.***-' + String(cpf).slice(-2) : '—';
+}
+
 function renderColaboradoresTab() {
   const el = document.getElementById('cautela-sub-content');
-  if (el) el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray-600)">Colaboradores — em breve</div>';
+  if (!el) return;
+  const isAdmin = !!(currentSession && currentSession.papel === 'admin');
+  const importBtn = isAdmin
+    ? `<button class="btn btn-secondary btn-sm" style="width:auto" onclick="openImportColaboradoresModal()">&#8593; Importar CSV/XLSX</button>`
+    : '';
+
+  el.innerHTML = `
+    <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+      <input class="search-input" id="colab-search" type="text" placeholder="Buscar por nome ou CPF..."
+        oninput="renderColaboradoresFiltered(this.value)" style="flex:1">
+      ${importBtn}
+    </div>
+    <div class="colab-list" id="colab-list-container"></div>`;
+  renderColaboradoresFiltered('');
+}
+
+function renderColaboradoresFiltered(q) {
+  const container = document.getElementById('colab-list-container');
+  if (!container) return;
+  const isAdmin = !!(currentSession && currentSession.papel === 'admin');
+  const lower = q.toLowerCase();
+  const list = getColaboradores().filter(c =>
+    !lower ||
+    c.nome.toLowerCase().includes(lower) ||
+    c.cpf.includes(lower)
+  );
+  if (list.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--gray-600);padding:2rem">Nenhum colaborador encontrado.</div>';
+    return;
+  }
+  container.innerHTML = list.map(c => {
+    const resetBtn = isAdmin
+      ? `<button class="btn btn-secondary btn-sm" onclick="resetarAssinaturaColaborador('${c.id}','${esc(c.nome)}')">Redefinir assinatura</button>`
+      : '';
+    const excluirBtn = isAdmin
+      ? `<button class="btn btn-secondary btn-sm" onclick="excluirColaborador('${c.id}','${esc(c.nome)}')">Excluir</button>`
+      : '';
+    return `<div class="colab-item">
+      <div class="colab-item-info">
+        <div class="colab-item-nome">${esc(c.nome)}</div>
+        <div class="colab-item-cpf">CPF: ${mascaraCPF(c.cpf)}${c.setor?' · '+esc(c.setor):''}</div>
+      </div>
+      <div class="colab-actions">${resetBtn}${excluirBtn}</div>
+    </div>`;
+  }).join('');
+}
+
+async function resetarAssinaturaColaborador(id, nome) {
+  if (!guardAdmin()) return;
+  if (!confirm(`Redefinir assinatura de "${nome}"? Ele criará nova senha na próxima retirada.`)) return;
+  const { error } = await _sb.rpc('resetar_senha_colaborador', { p_id: id });
+  if (error) {
+    const msg = error.message.includes('colaborador_nao_encontrado')
+      ? 'Colaborador não encontrado.' : 'Erro ao redefinir assinatura.';
+    showToast(msg, 'error'); return;
+  }
+  showToast('Assinatura redefinida. O colaborador criará nova senha na próxima retirada.');
+}
+
+async function excluirColaborador(id, nome) {
+  if (!guardAdmin()) return;
+  if (!confirm(`Excluir colaborador "${nome}"?`)) return;
+  const { error } = await _sb.from('colaboradores').delete().eq('id', id);
+  if (error) {
+    if (error.message.includes('violates foreign key')) {
+      showToast('Este colaborador possui cautela em aberto e não pode ser excluído.', 'error');
+    } else {
+      showToast('Erro ao excluir.', 'error');
+    }
+    return;
+  }
+  await loadAllData(); refreshAllSections();
+  showToast('Colaborador excluído.');
+}
+
+let _xlsxLoaded = false;
+async function carregarSheetJS() {
+  if (_xlsxLoaded || window.XLSX) { _xlsxLoaded = true; return true; }
+  return new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => { _xlsxLoaded = true; resolve(true); };
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+function openImportColaboradoresModal() {
+  if (!guardAdmin()) return;
+  document.getElementById('modal-import-colab').style.display = 'flex';
+  document.getElementById('import-colab-file').value = '';
+  document.getElementById('import-colab-status').textContent = '';
+}
+
+function closeImportColaboradoresModal() {
+  document.getElementById('modal-import-colab').style.display = 'none';
+}
+
+async function processarImportColaboradores() {
+  const fileInput = document.getElementById('import-colab-file');
+  const statusEl = document.getElementById('import-colab-status');
+  const file = fileInput.files[0];
+  if (!file) { showToast('Selecione um arquivo.', 'error'); return; }
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  let rows = [];
+
+  if (ext === 'csv') {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,'').toLowerCase());
+    const iNome = header.indexOf('nome');
+    const iCpf  = header.indexOf('cpf');
+    const iSetor = header.indexOf('setor');
+    if (iNome < 0 || iCpf < 0) {
+      showToast('CSV deve ter colunas "nome" e "cpf".', 'error'); return;
+    }
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
+      if (!cols[iNome] || !cols[iCpf]) continue;
+      rows.push({ nome: cols[iNome], cpf: cols[iCpf].replace(/\D/g,''), setor: iSetor >= 0 ? cols[iSetor] || null : null });
+    }
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    statusEl.textContent = 'Carregando parser...';
+    const ok = await carregarSheetJS();
+    if (!ok) { showToast('Não foi possível carregar o parser. Tente importar como CSV.', 'error'); return; }
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    for (const row of data) {
+      const nome = (row['nome'] || row['Nome'] || '').toString().trim();
+      const cpf  = (row['cpf']  || row['CPF']  || '').toString().replace(/\D/g,'');
+      const setor = (row['setor'] || row['Setor'] || '').toString().trim() || null;
+      if (!nome || !cpf) continue;
+      rows.push({ nome, cpf, setor });
+    }
+  } else {
+    showToast('Formato não suportado. Use CSV ou XLSX.', 'error'); return;
+  }
+
+  if (rows.length === 0) { showToast('Nenhum dado encontrado no arquivo.', 'error'); return; }
+
+  statusEl.textContent = `Importando ${rows.length} registros...`;
+  const cpfsExistentes = new Set(getColaboradores().map(c => c.cpf));
+  const novos = rows.filter(r => !cpfsExistentes.has(r.cpf));
+  const ignorados = rows.length - novos.length;
+
+  let importados = 0;
+  for (const r of novos) {
+    const { error } = await _sb.from('colaboradores').insert({ nome: r.nome, cpf: r.cpf, setor: r.setor });
+    if (!error) importados++;
+  }
+
+  closeImportColaboradoresModal();
+  await loadAllData(); refreshAllSections();
+  showToast(`${importados} importado${importados!==1?'s':''}, ${ignorados} ignorado${ignorados!==1?'s':''} (já existiam).`);
 }
 
 function openNovaRetiradaModal() { /* stub — Task 9 */ }
@@ -5028,6 +5188,27 @@ window.addEventListener('DOMContentLoaded', async () => {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeFerramentaModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarFerramenta()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Importar Colaboradores -->
+<div class="modal-overlay" id="modal-import-colab" style="display:none" onclick="if(event.target===this)closeImportColaboradoresModal()">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3 class="modal-title">Importar Colaboradores</h3>
+      <button class="modal-close" onclick="closeImportColaboradoresModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:0.75rem">
+      <p style="font-size:0.875rem;color:var(--gray-600)">Colunas obrigatórias: <strong>nome</strong>, <strong>cpf</strong>. Opcional: <strong>setor</strong>. CPFs já cadastrados são ignorados.</p>
+      <label>Arquivo CSV ou XLSX
+        <input class="form-input" id="import-colab-file" type="file" accept=".csv,.xlsx,.xls">
+      </label>
+      <div id="import-colab-status" style="font-size:0.875rem;color:var(--gray-600)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeImportColaboradoresModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="processarImportColaboradores()">Importar</button>
     </div>
   </div>
 </div>
