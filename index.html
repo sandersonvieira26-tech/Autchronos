@@ -1260,53 +1260,6 @@ async function dispararWebhook(payload) {
   }
 }
 
-async function sincronizarWebhook() {
-  if (!guardAdmin()) return;
-  if (!confirm('Isso enviará todos os materiais, equipamentos e usuários atuais para o webhook. Continuar?')) return;
-
-  const materiais    = getMateriais();
-  const equipamentos = getEquipamentos();
-  const usuarios     = getUsuarios();
-  const total = materiais.length + equipamentos.length + usuarios.length;
-
-  showToast(`Sincronizando ${total} registros...`);
-
-  for (const m of materiais) {
-    await dispararWebhook({
-      evento: 'material_sincronizado',
-      nome: m.nome, categoria: m.categoria,
-      quantidade: m.quantidade, unidade: m.unidade,
-      estoque_minimo: m.estoqueMinimo,
-      valor_unitario: m.valorUnitario,
-      localizacao: m.localizacao || null,
-      data: new Date().toISOString()
-    });
-  }
-
-  for (const e of equipamentos) {
-    await dispararWebhook({
-      evento: 'equipamento_sincronizado',
-      equipamento: e.nome,
-      identificacao: e.identificacao || null,
-      categoria: e.categoria || null,
-      responsavel: e.responsavel || null,
-      data_ultima_calibracao: e.dataUltimaCalibracao || null,
-      data_proxima_calibracao: e.dataProximaCalibracao || null,
-      em_calibracao: e.emCalibracao,
-      data: new Date().toISOString()
-    });
-  }
-
-  for (const u of usuarios) {
-    await dispararWebhook({
-      evento: 'usuario_sincronizado',
-      nome: u.nomeCompleto,
-      data: new Date().toISOString()
-    });
-  }
-
-  showToast(`${total} registros sincronizados com sucesso!`);
-}
 
 // === IN-MEMORY CACHE ===
 let _materiais = [], _categorias = [], _movimentacoes = [], _profiles = [], _equipamentos = [];
@@ -1873,7 +1826,6 @@ function renderDashboard(session) {
           <button class="btn-logout" onclick="openUsuariosModal();closeAdminMenu()">Usuários</button>
           <button class="btn-logout" onclick="exportBackup();closeAdminMenu()">Backup</button>
           <label class="btn-logout" style="cursor:pointer">Restaurar<input type="file" accept=".json" style="display:none" onchange="importBackup(this)"></label>
-          <button class="btn-logout" onclick="sincronizarWebhook();closeAdminMenu()">Sincronizar Webhook</button>
         </div>
         <button class="btn-logout btn-admin-toggle" id="btn-admin-toggle" onclick="toggleAdminMenu()" title="Opções admin">⋮</button>
         ` : ''}
@@ -2216,7 +2168,7 @@ async function uploadCertificado(equipamentoId, file) {
   if (file.size > 5 * 1024 * 1024) { alert('Arquivo muito grande. Máximo permitido: 5 MB.'); return null; }
   const ext = file.name.split('.').pop().toLowerCase();
   const path = `${equipamentoId}/${Date.now()}.${ext}`;
-  const { error } = await _sb.storage.from('certificados').upload(path, file, { upsert: true });
+  const { error } = await _sb.storage.from('certificados').upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' });
   if (error) { alert('Erro ao enviar arquivo: ' + error.message); return null; }
   return path;
 }
@@ -4369,7 +4321,7 @@ async function deleteUser(id) {
     'Excluir usuário',
     `Tem certeza que deseja excluir <span class="confirm-del-name">${esc(user.nomeCompleto)}</span>? O acesso ao sistema será bloqueado imediatamente.`,
     async () => {
-      const { error } = await _sb.from('profiles').delete().eq('id', id);
+      const { error } = await _sb.rpc('admin_delete_user', { target_user_id: id });
       if (error) { alert('Erro ao excluir usuário: ' + error.message); return; }
       await loadAllData();
       renderUserList();
