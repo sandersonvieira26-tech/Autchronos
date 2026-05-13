@@ -1,16 +1,20 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const BASE = 'C:/Users/sande/Documents/meu-projeto';
+const BASE = __dirname;
+const PORT = process.env.PORT || 8989;
+const HOST = process.env.HOST || '127.0.0.1';
 http.createServer((req, res) => {
-  const file = req.url === '/' ? '/index.html' : req.url;
+  // Bloqueia path traversal (../../etc)
+  const rel = path.normalize(req.url === '/' ? '/index.html' : req.url);
+  if (rel.includes('..')) { res.writeHead(403); res.end('Forbidden'); return; }
   try {
-    const data = fs.readFileSync(path.join(BASE, file));
-    const ext = path.extname(file);
-    const ct = {'.html':'text/html','.js':'application/javascript','.css':'text/css','.json':'application/json'}[ext] || 'text/plain';
+    const data = fs.readFileSync(path.join(BASE, rel));
+    const ext = path.extname(rel);
+    const ct = {'.html':'text/html','.js':'application/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.ico':'image/x-icon','.webmanifest':'application/manifest+json'}[ext] || 'text/plain';
     res.writeHead(200, {'Content-Type': ct + ';charset=utf-8'});
     res.end(data);
   } catch {
     res.writeHead(404); res.end('Not found');
   }
-}).listen(8989, '127.0.0.1', () => process.stdout.write('READY\n'));
+}).listen(PORT, HOST, () => process.stdout.write('READY\n'));
