@@ -1,5 +1,5 @@
 // INCREMENT THIS STRING on every new deploy so returning users get fresh cache
-const CACHE = 'autchronos-v6';
+const CACHE = 'autchronos-v7';
 
 const PRECACHE = [
   '/',
