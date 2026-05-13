@@ -1057,7 +1057,7 @@ tr:hover td { background: var(--gray-50); }
   </div>
 
   <!-- Modal: Histórico de Calibração -->
-  <div id="modal-historico-calib" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeHistoricoCalib()">
+  <div id="modal-historico-calib" class="modal-overlay" style="display:none">
     <div class="modal-box" style="max-width:640px">
       <div class="modal-header">
         <h2 id="historico-calib-title">Histórico de Calibração</h2>
@@ -5536,8 +5536,14 @@ async function confirmImportCalib() {
 // === MOBILE TABS & FAB ===
 let currentMobileTab = 'materiais';
 
+const TAB_TITLES = {
+  materiais: 'Materiais', alertas: 'Alertas',
+  movimentacoes: 'Movimentações', calibracoes: 'Calibrações', cautela: 'Cautela'
+};
+
 function setMobileTab(tab) {
   currentMobileTab = tab;
+  document.title = (TAB_TITLES[tab] || tab) + ' — Autchronos';
   ['materiais', 'alertas', 'movimentacoes', 'calibracoes', 'cautela'].forEach(t => {
     document.getElementById('section-' + t)?.classList.toggle('active', t === tab);
     document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
@@ -5564,6 +5570,32 @@ function closeFab() {
   document.getElementById('fab-btn')?.classList.remove('open');
   document.getElementById('fab-menu')?.classList.remove('open');
 }
+
+// Fecha qualquer modal ao clicar no backdrop (exceto confirm-del que exige escolha explícita)
+(function() {
+  const BACKDROP_CLOSE = {
+    'modal-material':           () => closeMaterialModal(),
+    'modal-usuarios':           () => closeUsuariosModal(),
+    'modal-ajuste':             () => closeAjusteModal(),
+    'modal-reposicao':          () => closeReposicaoModal(),
+    'modal-historico':          () => closeHistoricoModal(),
+    'modal-movimento':          () => closeMovimentoModal(),
+    'modal-categorias':         () => closeCategoryModal(),
+    'modal-import-calib':       () => closeImportCalibModal(),
+    'modal-renovar-calib':      () => closeRenovarCalibModal(),
+    'modal-equipamento':        () => closeEquipamentoModal(),
+    'modal-historico-calib':    () => closeHistoricoCalib(),
+    'modal-ferramenta-cautela': () => closeFerramentaModal(),
+    'modal-import-colab':       () => closeImportColaboradoresModal(),
+    'modal-nova-retirada':      () => closeNovaRetiradaModal(),
+    'modal-devolucao':          () => closeDevolucaoModal(),
+  };
+  document.addEventListener('click', e => {
+    if (!e.target.classList.contains('modal-overlay')) return;
+    const fn = BACKDROP_CLOSE[e.target.id];
+    if (fn) fn();
+  });
+})();
 
 function renderMaterialCards(filtered) {
   const container = document.getElementById('materials-cards');
@@ -5667,7 +5699,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   </div>
 
 <!-- Modal: Nova Ferramenta Cautela -->
-<div class="modal-overlay" id="modal-ferramenta-cautela" style="display:none" onclick="if(event.target===this)closeFerramentaModal()">
+<div class="modal-overlay" id="modal-ferramenta-cautela" style="display:none">
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
       <h3 class="modal-title">Nova Ferramenta</h3>
@@ -5695,7 +5727,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 </div>
 
 <!-- Modal: Importar Colaboradores -->
-<div class="modal-overlay" id="modal-import-colab" style="display:none" onclick="if(event.target===this)closeImportColaboradoresModal()">
+<div class="modal-overlay" id="modal-import-colab" style="display:none">
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
       <h3 class="modal-title">Importar Colaboradores</h3>
@@ -5716,7 +5748,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 </div>
 
 <!-- Modal: Nova Retirada -->
-<div class="modal-overlay" id="modal-nova-retirada" style="display:none" onclick="if(event.target===this)closeNovaRetiradaModal()">
+<div class="modal-overlay" id="modal-nova-retirada" style="display:none">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
       <h3 class="modal-title" id="nr-title">Nova Retirada — Passo 1 de 3</h3>
@@ -5728,7 +5760,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 </div>
 
 <!-- Modal: Registrar Devolução -->
-<div class="modal-overlay" id="modal-devolucao" style="display:none" onclick="if(event.target===this)closeDevolucaoModal()">
+<div class="modal-overlay" id="modal-devolucao" style="display:none">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
       <h3 class="modal-title" id="dev-title">Registrar Devolução</h3>
