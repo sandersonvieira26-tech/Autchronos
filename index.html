@@ -1323,21 +1323,29 @@ async function loadAllData() {
   const [mr, cr, movr, pr, er, colr, ferr, cautr] = await Promise.all([
     _sb.from('materiais').select('*').order('id'),
     _sb.from('categorias').select('nome').order('nome'),
-    _sb.from('movimentacoes').select('*').order('data', { ascending: false }),
+    _sb.from('movimentacoes').select('*').order('data', { ascending: false }).limit(2000),
     _sb.from('profiles').select('*').order('nome_completo'),
     _sb.from('equipamentos_calibracao').select('*').order('data_proxima_calibracao'),
     _sb.from('colaboradores').select('id, nome, cpf, setor, created_at').order('nome'),
     _sb.from('ferramentas_cautela').select('*').order('nome'),
     _sb.from('cautelas').select('*').order('data_retirada', { ascending: false })
   ]);
-  _materiais           = (mr.data   || []).map(normMaterial);
-  _categorias          = (cr.data   || []).map(c => c.nome);
-  _movimentacoes       = (movr.data || []).map(normMovimento);
-  _profiles            = (pr.data   || []).map(normProfile);
-  _equipamentos        = (er.data   || []).map(normEquipamento);
-  _colaboradores       = (colr.data || []).map(normColaborador);
-  _ferramentas_cautela = (ferr.data || []).map(normFerramentaCautela);
-  _cautelas            = (cautr.data|| []).map(normCautela);
+
+  const firstErr = [mr, cr, movr, pr, er, colr, ferr, cautr].find(r => r.error);
+  if (firstErr) {
+    console.error('loadAllData:', firstErr.error.message);
+    showToast('Erro ao carregar dados. Verifique sua conexão.', 'error');
+    return;
+  }
+
+  _materiais           = mr.data.map(normMaterial);
+  _categorias          = cr.data.map(c => c.nome);
+  _movimentacoes       = movr.data.map(normMovimento);
+  _profiles            = pr.data.map(normProfile);
+  _equipamentos        = er.data.map(normEquipamento);
+  _colaboradores       = colr.data.map(normColaborador);
+  _ferramentas_cautela = ferr.data.map(normFerramentaCautela);
+  _cautelas            = cautr.data.map(normCautela);
 }
 
 // === SESSION ===
@@ -3345,22 +3353,22 @@ async function saveMovimento() {
   if (btn) { btn.disabled = true; btn.textContent = 'Registrando...'; }
 
   const observacao = (document.getElementById('mov-observacao')?.value || '').trim();
-  const { error: errMov } = await _sb.from('movimentacoes').insert({
-    material_id: material.id, material_nome: material.nome,
-    tipo, quantidade: qtd,
-    registrado_por: currentSession.nomeCompleto,
-    retirado_por: retiradorPor || null,
-    destino: destino || null,
-    observacao: observacao || null
+  const delta = tipo === 'entrada' ? qtd : -qtd;
+  const { data: qtdFinal, error } = await _sb.rpc('registrar_movimentacao', {
+    p_material_id:          material.id,
+    p_delta:                delta,
+    p_tipo:                 tipo,
+    p_quantidade_movimento: qtd,
+    p_registrado_por:       currentSession.nomeCompleto,
+    p_retirado_por:         retiradorPor || null,
+    p_destino:              destino || null,
+    p_observacao:           observacao || null
   });
-  if (errMov) { alert('Erro: ' + errMov.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
-
-  const { error: errUpd } = await _sb.from('materiais').update({ quantidade: novaQtd }).eq('id', material.id);
-  if (errUpd) { alert('Erro ao atualizar estoque: ' + errUpd.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
+  if (error) { alert('Erro: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; } return; }
 
   dispararWebhook({
     evento: 'movimentacao',
-    tipo: tipo,
+    tipo,
     material: material.nome,
     quantidade: qtd,
     unidade: material.unidade,
@@ -3370,25 +3378,13 @@ async function saveMovimento() {
     usuario: currentSession.nomeCompleto,
     data: new Date().toISOString()
   });
-  if (tipo === 'saída') {
-    dispararWebhook({
-      evento: 'saida',
-      material: material.nome,
-      quantidade: qtd,
-      unidade: material.unidade,
-      retirado_por: retiradorPor || null,
-      destino: destino || null,
-      usuario: currentSession.nomeCompleto,
-      data: new Date().toISOString()
-    });
-  }
-  const novoStatusMat = calcStatus(novaQtd, material.estoqueMinimo);
+  const novoStatusMat = calcStatus(qtdFinal, material.estoqueMinimo);
   if (novoStatusMat !== 'OK') {
     dispararWebhook({
       evento: 'estoque_minimo',
       status: novoStatusMat,
       material: material.nome,
-      quantidade: novaQtd,
+      quantidade: qtdFinal,
       estoque_minimo: material.estoqueMinimo,
       unidade: material.unidade,
       usuario: currentSession.nomeCompleto,
@@ -4456,17 +4452,12 @@ async function saveAjuste() {
   const btn = document.querySelector('button[onclick="saveAjuste()"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Aplicando...'; }
 
-  const fmt = n => n % 1 === 0 ? n : n.toFixed(2);
-  const { error: errMov } = await _sb.from('movimentacoes').insert({
-    material_id: material.id, material_nome: material.nome,
-    tipo: 'ajuste', quantidade: qtd,
-    registrado_por: currentSession.nomeCompleto,
-    observacao: `Ajuste: ${fmt(material.quantidade)} → ${fmt(qtd)}`
+  const { error } = await _sb.rpc('registrar_ajuste_estoque', {
+    p_material_id:    material.id,
+    p_nova_qtd:       qtd,
+    p_registrado_por: currentSession.nomeCompleto
   });
-  if (errMov) { alert('Erro: ' + errMov.message); if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; } return; }
-
-  const { error: errUpd } = await _sb.from('materiais').update({ quantidade: qtd }).eq('id', material.id);
-  if (errUpd) { alert('Erro ao atualizar estoque: ' + errUpd.message); if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; } return; }
+  if (error) { alert('Erro: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; } return; }
 
   await loadAllData();
   closeAjusteModal();
