@@ -1331,21 +1331,23 @@ async function loadAllData() {
     _sb.from('cautelas').select('*').order('data_retirada', { ascending: false })
   ]);
 
-  const firstErr = [mr, cr, movr, pr, er, colr, ferr, cautr].find(r => r.error);
-  if (firstErr) {
-    console.error('loadAllData:', firstErr.error.message);
-    showToast('Erro ao carregar dados. Verifique sua conexão.', 'error');
-    return;
+  // Carrega o que conseguir; loga e exibe qual tabela falhou
+  const tableResults = { materiais: mr, categorias: cr, movimentacoes: movr, profiles: pr,
+    equipamentos_calibracao: er, colaboradores: colr, ferramentas_cautela: ferr, cautelas: cautr };
+  const errs = Object.entries(tableResults).filter(([, r]) => r.error);
+  if (errs.length) {
+    errs.forEach(([t, r]) => console.error(`loadAllData [${t}]:`, r.error.message));
+    showToast(`Erro ao carregar: ${errs.map(([t]) => t).join(', ')}`, 'error');
   }
 
-  _materiais           = mr.data.map(normMaterial);
-  _categorias          = cr.data.map(c => c.nome);
-  _movimentacoes       = movr.data.map(normMovimento);
-  _profiles            = pr.data.map(normProfile);
-  _equipamentos        = er.data.map(normEquipamento);
-  _colaboradores       = colr.data.map(normColaborador);
-  _ferramentas_cautela = ferr.data.map(normFerramentaCautela);
-  _cautelas            = cautr.data.map(normCautela);
+  if (!mr.error)   _materiais           = mr.data.map(normMaterial);
+  if (!cr.error)   _categorias          = cr.data.map(c => c.nome);
+  if (!movr.error) _movimentacoes       = movr.data.map(normMovimento);
+  if (!pr.error)   _profiles            = pr.data.map(normProfile);
+  if (!er.error)   _equipamentos        = er.data.map(normEquipamento);
+  if (!colr.error) _colaboradores       = colr.data.map(normColaborador);
+  if (!ferr.error) _ferramentas_cautela = ferr.data.map(normFerramentaCautela);
+  if (!cautr.error) _cautelas           = cautr.data.map(normCautela);
 }
 
 // === SESSION ===
