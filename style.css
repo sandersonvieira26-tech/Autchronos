@@ -1,485 +1,811 @@
-</head>
-<body>
+/* === RESET & BASE === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--gray-900); background: var(--gray-100); line-height: 1.5; }
+button { cursor: pointer; font-family: inherit; }
+input, select, textarea { font-family: inherit; }
 
-  <!-- Screen: Login -->
-  <div id="screen-login" style="display:none"></div>
+/* === CSS VARIABLES === */
+:root {
+  --orange: #f97316;
+  --orange-dark: #ea580c;
+  --gray-900: #111827;
+  --gray-800: #1f2937;
+  --gray-700: #374151;
+  --gray-600: #6b7280;
+  --gray-200: #e5e7eb;
+  --gray-100: #f3f4f6;
+  --gray-50: #fafafa;
+  --white: #ffffff;
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+  --red-dark: #b91c1c;
+  --red-50: #fee2e2;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+}
 
-  <!-- Screen: Registro -->
-  <div id="screen-register" style="display:none"></div>
+/* === DARK MODE === */
+[data-theme="dark"] {
+  --gray-900: #f1f5f9;
+  --gray-800: #e2e8f0;
+  --gray-700: #cbd5e1;
+  --gray-600: #94a3b8;
+  --gray-200: #334155;
+  --gray-100: #1e293b;
+  --gray-50:  #0f172a;
+  --white:    #1e293b;
+  --red-50:   #450a0a;
+  --shadow:    0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.6);
+}
+[data-theme="dark"] body { background: #0f172a; }
+[data-theme="dark"] .auth-screen { background-color: #0f172a; }
+[data-theme="dark"] .dashboard-header { background: #020617; }
+[data-theme="dark"] input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #0f172a;
+  color: var(--gray-900);
+  border-color: var(--gray-200);
+}
+[data-theme="dark"] input::placeholder { color: var(--gray-600); }
+[data-theme="dark"] .table-section,
+[data-theme="dark"] .movements-section { border-color: var(--gray-200); }
+[data-theme="dark"] tbody tr:hover { background: #263548; }
+[data-theme="dark"] .period-btn { background: #0f172a; color: var(--gray-700); border-color: var(--gray-200); }
+[data-theme="dark"] .period-btn.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+[data-theme="dark"] .search-input { background: #0f172a; }
+[data-theme="dark"] .auth-card { background: #1e293b; }
+[data-theme="dark"] .chart-bar-bg { background: #334155; }
+[data-theme="dark"] .mov-tipo-label { color: var(--gray-900); }
+[data-theme="dark"] .mov-tipo-label:has(input:checked) { background: rgba(234,88,12,0.18); color: var(--orange); }
 
-  <!-- Screen: Dashboard -->
-  <div id="screen-dashboard" style="display:none"></div>
+/* Header sempre com texto claro independente do tema */
+.dashboard-header .user-info,
+.dashboard-header .user-name,
+.dashboard-header .btn-logout,
+.dashboard-header .btn-theme { color: #f1f5f9 !important; }
 
-  <!-- Modal: Adicionar/Editar Material -->
-  <div id="modal-material" class="modal-overlay" style="display:none">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h2 id="modal-material-title">Adicionar Material</h2>
-        <button class="modal-close" onclick="closeMaterialModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-grid">
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="m-nome">Nome *</label>
-            <input type="text" id="m-nome" maxlength="120">
-            <div class="form-error" id="err-m-nome"></div>
-          </div>
-          <div class="form-group">
-            <label for="m-cat">Categoria *</label>
-            <select id="m-cat">
-              <option value="">Selecione...</option>
-            </select>
-            <div class="form-error" id="err-m-cat"></div>
-          </div>
-          <div class="form-group">
-            <label for="m-unidade">Unidade *</label>
-            <input type="text" id="m-unidade" placeholder="ex: m, kg, un" maxlength="20">
-            <div class="form-error" id="err-m-unidade"></div>
-          </div>
-          <div class="form-group">
-            <label for="m-qtd">Quantidade *</label>
-            <input type="text" id="m-qtd" placeholder="0">
-            <div class="form-error" id="err-m-qtd"></div>
-          </div>
-          <div class="form-group">
-            <label for="m-min">Estoque Mínimo *</label>
-            <input type="text" id="m-min" placeholder="0">
-            <div class="form-error" id="err-m-min"></div>
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="m-valor">Valor Unitário (R$)</label>
-            <input type="text" id="m-valor" placeholder="0,00">
-            <div class="form-error" id="err-m-valor"></div>
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="m-local">Localização <span style="font-weight:400;color:var(--gray-600)">(opcional)</span></label>
-            <input type="text" id="m-local" placeholder="Ex: Depósito A, Prateleira 3, Obra SP..." maxlength="80">
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeMaterialModal()">Cancelar</button>
-        <button class="btn btn-primary" style="width:auto" onclick="saveMaterial()">Salvar</button>
-      </div>
-    </div>
-  </div>
+/* === OCULTAR SALDO === */
+.brl-mask { display: none; color: inherit; letter-spacing: 0.05em; }
+body.saldo-oculto .brl-real { display: none; }
+body.saldo-oculto .brl-mask { display: inline; }
 
-  <!-- Modal: Gerenciar Usuários -->
-  <div id="modal-usuarios" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:620px">
-      <div class="modal-header">
-        <h2>Gerenciar Usuários</h2>
-        <button class="modal-close" onclick="closeUsuariosModal()">✕</button>
-      </div>
-      <div class="modal-body" style="padding:0">
-        <div class="table-wrapper">
-          <table>
-            <thead><tr><th>Nome</th><th>Papel atual</th><th>Ação</th></tr></thead>
-            <tbody id="usuarios-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeUsuariosModal()">Fechar</button>
-      </div>
-    </div>
-  </div>
+/* Botão de tema */
+.btn-theme {
+  width: 36px; height: 36px;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.btn-theme:hover { background: rgba(255,255,255,0.25) !important; }
+.btn-theme svg { width: 26px; height: 26px; }
 
-  <!-- Modal: Ajuste de Estoque -->
-  <div id="modal-ajuste" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:400px">
-      <div class="modal-header">
-        <h2>Ajuste de Estoque</h2>
-        <button class="modal-close" onclick="closeAjusteModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="ajuste-material-nome" style="font-size:1rem;font-weight:600;color:var(--gray-900);margin-bottom:0.25rem"></div>
-        <div style="font-size:0.8125rem;color:var(--gray-600);margin-bottom:1rem">Estoque atual: <strong id="ajuste-estoque-atual">—</strong></div>
-        <div class="form-group">
-          <label for="ajuste-qtd">Nova quantidade real *</label>
-          <input type="text" id="ajuste-qtd" placeholder="Quantidade contada fisicamente" autocomplete="off">
-          <div class="form-error" id="err-ajuste-qtd"></div>
-        </div>
-        <p style="font-size:0.8125rem;color:var(--gray-600);margin-top:-0.5rem">A diferença será registrada como movimentação de ajuste.</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeAjusteModal()">Cancelar</button>
-        <button class="btn btn-primary" style="width:auto" onclick="saveAjuste()">Aplicar Ajuste</button>
-      </div>
-    </div>
-  </div>
+/* === AUTH SCREENS === */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #111827;
+  background-image: radial-gradient(ellipse 90% 55% at 50% -5%, rgba(249,115,22,0.22) 0%, transparent 65%);
+}
+.auth-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+}
+.auth-logo { text-align: center; margin-bottom: 1.5rem; }
+.auth-title { font-size: 1.5rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem; text-align: center; }
+.auth-subtitle { font-size: 0.8125rem; color: var(--gray-600); text-align: center; margin-bottom: 1.5rem; }
 
-  <!-- Modal: Reposição de Estoque -->
-  <div id="modal-reposicao" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:560px">
-      <div class="modal-header">
-        <h2>Lista de Reposição</h2>
-        <button class="modal-close" onclick="closeReposicaoModal()">✕</button>
-      </div>
-      <div class="modal-body" style="padding:0 1.5rem 0.5rem">
-        <p id="repos-summary" style="font-size:0.875rem;color:var(--gray-600);padding:0.75rem 0 0.5rem"></p>
-        <div id="repos-list"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeReposicaoModal()">Fechar</button>
-        <button class="btn btn-secondary" style="width:auto" onclick="exportReposicaoCSV()">&#8595; CSV</button>
-        <button class="btn btn-primary" style="width:auto" onclick="printReposicao()">&#128438; Imprimir</button>
-      </div>
-    </div>
-  </div>
+/* === FORM ELEMENTS === */
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--gray-900); margin-bottom: 0.375rem; }
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  color: var(--gray-900);
+  background: var(--white);
+  transition: border-color 0.15s;
+}
+.form-group input:focus,
+.form-group select:focus { outline: none; border-color: var(--orange); }
+.form-error { font-size: 0.8125rem; color: var(--red); margin-top: 0.25rem; display: none; }
+.form-error.visible { display: block; }
+.checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem; }
+.checkbox-row input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--orange); }
 
-  <!-- Modal: Confirmação de Exclusão -->
-  <div id="modal-confirm-del" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:380px">
-      <div class="modal-body" style="padding:2rem 1.5rem 1rem">
-        <div class="confirm-del-icon">&#9888;&#65039;</div>
-        <h2 id="confirm-del-title" style="text-align:center;font-size:1.0625rem;margin-bottom:0.625rem"></h2>
-        <p class="confirm-del-msg" id="confirm-del-msg"></p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeConfirmDelete()">Cancelar</button>
-        <button class="btn btn-danger" id="confirm-del-btn" style="width:auto">Excluir</button>
-      </div>
-    </div>
-  </div>
+/* === BUTTONS === */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.625rem 1.25rem; border-radius: var(--radius); font-size: 0.9375rem; font-weight: 500; border: none; transition: background 0.15s, transform 0.1s; }
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--orange); color: var(--white); width: 100%; }
+.btn-primary:hover { background: var(--orange-dark); }
+.btn-secondary { background: var(--gray-100); color: var(--gray-900); border: 1px solid var(--gray-200); }
+.btn-secondary:hover { background: var(--gray-200); }
+.btn-danger { background: var(--red); color: var(--white); }
+.btn-danger:hover { background: var(--red-dark); }
+.btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+.btn-icon { background: none; border: none; padding: 0.25rem; color: var(--gray-600); border-radius: 4px; }
+.btn-icon:hover { background: var(--gray-100); color: var(--gray-900); }
+.btn:focus-visible,
+.btn-logout:focus-visible,
+.btn-icon:focus-visible,
+.modal-close:focus-visible,
+.period-btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.auth-links { text-align: center; margin-top: 1rem; font-size: 0.875rem; color: var(--gray-600); }
+.auth-links a { color: var(--orange); text-decoration: none; font-weight: 500; }
+.auth-links a:hover { text-decoration: underline; }
+.auth-error { background: var(--red-50); color: var(--red); border-radius: var(--radius); padding: 0.625rem 0.875rem; font-size: 0.875rem; margin-bottom: 1rem; display: none; }
+.auth-error.visible { display: block; }
 
-  <!-- Modal: Histórico do Material -->
-  <div id="modal-historico" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:680px">
-      <div class="modal-header">
-        <h2 id="modal-historico-title">Histórico</h2>
-        <button class="modal-close" onclick="closeHistoricoModal()">✕</button>
-      </div>
-      <div class="modal-body" style="padding:0">
-        <div id="historico-list"></div>
-        <div id="historico-pagination" class="pagination" style="border-top:1px solid var(--gray-200);margin:0;padding:0.75rem 1rem"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeHistoricoModal()">Fechar</button>
-      </div>
-    </div>
-  </div>
+/* === HEADER === */
+.dashboard-header {
+  background: var(--gray-800);
+  padding: 0 1.5rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-left { display: flex; align-items: center; }
+.logo-brand { display: flex; flex-direction: column; }
+.logo-tagline { font-size: 0.625rem; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; line-height: 1; margin-top: 1px; }
+@media (max-width: 767px) { .logo-tagline { display: none; } }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.user-info { display: flex; align-items: center; gap: 0.625rem; color: var(--white); font-size: 0.875rem; }
+.avatar {
+  width: 36px; height: 36px;
+  background: var(--orange);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.875rem; color: var(--white);
+  flex-shrink: 0;
+}
+.btn-logout { background: rgba(255,255,255,0.1); color: var(--white); border: 1px solid rgba(255,255,255,0.2); padding: 0.375rem 0.875rem; border-radius: var(--radius); font-size: 0.875rem; }
+.btn-logout:hover { background: rgba(255,255,255,0.2); }
 
-  <!-- Modal: Movimentação -->
-  <div id="modal-movimento" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:400px">
-      <div class="modal-header">
-        <h2 id="modal-mov-title">Registrar Movimentação</h2>
-        <button class="modal-close" onclick="closeMovimentoModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="mov-material-nome" style="font-size:1rem;font-weight:600;color:var(--gray-900);margin-bottom:0.375rem"></div>
-        <div class="mov-estoque-atual">Estoque atual: <strong id="mov-estoque-valor">—</strong></div>
-        <div class="form-group">
-          <label>Tipo</label>
-          <div class="mov-tipo-group">
-            <label class="mov-tipo-label">
-              <input type="radio" name="mov-tipo" value="entrada"> + Entrada
-            </label>
-            <label class="mov-tipo-label">
-              <input type="radio" name="mov-tipo" value="saída"> − Saída
-            </label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="mov-qtd">Quantidade *</label>
-          <input type="text" id="mov-qtd" placeholder="0" autocomplete="off">
-          <div class="form-error" id="err-mov-qtd"></div>
-        </div>
-        <div class="form-group" id="mov-retirador-group" style="display:none">
-          <label for="mov-retirado-por">Retirado por *</label>
-          <input type="text" id="mov-retirado-por" placeholder="Nome de quem retirou" maxlength="120" autocomplete="off">
-          <div class="form-error" id="err-mov-retirador"></div>
-        </div>
-        <div class="form-group" id="mov-destino-group" style="display:none">
-          <label for="mov-destino">Destino / Local de uso *</label>
-          <input type="text" id="mov-destino" list="destinos-list" placeholder="Ex: Obra Av. Paulista, Almoxarifado B..." maxlength="160" autocomplete="off">
-          <datalist id="destinos-list"></datalist>
-          <div class="form-error" id="err-mov-destino"></div>
-        </div>
-        <div class="form-group">
-          <label for="mov-observacao">Observação <span style="font-weight:400;color:var(--gray-600)">(opcional)</span></label>
-          <input type="text" id="mov-observacao" placeholder="Observações adicionais..." maxlength="120" autocomplete="off">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeMovimentoModal()">Cancelar</button>
-        <button class="btn btn-primary" style="width:auto" onclick="saveMovimento()">Registrar</button>
-      </div>
-    </div>
-  </div>
+/* === DASHBOARD LAYOUT === */
+.dashboard-body { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+.section-title { font-size: 1.125rem; font-weight: 600; color: var(--gray-900); margin-bottom: 1rem; }
 
-  <!-- Modal: Gerenciar Categorias -->
-  <div id="modal-categorias" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:440px">
-      <div class="modal-header">
-        <h2>Gerenciar Categorias</h2>
-        <button class="modal-close" onclick="closeCategoryModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="cat-list" id="cat-list"></div>
-        <div class="cat-add-row">
-          <input type="text" id="cat-new-input" placeholder="Nova categoria..." maxlength="60" onkeydown="if(event.key==='Enter')addCategory()">
-          <button class="btn btn-primary btn-sm" style="width:auto" onclick="addCategory()">Adicionar</button>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeCategoryModal()">Fechar</button>
-      </div>
-    </div>
-  </div>
+/* === SUMMARY CARDS === */
+.cards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; border-top: 3px solid transparent; }
+.card-label { font-size: 0.8125rem; color: var(--gray-600); margin-bottom: 0.5rem; font-weight: 500; }
+.card-value { font-size: 1.75rem; font-weight: 700; color: var(--gray-900); }
+.card-value.orange { color: var(--orange); }
+.card-value.red { color: var(--red); }
+.card-value.amber { color: var(--amber); }
+.card-icon { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:0.75rem; }
+.card-icon svg { width:20px; height:20px; }
+.card-sub { font-size:0.72rem; color:var(--gray-600); margin-top:0.25rem; line-height:1.3; }
+.mat-name-link { cursor:pointer; font-weight:500; }
+.mat-name-link:hover { color:var(--orange); text-decoration:underline; }
 
-  <!-- Modal: Histórico de Calibração -->
-  <div id="modal-historico-calib" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:640px">
-      <div class="modal-header">
-        <h2 id="historico-calib-title">Histórico de Calibração</h2>
-        <button class="modal-close" onclick="closeHistoricoCalib()">✕</button>
-      </div>
-      <div class="modal-body" id="historico-calib-body" style="min-height:120px;max-height:70vh;overflow-y:auto">
-        <div style="text-align:center;padding:2rem;color:var(--gray-500)">Carregando...</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeHistoricoCalib()">Fechar</button>
-      </div>
-    </div>
-  </div>
+/* === TABLE SECTION === */
+.table-section { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 2rem; overflow: hidden; }
+.table-toolbar { padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; border-bottom: 1px solid var(--gray-200); }
+.table-toolbar .search-input { flex: 1; min-width: 160px; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; }
+.table-toolbar .search-input:focus { outline: none; border-color: var(--orange); }
+.table-toolbar select { padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; background: var(--white); }
+.table-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+.toolbar-main { display:contents; }
+.toolbar-filters { display:flex; gap:0.5rem; flex-wrap:wrap; }
+.btn-filter-toggle { display:none; flex-shrink:0; white-space:nowrap; }
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--gray-100); padding: 0.75rem 1rem; text-align: left; font-size: 0.8125rem; font-weight: 600; color: var(--gray-600); white-space: nowrap; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { background: var(--gray-200); color: var(--gray-900); }
+th.sort-active { color: var(--orange); }
+td { padding: 0.75rem 1rem; font-size: 0.875rem; color: var(--gray-900); border-top: 1px solid var(--gray-200); }
+tr:hover td { background: var(--gray-50); }
+.empty-row td { text-align: center; color: var(--gray-600); padding: 2rem; }
 
-  <!-- Modal: Importar CSV de Calibrações -->
-  <div id="modal-import-calib" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:700px">
-      <div class="modal-header">
-        <h2>Importar Equipamentos via CSV</h2>
-        <button class="modal-close" onclick="closeImportCalibModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="import-calib-instructions">
-          <p style="font-size:0.875rem;color:var(--gray-700);margin-bottom:0.875rem">
-            No Excel: <strong>Arquivo → Salvar Como → CSV UTF-8 (delimitado por vírgulas)</strong>. Datas no formato <strong>DD/MM/AAAA</strong>.
-          </p>
-          <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:0.875rem;margin-bottom:1rem;font-size:0.8rem">
-            <strong>Cabeçalho esperado na primeira linha do CSV:</strong>
-            <div style="margin-top:0.5rem;display:grid;grid-template-columns:1fr 1fr;gap:0.2rem 1.5rem;color:var(--gray-700)">
-              <span>• <code>nome</code> <span style="color:var(--red)">*</span></span>
-              <span>• <code>identificacao</code></span>
-              <span>• <code>categoria</code> <span style="color:var(--red)">*</span></span>
-              <span>• <code>numero_certificado</code></span>
-              <span>• <code>data_ultima_calibracao</code> <span style="color:var(--red)">*</span></span>
-              <span>• <code>responsavel</code></span>
-              <span>• <code>validade_meses</code> <span style="color:var(--red)">*</span></span>
-            </div>
-            <div style="margin-top:0.5rem;color:var(--gray-600);font-size:0.775rem">Os nomes das colunas não precisam ser exatos — o sistema tenta reconhecer variações.</div>
-          </div>
-          <div class="form-group" style="margin-bottom:0">
-            <label for="import-calib-file">Selecionar arquivo CSV</label>
-            <input type="file" id="import-calib-file" accept=".csv,.txt" onchange="previewImportCalib(this)" style="padding:0.375rem;border:1px solid var(--gray-200);border-radius:var(--radius);width:100%">
-            <div class="form-error" id="err-import-calib"></div>
-          </div>
-        </div>
-        <div id="import-calib-preview" style="display:none;margin-top:1rem">
-          <div id="import-calib-summary" style="margin-bottom:0.75rem;font-size:0.875rem;padding:0.625rem 0.875rem;border-radius:var(--radius);background:var(--gray-50);border:1px solid var(--gray-200)"></div>
-          <div class="table-wrapper" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius)">
-            <table>
-              <thead><tr id="import-calib-thead"></tr></thead>
-              <tbody id="import-calib-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeImportCalibModal()">Cancelar</button>
-        <button class="btn btn-primary" style="width:auto;display:none" id="btn-confirm-import-calib" onclick="confirmImportCalib()">&#8595; Importar</button>
-      </div>
-    </div>
-  </div>
+/* === STATUS BADGES === */
+.badge { display: inline-flex; align-items: center; padding: 0.25rem 0.625rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.badge-ok { background: #dcfce7; color: var(--green); }
+.badge-baixo { background: #fef3c7; color: var(--amber); }
+.badge-critico { background: var(--red-50); color: var(--red); }
+.badge-entrada { background: #fff7ed; color: var(--orange); }
+.badge-saida { background: var(--gray-100); color: var(--gray-600); }
+.badge-ajuste { background: #ede9fe; color: #7c3aed; }
+.badge-calib-ok { background: #dcfce7; color: var(--green); }
+.badge-calib-proximo { background: #fef3c7; color: var(--amber); }
+.badge-calib-vencido { background: var(--red-50); color: var(--red); }
+.badge-calib-em-calib { background: #dbeafe; color: #1d4ed8; }
 
-  <!-- Modal: Renovar Calibração -->
-  <div id="modal-renovar-calib" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:420px">
-      <div class="modal-header">
-        <h2>Renovar Calibração</h2>
-        <button class="modal-close" onclick="closeRenovarCalibModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="renovar-equip-nome" style="font-size:1rem;font-weight:600;color:var(--gray-900);margin-bottom:0.125rem"></div>
-        <div style="font-size:0.8125rem;color:var(--gray-600);margin-bottom:1rem">Validade atual: <strong id="renovar-validade-info">—</strong></div>
-        <div class="form-group">
-          <label for="renovar-data">Nova data de calibração *</label>
-          <input type="date" id="renovar-data" oninput="updateRenovarProxima()">
-          <div class="form-error" id="err-renovar-data"></div>
-        </div>
-        <div class="form-group">
-          <label for="renovar-cert">Novo número do certificado</label>
-          <input type="text" id="renovar-cert" maxlength="80" placeholder="Deixe em branco para manter o atual">
-        </div>
-        <div class="form-group">
-          <label for="renovar-cert-file">Arquivo do certificado (PDF ou imagem)</label>
-          <input type="file" id="renovar-cert-file" accept=".pdf,image/*" style="padding:0.3rem 0">
-          <div style="font-size:0.75rem;color:var(--gray-500);margin-top:0.25rem">Opcional — máx. 5 MB</div>
-        </div>
-        <div class="form-group">
-          <label>Nova data da próxima calibração</label>
-          <div id="renovar-proxima-display" style="padding:0.625rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.9375rem;color:var(--gray-600);background:var(--gray-50)">—</div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeRenovarCalibModal()">Cancelar</button>
-        <button class="btn btn-primary" style="width:auto" onclick="saveRenovarCalib()">Confirmar Renovação</button>
-      </div>
-    </div>
-  </div>
+/* === MODAL === */
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-box-in {
+  0%   { opacity: 0; transform: scale(0);    }
+  55%  { opacity: 1; transform: scale(1.06); }
+  75%  { transform: scale(0.97); }
+  90%  { transform: scale(1.02); }
+  100% { transform: scale(1);    }
+}
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  padding: 1rem;
+  animation: modal-overlay-in 0.2s ease;
+}
+.modal-box {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  transform-origin: center center;
+  animation: modal-box-in 0.45s ease-out;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--gray-200); }
+.modal-header h2 { font-size: 1.0625rem; font-weight: 600; }
+.modal-body { padding: 1.5rem; }
+.modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 0.75rem; }
+.modal-close { background: none; border: none; font-size: 1.25rem; color: var(--gray-600); cursor: pointer; line-height: 1; }
+.modal-close:hover { color: var(--gray-900); }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
 
-  <!-- Modal: Adicionar/Editar Equipamento de Calibração -->
-  <div id="modal-equipamento" class="modal-overlay" style="display:none">
-    <div class="modal-box" style="max-width:560px">
-      <div class="modal-header">
-        <h2 id="modal-equip-title">Adicionar Equipamento</h2>
-        <button class="modal-close" onclick="closeEquipamentoModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-grid">
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="eq-nome">Nome do Equipamento *</label>
-            <input type="text" id="eq-nome" maxlength="120" placeholder="Ex: Multímetro digital, Paquímetro...">
-            <div class="form-error" id="err-eq-nome"></div>
-          </div>
-          <div class="form-group">
-            <label for="eq-id">Identificação / Patrimônio</label>
-            <input type="text" id="eq-id" maxlength="60" placeholder="Nº de série ou patrimônio">
-          </div>
-          <div class="form-group">
-            <label for="eq-cat">Categoria *</label>
-            <select id="eq-cat">
-              <option value="">Selecione...</option>
-            </select>
-            <div class="form-error" id="err-eq-cat"></div>
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="eq-cert">Número do Certificado</label>
-            <input type="text" id="eq-cert" maxlength="80" placeholder="Nº do certificado de calibração">
-          </div>
-          <div class="form-group">
-            <label for="eq-ultima">Data da Última Calibração *</label>
-            <input type="date" id="eq-ultima" oninput="updateProximaCalib()">
-            <div class="form-error" id="err-eq-ultima"></div>
-          </div>
-          <div class="form-group">
-            <label for="eq-validade">Validade (meses) *</label>
-            <input type="number" id="eq-validade" min="1" max="120" placeholder="Ex: 12" oninput="updateProximaCalib()">
-            <div class="form-error" id="err-eq-validade"></div>
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label>Data da Próxima Calibração</label>
-            <div id="eq-proxima-display" style="padding:0.625rem 0.75rem;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.9375rem;color:var(--gray-600);background:var(--gray-50)">—</div>
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="eq-resp">Responsável</label>
-            <input type="text" id="eq-resp" maxlength="80" placeholder="Nome do responsável pela calibração">
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="eq-cert-file">Arquivo do certificado (PDF ou imagem)</label>
-            <input type="file" id="eq-cert-file" accept=".pdf,image/*" style="padding:0.3rem 0">
-            <div style="font-size:0.75rem;color:var(--gray-500);margin-top:0.25rem">Opcional — máx. 5 MB</div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeEquipamentoModal()">Cancelar</button>
-        <button class="btn btn-primary" style="width:auto" onclick="saveEquipamento()">Salvar</button>
-      </div>
-    </div>
-  </div>
+/* === MOVIMENTO MODAL === */
+.mov-tipo-group { display: flex; gap: 0.75rem; margin-bottom: 0; }
+.mov-tipo-label {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.625rem; border: 2px solid var(--gray-200); border-radius: var(--radius);
+  font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.mov-tipo-label:has(input:checked) { border-color: var(--orange); background: #fff7ed; }
+.mov-tipo-label input { display: none; }
+.mov-estoque-atual { font-size: 0.8125rem; color: var(--gray-600); margin-bottom: 1rem; }
+.mov-estoque-atual strong { color: var(--gray-900); }
 
+/* === HISTÓRICO CARDS === */
+.hist-entry { padding: 0.75rem 1rem; border-bottom: 1px solid var(--gray-200); }
+.hist-entry:last-child { border-bottom: none; }
+.hist-entry-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.375rem; }
+.hist-entry-date { font-size: 0.8125rem; color: var(--gray-600); }
+.hist-entry-row { display: flex; gap: 0.5rem; margin-top: 0.25rem; font-size: 0.875rem; line-height: 1.4; }
+.hist-entry-key { color: var(--gray-600); min-width: 90px; flex-shrink: 0; font-size: 0.8125rem; }
+.hist-entry-val { color: var(--gray-900); font-weight: 500; word-break: break-word; }
 
-  <script src="/js/core.js"></script>
-  <script src="/js/auth.js"></script>
-  <script src="/js/dashboard.js"></script>
-  <script src="/js/materiais.js"></script>
-  <script src="/js/admin.js"></script>
-  <script src="/js/realtime.js"></script>
-  <script src="/js/calibracoes.js"></script>
-  <script src="/js/app.js"></script>
+/* === CATEGORY MODAL === */
+.cat-list { display: flex; flex-direction: column; gap: 0.625rem; margin-bottom: 1rem; }
+.cat-item { display: flex; align-items: center; gap: 0.5rem; }
+.cat-item input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; }
+.cat-item input:focus { outline: none; border-color: var(--orange); }
+.cat-item input.error { border-color: var(--red); }
+.cat-item-error { font-size: 0.75rem; color: var(--red); margin-top: 0.125rem; }
+.cat-add-row { display: flex; gap: 0.5rem; }
+.cat-add-row input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; }
+.cat-add-row input:focus { outline: none; border-color: var(--orange); }
 
+/* === MOVEMENTS SECTION === */
+.movements-section { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); }
+.period-filter { display: flex; gap: 0.5rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--gray-200); }
+.period-btn { padding: 0.375rem 1rem; border-radius: 20px; border: 1px solid var(--gray-200); background: var(--white); font-size: 0.875rem; color: var(--gray-600); }
+.period-btn.active { background: var(--orange); color: var(--white); border-color: var(--orange); }
+.chart-container { padding: 1.25rem; border-bottom: 1px solid var(--gray-200); min-height: 120px; display: flex; align-items: center; justify-content: center; }
+.chart-empty { color: var(--gray-600); font-size: 0.9375rem; }
+.chart-container svg { width: 100%; height: auto; }
 
-  <!-- Loading Screen -->
-  <div id="screen-loading" style="display:none">
-    <div class="loading-logo"></div>
-    <div style="font-size:0.75rem;color:rgba(255,255,255,0.45);letter-spacing:0.05em;margin-top:0.375rem;text-align:center">ESVJ - Gestão de Almoxarifado</div>
-    <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
-    <div class="loading-label">Carregando...</div>
-  </div>
+/* === LOGO SVG === */
+.logo-svg { display: flex; align-items: center; gap: 0; }
 
-<!-- Modal: Nova Ferramenta Cautela -->
-<div class="modal-overlay" id="modal-ferramenta-cautela" style="display:none">
-  <div class="modal" style="max-width:400px">
-    <div class="modal-header">
-      <h3 class="modal-title">Nova Ferramenta</h3>
-      <button class="modal-close" onclick="closeFerramentaModal()">&#x2715;</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:0.75rem">
-      <label>Nome *
-        <input class="form-input" id="fc-nome" type="text" placeholder="Ex: Multímetro Fluke">
-      </label>
-      <label>Código / Patrimônio
-        <input class="form-input" id="fc-codigo" type="text" placeholder="Ex: PAT-001">
-      </label>
-      <label>Categoria *
-        <input class="form-input" id="fc-categoria" type="text" placeholder="Ex: Medição">
-      </label>
-      <label>Quantidade total *
-        <input class="form-input" id="fc-quantidade" type="number" min="1" value="1">
-      </label>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeFerramentaModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarFerramenta()">Salvar</button>
-    </div>
-  </div>
-</div>
+/* === MENU ADMIN MOBILE === */
+.btn-admin-toggle { display: none; font-size: 1.375rem; padding: 0 0.6rem; line-height: 1; }
+.admin-btns { display: flex; align-items: center; gap: 0.75rem; }
 
-<!-- Modal: Importar Colaboradores -->
-<div class="modal-overlay" id="modal-import-colab" style="display:none">
-  <div class="modal" style="max-width:400px">
-    <div class="modal-header">
-      <h3 class="modal-title">Importar Colaboradores</h3>
-      <button class="modal-close" onclick="closeImportColaboradoresModal()">&#x2715;</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:0.75rem">
-      <p style="font-size:0.875rem;color:var(--gray-600)">Colunas obrigatórias: <strong>nome</strong>, <strong>cpf</strong>. Opcional: <strong>setor</strong>. CPFs já cadastrados são ignorados.</p>
-      <label>Arquivo CSV ou XLSX
-        <input class="form-input" id="import-colab-file" type="file" accept=".csv,.xlsx,.xls">
-      </label>
-      <div id="import-colab-status" style="font-size:0.875rem;color:var(--gray-600)"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeImportColaboradoresModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="processarImportColaboradores()">Importar</button>
-    </div>
-  </div>
-</div>
+/* === SECTION TABS === */
+.mobile-section { display: none; }
+.mobile-section.active { display: block; }
+.mat-cards { display: none; }
 
-<!-- Modal: Nova Retirada -->
-<div class="modal-overlay" id="modal-nova-retirada" style="display:none">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header">
-      <h3 class="modal-title" id="nr-title">Nova Retirada — Passo 1 de 3</h3>
-      <button class="modal-close" onclick="closeNovaRetiradaModal()">&#x2715;</button>
-    </div>
-    <div class="modal-body" id="nr-body"></div>
-    <div class="modal-footer" id="nr-footer"></div>
-  </div>
-</div>
+/* === DESKTOP TAB BAR === */
+.desktop-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--gray-200); background: var(--white); padding: 0 1.5rem; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.desktop-tab-btn { display: flex; align-items: center; gap: 0.45rem; padding: 0.875rem 1.375rem; border: none; background: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s; white-space: nowrap; }
+.desktop-tab-btn:hover { color: var(--orange); }
+.desktop-tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+.desktop-tab-btn svg { flex-shrink: 0; }
+@media (max-width: 767px) { .desktop-tabs { display: none; } }
 
-<!-- Modal: Registrar Devolução -->
-<div class="modal-overlay" id="modal-devolucao" style="display:none">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header">
-      <h3 class="modal-title" id="dev-title">Registrar Devolução</h3>
-      <button class="modal-close" onclick="closeDevolucaoModal()">&#x2715;</button>
-    </div>
-    <div class="modal-body" id="dev-body"></div>
-    <div class="modal-footer" id="dev-footer"></div>
-  </div>
-</div>
-</body>
-</html>
+/* === PAGINATION === */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 1rem 0 0.5rem; flex-wrap: wrap; }
+.pagination-btn { padding: 0.3rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); background: var(--white); color: var(--gray-700); font-size: 0.875rem; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.pagination-btn:hover:not(:disabled) { background: var(--gray-100); }
+.pagination-btn.pg-active { background: var(--orange); color: #fff; border-color: var(--orange); }
+.pagination-btn:disabled { opacity: 0.38; cursor: default; }
+.pagination-info { font-size: 0.8rem; color: var(--gray-500); padding: 0 0.375rem; }
+
+/* === TRACKING DASHBOARD === */
+.track-panel { display:flex; gap:1rem; padding:0.875rem 1.25rem 0; flex-wrap:wrap; }
+.track-card { flex:1; min-width:180px; background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius); padding:0.75rem 1rem; }
+.track-card-title { font-size:0.75rem; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.5rem; }
+.track-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem; font-size:0.8125rem; }
+.track-bar-wrap { flex:1; height:6px; background:var(--gray-100); border-radius:3px; overflow:hidden; }
+.track-bar-fill { height:100%; border-radius:3px; background:var(--orange); }
+.track-name { min-width:80px; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--gray-700); }
+.track-count { font-weight:700; color:var(--gray-900); font-size:0.8125rem; flex-shrink:0; }
+.track-cost-val { font-size:1.5rem; font-weight:800; color:var(--red); }
+.track-cost-label { font-size:0.75rem; color:var(--gray-600); margin-top:0.125rem; }
+
+/* === REPOSIÇÃO === */
+.repos-item { display:flex; align-items:center; gap:0.75rem; padding:0.625rem 0; border-bottom:1px solid var(--gray-200); }
+.repos-item:last-child { border-bottom:none; }
+.repos-badge { flex-shrink:0; }
+.repos-nome { font-weight:600; color:var(--gray-900); font-size:0.9375rem; }
+.repos-cat { font-size:0.8125rem; color:var(--gray-600); margin-top:0.125rem; }
+.repos-qty { margin-left:auto; text-align:right; flex-shrink:0; }
+.repos-qty-val { font-size:1.1rem; font-weight:700; }
+.repos-qty-min { font-size:0.75rem; color:var(--gray-600); }
+
+/* === CONFIRM DELETE MODAL === */
+.confirm-del-icon { font-size:2.5rem; text-align:center; margin-bottom:0.5rem; }
+.confirm-del-msg { color:var(--gray-700); font-size:0.9375rem; text-align:center; }
+.confirm-del-name { font-weight:700; color:var(--gray-900); }
+
+/* === BOTTOM NAV === */
+.bottom-nav { display: none; }
+
+/* === FAB === */
+.fab-wrap { display: none; }
+
+/* === MATERIAL CARDS (mobile) === */
+.mat-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden; position: relative;
+}
+.mat-card-swipe-bg {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 82px;
+  background: var(--red); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  color: #fff; font-size: 0.7rem; font-weight: 600;
+}
+.mat-card-body {
+  background: var(--white); padding: 0.875rem 1rem;
+  position: relative; z-index: 1;
+  transition: transform 0.18s ease;
+}
+.mat-card-row1 {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem;
+}
+.mat-card-name { font-weight: 600; font-size: 0.9375rem; color: var(--gray-900); }
+.mat-card-loc { font-size: 0.725rem; color: var(--gray-600); margin-top: 2px; }
+.mat-card-tags { display: flex; gap: 0.375rem; flex-wrap: wrap; margin: 0.375rem 0 0.5rem; }
+.mat-card-qty {
+  display: flex; align-items: baseline; gap: 0.3rem;
+  margin-bottom: 0.625rem;
+}
+.mat-card-qty-val { font-size: 1.5rem; font-weight: 700; color: var(--gray-900); }
+.mat-card-qty-unit { font-size: 0.875rem; color: var(--gray-600); }
+.mat-card-qty-min { font-size: 0.725rem; color: var(--gray-600); margin-left: auto; }
+.mat-card-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
+.mat-card-actions .btn { flex: 1; min-width: 72px; font-size: 0.8rem; padding: 0.375rem 0.25rem; text-align: center; }
+
+/* === CALIB VIEW TOGGLE === */
+.view-toggle { display:flex; border:1px solid var(--gray-200); border-radius:var(--radius); overflow:hidden; flex-shrink:0; }
+.view-toggle-btn { padding:0.375rem 0.875rem; border:none; background:var(--white); font-size:0.8125rem; font-weight:600; cursor:pointer; color:var(--gray-500); transition:background 0.15s,color 0.15s; white-space:nowrap; }
+.view-toggle-btn.active { background:var(--orange); color:#fff; }
+
+/* === CALIB DASHBOARD === */
+.cdash-cards { display:grid; grid-template-columns:repeat(6,1fr); gap:0.75rem; margin:1.25rem 1.25rem 0; }
+.cdash-card { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); padding:1rem 1.25rem; text-align:center; border-top:3px solid transparent; }
+.cdash-card.clickable { cursor:pointer; transition:box-shadow 0.15s; }
+.cdash-card.clickable:hover { box-shadow:var(--shadow-lg); }
+.cdash-val { font-size:2.25rem; font-weight:800; line-height:1; }
+.cdash-label { font-size:0.75rem; color:var(--gray-500); margin-top:0.375rem; }
+.cdash-total { border-top-color:var(--gray-300); }
+.cdash-ok    { border-top-color:var(--green); }
+.cdash-ok .cdash-val { color:var(--green); }
+.cdash-warn  { border-top-color:var(--amber); }
+.cdash-warn .cdash-val { color:var(--amber); }
+.cdash-red   { border-top-color:var(--red); }
+.cdash-red .cdash-val { color:var(--red); }
+.cdash-orange{ border-top-color:var(--orange); }
+.cdash-orange .cdash-val { color:var(--orange); }
+.cdash-blue  { border-top-color:#3b82f6; }
+.cdash-blue .cdash-val { color:#3b82f6; }
+
+.cdash-row { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin:0.75rem 1.25rem; }
+.cdash-panel { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); padding:1.125rem 1.25rem; }
+.cdash-panel-title { font-size:0.8125rem; font-weight:700; color:var(--gray-600); margin-bottom:0.875rem; text-transform:uppercase; letter-spacing:0.03em; }
+
+/* Donut chart */
+.donut-wrap { display:flex; align-items:center; gap:1.25rem; }
+.donut-legend { display:flex; flex-direction:column; gap:0.5rem; flex:1; min-width:0; }
+.donut-leg-item { display:flex; align-items:center; gap:0.5rem; font-size:0.8125rem; }
+.donut-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.donut-leg-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.donut-leg-count { font-weight:700; color:var(--gray-800); flex-shrink:0; }
+
+/* Horizontal bars */
+.hbar { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; }
+.hbar-label { font-size:0.8rem; min-width:70px; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--gray-700); }
+.hbar-track { flex:1; height:8px; background:var(--gray-100); border-radius:4px; overflow:hidden; }
+.hbar-fill { height:100%; border-radius:4px; }
+.hbar-count { font-size:0.8rem; font-weight:700; color:var(--gray-700); min-width:20px; text-align:right; }
+
+/* Monthly bar chart */
+.mbar-chart { display:flex; align-items:flex-end; gap:0.25rem; height:90px; padding-bottom:0; }
+.mbar-col { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1; height:100%; }
+.mbar-count { font-size:0.6rem; font-weight:700; color:var(--gray-600); margin-bottom:2px; min-height:12px; display:flex; align-items:flex-end; }
+.mbar-bar { width:100%; border-radius:3px 3px 0 0; min-height:3px; transition:height 0.3s; }
+.mbar-month { font-size:0.6rem; color:var(--gray-500); margin-top:4px; text-align:center; }
+
+/* Agenda list */
+.agenda-list { display:flex; flex-direction:column; gap:0.375rem; }
+.agenda-item { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; border-radius:calc(var(--radius) - 2px); font-size:0.8125rem; }
+.agenda-item.ok      { background:#dcfce7; }
+.agenda-item.proximo { background:#fef3c7; }
+.agenda-item.vencido { background:var(--red-50); }
+.agenda-nome { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agenda-date { color:var(--gray-600); font-size:0.75rem; white-space:nowrap; }
+.agenda-days { font-weight:700; font-size:0.75rem; white-space:nowrap; text-align:right; min-width:65px; }
+
+/* Responsive calib dashboard */
+@media (max-width: 1023px) { .cdash-cards { grid-template-columns:repeat(3,1fr); } }
+@media (max-width: 767px) {
+  .cdash-cards { grid-template-columns:repeat(2,1fr); margin:0.75rem; }
+  .cdash-row { grid-template-columns:1fr; margin:0.75rem; }
+  .cdash-panel { padding:1rem; }
+}
+
+/* === CALIB CARDS === */
+.calib-cards { display: none; }
+.calib-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0.875rem 1rem; }
+.calib-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+.calib-card-nome { font-weight: 700; font-size: 0.9375rem; color: var(--gray-900); }
+.calib-card-sub { font-size: 0.75rem; color: var(--gray-500); margin-top: 2px; }
+.calib-card-dates { margin: 0.5rem 0; padding: 0.5rem 0.75rem; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+.calib-card-dates.ok      { background: #dcfce7; color: var(--green); }
+.calib-card-dates.proximo { background: #fef3c7; color: var(--amber); }
+.calib-card-dates.vencido { background: var(--red-50); color: var(--red); }
+.calib-card-info { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.625rem; font-size: 0.8125rem; margin: 0.5rem 0; }
+.calib-card-info-label { color: var(--gray-500); white-space: nowrap; }
+.calib-card-info-val { color: var(--gray-900); font-weight: 500; word-break: break-word; }
+.calib-card-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.625rem; padding-top: 0.625rem; border-top: 1px solid var(--gray-100); }
+.calib-card-actions .btn { flex: 1; min-width: 68px; font-size: 0.8rem; padding: 0.375rem 0.25rem; text-align: center; }
+@media (max-width: 767px) {
+  .calib-cards { display: flex; flex-direction: column; gap: 0.625rem; padding: 0.75rem; }
+  #section-calibracoes .table-wrapper { display: none; }
+  #section-calibracoes .status-legend { display: none; }
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 1200px) {
+  .cards-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 1023px) {
+  .cards-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 767px) {
+  /* Sem scroll horizontal na página */
+  body { overflow-x: hidden; }
+
+  .dashboard-body { padding-bottom: 72px !important; }
+
+  /* Cards de material (mobile) */
+  .mat-cards { display: flex; flex-direction: column; gap: 0.625rem; padding: 0.75rem; }
+  .table-section .table-wrapper { display: none; }
+  .table-section thead { display: none; }
+  #alertas-section { display: none !important; }
+
+  /* Bottom Nav */
+  .bottom-nav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+    height: 58px; background: var(--white); border-top: 1px solid var(--gray-200);
+    z-index: 100; box-shadow: 0 -2px 8px rgba(0,0,0,0.07);
+  }
+  .bottom-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 2px; border: none; background: none;
+    font-size: 0.65rem; font-weight: 600; color: var(--gray-600);
+    cursor: pointer; padding: 0.4rem; transition: color 0.15s;
+  }
+  .bottom-nav-btn.active { color: var(--orange); }
+  .bottom-nav-btn svg { width: 22px; height: 22px; }
+  [data-theme="dark"] .bottom-nav { background: #1e293b; border-color: #334155; }
+
+  /* FAB */
+  .fab-wrap {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;
+    position: fixed; bottom: 70px; right: 1rem; z-index: 110;
+  }
+  .fab-btn {
+    width: 54px; height: 54px; border-radius: 50%; background: var(--orange);
+    color: #fff; border: none; cursor: pointer; font-size: 1.75rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(249,115,22,0.45);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .fab-btn.open { transform: rotate(45deg); background: var(--red); box-shadow: 0 4px 14px rgba(220,38,38,0.4); }
+  .fab-menu {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.375rem;
+    opacity: 0; transform: translateY(10px) scale(0.95);
+    pointer-events: none; transition: opacity 0.18s, transform 0.18s;
+  }
+  .fab-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+  .fab-item {
+    background: var(--white); color: var(--gray-900);
+    border: 1px solid var(--gray-200); border-radius: 20px;
+    padding: 0.5rem 1.125rem; font-size: 0.875rem; font-weight: 500;
+    box-shadow: var(--shadow); cursor: pointer; white-space: nowrap;
+  }
+  .fab-item:active { background: var(--gray-100); }
+
+  /* Header */
+  .dashboard-header { position: relative; }
+  .header-right .user-name { display: none; }
+  .admin-btns {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 60px; right: 0;
+    background: #020617;
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 0.5rem 0.75rem;
+    gap: 0.375rem;
+    min-width: 160px;
+    z-index: 150;
+  }
+  .admin-btns.open { display: flex; }
+  .admin-btns .btn-logout { text-align: left; width: 100%; }
+  .btn-admin-toggle { display: flex; align-items: center; }
+
+  /* Layout geral */
+  .dashboard-body { padding: 0.75rem; gap: 0.75rem; display: flex; flex-direction: column; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0; }
+  .cards-grid .card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .table-section { margin-bottom: 0; overflow: hidden; }
+  .movements-section { overflow: hidden; }
+
+  /* Cards menores e compactos */
+  .card { padding: 0.75rem; }
+  .card-label { font-size: 0.72rem; margin-bottom: 0.25rem; }
+  .card-value { font-size: 1.25rem; }
+
+  /* Tabela de materiais */
+  .table-toolbar { flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 0.75rem; }
+  .toolbar-main { display:flex; align-items:center; gap:0.5rem; }
+  .toolbar-main .search-input { flex:1; min-width:0; width:auto; }
+  .btn-filter-toggle { display:inline-flex; }
+  .toolbar-filters { display:none; flex-direction:column; gap:0.375rem; }
+  .toolbar-filters.open { display:flex; }
+  .toolbar-filters select { width:100%; }
+  .card-icon { width:32px; height:32px; margin-bottom:0.5rem; }
+  .card-icon svg { width:16px; height:16px; }
+  .card-sub { display:none; }
+  .table-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; margin: 0; }
+  .table-actions .btn { width: 100%; font-size: 0.8rem; }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrapper table { min-width: 580px; }
+
+  /* Toolbar de movimentações */
+  .mov-toolbar { padding: 0.625rem 0.875rem; gap: 0.5rem; flex-wrap: wrap; }
+  .mov-toolbar .search-input { flex: 1; min-width: 130px; }
+  .mov-toolbar select { flex: 1; min-width: 130px; }
+  .mov-toolbar button { width: 100%; margin-left: 0 !important; }
+  .movements-section .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .movements-section .table-wrapper table { min-width: 480px; }
+
+  /* Filtros de período */
+  .period-filter { flex-wrap: wrap; gap: 0.375rem; padding: 0.75rem; }
+  .period-btn { font-size: 0.8rem; padding: 0.3rem 0.7rem; }
+
+  /* Modais sobem da parte inferior */
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal-box { max-width: 100%; margin: 0; border-radius: var(--radius) var(--radius) 0 0; max-height: 92vh; }
+  .modal-grid { grid-template-columns: 1fr; }
+
+  /* Títulos de seção */
+  .section-title { font-size: 1rem; }
+}
+
+/* Desktop: hide mobile-only alertas section to avoid duplicates */
+@media (min-width: 768px) {
+  #section-alertas { display: none !important; }
+}
+
+/* === DAY SUMMARY === */
+.day-summary { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem; padding:0.625rem 1rem; background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); }
+.ds-label { font-size:0.8rem; font-weight:600; color:var(--gray-600); white-space:nowrap; margin-right:0.25rem; }
+.ds-chip { display:inline-flex; align-items:center; gap:0.3rem; padding:0.3rem 0.8rem; border-radius:20px; font-size:0.8rem; font-weight:600; white-space:nowrap; }
+.ds-chip.clickable { cursor:pointer; transition:opacity 0.15s; }
+.ds-chip.clickable:hover { opacity:0.75; }
+.ds-chip-crit { background:var(--red-50); color:var(--red); }
+.ds-chip-warn { background:#fef3c7; color:var(--amber); }
+.ds-chip-ok   { background:#dcfce7; color:var(--green); }
+.ds-chip-neu  { background:var(--gray-100); color:var(--gray-600); }
+@media (max-width: 767px) { .day-summary { margin:0 0 0.75rem; } }
+
+/* === CERTIFICATE LINK === */
+.cert-btn { display:inline-flex; align-items:center; gap:0.25rem; padding:0.2rem 0.5rem; border-radius:4px; background:#eff6ff; color:#2563eb; font-size:0.72rem; font-weight:600; border:none; cursor:pointer; margin-top:0.2rem; }
+.cert-btn:hover { background:#dbeafe; }
+
+/* === CALIBRATION HISTORY TIMELINE === */
+.hist-list { display:flex; flex-direction:column; }
+.hist-item { display:grid; grid-template-columns:20px 1fr; gap:0 0.875rem; }
+.hist-dot-col { display:flex; flex-direction:column; align-items:center; padding-top:0.2rem; }
+.hist-dot { width:12px; height:12px; border-radius:50%; background:var(--orange); flex-shrink:0; }
+.hist-line { width:2px; flex:1; min-height:0.75rem; background:var(--gray-200); margin:4px 0; }
+.hist-item:last-child .hist-line { display:none; }
+.hist-content { padding-bottom:1.25rem; }
+.hist-date { font-weight:700; font-size:0.9375rem; color:var(--gray-900); display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+.hist-meta { font-size:0.8125rem; color:var(--gray-600); margin-top:0.25rem; line-height:1.5; }
+
+/* === STATUS LEGEND === */
+.status-legend { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; padding:0.5rem 1.25rem; border-top:1px solid var(--gray-200); font-size:0.775rem; color:var(--gray-500); }
+.status-legend .badge { font-size:0.7rem; cursor:default; }
+
+/* === CSS TOOLTIPS === */
+.has-tip { position:relative; }
+.has-tip::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--gray-800); color:#fff; font-size:0.72rem; padding:0.3rem 0.6rem; border-radius:4px; white-space:nowrap; z-index:300; opacity:0; pointer-events:none; transition:opacity 0.15s; }
+.has-tip::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--gray-800); z-index:300; opacity:0; pointer-events:none; transition:opacity 0.15s; }
+.has-tip:hover::after, .has-tip:hover::before { opacity:1; }
+
+/* === DATE RANGE === */
+.date-range-row { display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.date-range-row.visible { display: flex; }
+.date-range-row input[type="date"] { padding: 0.375rem 0.5rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; color: var(--gray-900); }
+.date-range-row input[type="date"]:focus { outline: none; border-color: var(--orange); }
+.date-range-row span { font-size: 0.875rem; color: var(--gray-600); }
+
+/* === ALERTAS === */
+.alertas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.75rem; margin-bottom: 2rem; }
+.alerta-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.25rem; border-left: 4px solid var(--amber); }
+.alerta-card.critico { border-left-color: var(--red); }
+.alerta-nome { font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.25rem; color: var(--gray-900); }
+.alerta-detalhe { font-size: 0.8125rem; color: var(--gray-600); margin-bottom: 0.375rem; }
+.alertas-title { font-size: 1.125rem; font-weight: 600; color: var(--gray-900); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+
+/* === MOV TOOLBAR === */
+.mov-toolbar { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--gray-200); flex-wrap: wrap; }
+.mov-toolbar .search-input { flex: 1; min-width: 140px; }
+.mov-toolbar select { padding: 0.5rem 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 0.875rem; background: var(--white); }
+
+/* === CHART SUMMARY === */
+.chart-summary { display: flex; gap: 2rem; padding: 0.625rem 1.25rem; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); font-size: 0.875rem; flex-wrap: wrap; }
+.chart-summary-entrada { color: var(--orange); font-weight: 700; }
+.chart-summary-saida { color: var(--gray-700); font-weight: 700; }
+
+/* === LOADING SCREEN === */
+#screen-loading {
+  position: fixed;
+  inset: 0;
+  background: var(--gray-800);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  z-index: 999;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+#screen-loading.fade-out { opacity: 0; pointer-events: none; }
+.loading-logo { animation: pulse-logo 1.2s ease-in-out infinite; }
+@keyframes pulse-logo {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.97); }
+}
+.loading-bar-track {
+  width: 180px;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.loading-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--orange);
+  border-radius: 2px;
+  animation: bar-fill 1.4s ease forwards;
+}
+@keyframes bar-fill {
+  0%   { width: 0%; }
+  60%  { width: 80%; }
+  100% { width: 100%; }
+}
+.loading-label {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: -1rem;
+}
+
+/* === TOAST === */
+.toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; display:flex; flex-direction:column; gap:0.5rem; pointer-events:none; }
+.toast { display:flex; align-items:center; gap:0.625rem; padding:0.75rem 1rem; border-radius:var(--radius); box-shadow:var(--shadow-lg); font-size:0.875rem; font-weight:500; pointer-events:all; animation:toast-in 0.25s ease; max-width:320px; }
+.toast-success { background:#ecfdf5; color:#065f46; border-left:4px solid var(--green); }
+.toast-error { background:var(--red-50); color:var(--red); border-left:4px solid var(--red); }
+@keyframes toast-in { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+@keyframes toast-out { to { opacity:0; transform:translateX(20px); } }
+[data-theme="dark"] .toast-success { background:#052e16; }
+[data-theme="dark"] .toast-error { background:#450a0a; }
+
+/* === ROW ACTION MENU === */
+.row-actions { display:flex; gap:0.375rem; align-items:center; }
+.row-menu-wrap { position:relative; display:inline-block; }
+.row-menu { position:fixed; background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius); box-shadow:var(--shadow-lg); min-width:148px; z-index:300; display:none; flex-direction:column; overflow:hidden; }
+.row-menu.open { display:flex; }
+.row-menu-item { padding:0.5rem 0.875rem; font-size:0.8125rem; text-align:left; background:none; border:none; cursor:pointer; color:var(--gray-900); white-space:nowrap; width:100%; }
+.row-menu-item:hover { background:var(--gray-100); }
+.row-menu-item.danger { color:var(--red); }
+.row-menu-item.danger:hover { background:var(--red-50); }
+
+/* === ALERTA PROGRESS BAR === */
+.alerta-progress { margin-top:0.5rem; height:4px; background:var(--gray-200); border-radius:2px; overflow:hidden; }
+.alerta-progress-fill { height:100%; border-radius:2px; }
+
+/* === TAB DOT INDICATOR === */
+.desktop-tab-btn { position:relative; }
+.bottom-nav-btn { position:relative; }
+.tab-dot { width:7px; height:7px; border-radius:50%; background:var(--red); display:none; position:absolute; top:8px; right:8px; box-shadow:0 0 0 2px var(--white); }
+.tab-dot.visible { display:block; }
+.bottom-nav-btn .tab-dot { top:5px; right:calc(50% - 16px); box-shadow:0 0 0 2px var(--white); }
+[data-theme="dark"] .tab-dot { box-shadow:0 0 0 2px #0f172a; }
+
+/* === CAUTELA === */
+.cautela-subnav { display:flex; gap:0.5rem; margin-bottom:1rem; border-bottom:2px solid var(--gray-200); padding-bottom:0; }
+.cautela-subnav-btn { padding:0.6rem 1rem; border:none; background:none; cursor:pointer; font-size:0.875rem; font-weight:600; color:var(--gray-600); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color 0.15s; }
+.cautela-subnav-btn.active { color:var(--orange); border-bottom-color:var(--orange); }
+.cautela-subnav-btn:hover { color:var(--orange); }
+
+.cautela-banner { background:var(--red); color:#fff; border-radius:var(--radius); padding:0.75rem 1rem; margin-bottom:1rem; font-weight:600; display:none; }
+.cautela-banner.visible { display:block; }
+
+.cautela-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:0.75rem; margin-bottom:1rem; }
+@media(max-width:600px) { .cautela-cards { grid-template-columns:1fr 1fr; } }
+.cautela-card { background:var(--white); border-radius:var(--radius); padding:1rem; box-shadow:var(--shadow); }
+.cautela-card-label { font-size:0.75rem; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.05em; }
+.cautela-card-val { font-size:1.75rem; font-weight:700; margin-top:0.25rem; }
+
+.cautela-open-list { display:flex; flex-direction:column; gap:0.5rem; }
+.cautela-item { background:var(--white); border-radius:var(--radius); padding:0.875rem 1rem; box-shadow:var(--shadow); border-left:4px solid var(--gray-200); }
+.cautela-item.overdue { border-left-color:var(--red); background:var(--red-50); }
+.cautela-item-header { display:flex; justify-content:space-between; align-items:flex-start; }
+.cautela-item-name { font-weight:600; }
+.cautela-item-time { font-size:0.75rem; color:var(--gray-600); }
+.cautela-item.overdue .cautela-item-time { color:var(--red); font-weight:600; }
+.cautela-item-meta { font-size:0.8rem; color:var(--gray-600); margin-top:0.25rem; }
+
+.ferramentas-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+.ferramentas-table th { text-align:left; padding:0.5rem 0.75rem; background:var(--gray-100); color:var(--gray-600); font-weight:600; border-bottom:1px solid var(--gray-200); }
+.ferramentas-table td { padding:0.5rem 0.75rem; border-bottom:1px solid var(--gray-200); }
+.ferramentas-table tbody tr:hover { background:var(--gray-100); }
+.disp-badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:99px; font-size:0.75rem; font-weight:600; }
+.disp-ok { background:#dcfce7; color:var(--green); }
+.disp-zero { background:var(--red-50); color:var(--red); }
+
+.colab-list { display:flex; flex-direction:column; gap:0.5rem; }
+.colab-item { background:var(--white); border-radius:var(--radius); padding:0.75rem 1rem; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; }
+.colab-item-info { flex:1; }
+.colab-item-nome { font-weight:600; }
+.colab-item-cpf { font-size:0.8rem; color:var(--gray-600); }
+.colab-item-setor { font-size:0.8rem; color:var(--gray-600); }
+.colab-actions { display:flex; gap:0.5rem; }
