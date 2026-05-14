@@ -1246,7 +1246,7 @@ const IDB = (() => {
     });
   }
 
-  const _tx   = (store, mode) => _db.transaction(store, mode).objectStore(store);
+  const _tx   = (store, mode) => { if (!_db) throw new Error('IDB.open() não foi chamado ou falhou'); return _db.transaction(store, mode).objectStore(store); };
   const _get  = (store, key)  => new Promise((res, rej) => { const r = _tx(store,'readonly').get(key); r.onsuccess = e => res(e.target.result ?? null); r.onerror = e => rej(e.target.error); });
   const _put  = (store, val, key) => new Promise((res, rej) => { const r = key !== undefined ? _tx(store,'readwrite').put(val, key) : _tx(store,'readwrite').put(val); r.onsuccess = e => res(e.target.result); r.onerror = e => rej(e.target.error); });
   const _del  = (store, key)  => new Promise((res, rej) => { const r = _tx(store,'readwrite').delete(key); r.onsuccess = () => res(); r.onerror = e => rej(e.target.error); });
@@ -1256,7 +1256,7 @@ const IDB = (() => {
     open,
     setCache:     (table, rows) => _put('cache', rows, table),
     getCache:     (table)       => _get('cache', table),
-    enqueue:      (op)          => _put('outbox', { ...op, status: 'pending' }),
+    enqueue:      (op)          => _put('outbox', { ...op, createdAt: op.createdAt ?? Date.now(), status: 'pending' }),
     dequeue:      (id)          => _del('outbox', id),
     getPending:   async ()      => (await _all('outbox')).filter(o => o.status === 'pending').sort((a,b) => a.createdAt - b.createdAt),
     countPending: async ()      => (await _all('outbox')).filter(o => o.status === 'pending').length,
