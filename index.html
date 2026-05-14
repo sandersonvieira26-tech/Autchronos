@@ -2663,10 +2663,19 @@ async function salvarFerramenta() {
   if (!nome || !categoria || isNaN(qtd) || qtd < 1) {
     showToast('Preencha nome, categoria e quantidade.', 'error'); return;
   }
-  const { error } = await _sb.from('ferramentas_cautela').insert({
-    nome, codigo: codigo || null, categoria,
-    quantidade_total: qtd, quantidade_disponivel: qtd
-  });
+  const payload = { nome, codigo: codigo || null, categoria, quantidade_total: qtd, quantidade_disponivel: qtd };
+
+  if (!navigator.onLine) {
+    await IDB.enqueue({ type: 'table', table: 'ferramentas_cautela', op: 'insert', payload, userId: currentSession?.usuarioId });
+    _ferramentas_cautela.push(normFerramentaCautela({ ...payload, id: -(Date.now()), created_at: new Date().toISOString() }));
+    closeFerramentaModal();
+    renderCautela(); updateTabIndicators();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
+
+  const { error } = await _sb.from('ferramentas_cautela').insert(payload);
   if (error) { showToast('Erro ao salvar ferramenta.', 'error'); return; }
   closeFerramentaModal();
   await loadAllData();
@@ -2677,6 +2686,16 @@ async function salvarFerramenta() {
 async function excluirFerramenta(id, nome) {
   if (!guardAdmin()) return;
   if (!confirm(`Excluir "${nome}"? Não é possível excluir se houver cautelas em aberto.`)) return;
+
+  if (!navigator.onLine) {
+    await IDB.enqueue({ type: 'table', table: 'ferramentas_cautela', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+    _ferramentas_cautela = _ferramentas_cautela.filter(f => f.id !== id);
+    renderCautela(); updateTabIndicators();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
+
   const { error } = await _sb.from('ferramentas_cautela').delete().eq('id', id);
   if (error) {
     if (error.message.includes('violates foreign key')) {
@@ -2757,6 +2776,16 @@ async function resetarAssinaturaColaborador(id, nome) {
 async function excluirColaborador(id, nome) {
   if (!guardAdmin()) return;
   if (!confirm(`Excluir colaborador "${nome}"?`)) return;
+
+  if (!navigator.onLine) {
+    await IDB.enqueue({ type: 'table', table: 'colaboradores', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+    _colaboradores = _colaboradores.filter(c => c.id !== id);
+    renderCautela();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
+
   const { error } = await _sb.from('colaboradores').delete().eq('id', id);
   if (error) {
     if (error.message.includes('violates foreign key')) {
@@ -2794,6 +2823,7 @@ function closeImportColaboradoresModal() {
 }
 
 async function processarImportColaboradores() {
+  if (!navigator.onLine) { showToast('Importação requer conexão com a internet.', 'error'); return; }
   const fileInput = document.getElementById('import-colab-file');
   const statusEl = document.getElementById('import-colab-status');
   const file = fileInput.files[0];
