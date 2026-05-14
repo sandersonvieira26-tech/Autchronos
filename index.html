@@ -2666,7 +2666,11 @@ async function salvarFerramenta() {
   const payload = { nome, codigo: codigo || null, categoria, quantidade_total: qtd, quantidade_disponivel: qtd };
 
   if (!navigator.onLine) {
-    await IDB.enqueue({ type: 'table', table: 'ferramentas_cautela', op: 'insert', payload, userId: currentSession?.usuarioId });
+    try {
+      await IDB.enqueue({ type: 'table', table: 'ferramentas_cautela', op: 'insert', payload, userId: currentSession?.usuarioId });
+    } catch (e) {
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
     _ferramentas_cautela.push(normFerramentaCautela({ ...payload, id: -(Date.now()), created_at: new Date().toISOString() }));
     closeFerramentaModal();
     renderCautela(); updateTabIndicators();
@@ -2688,7 +2692,11 @@ async function excluirFerramenta(id, nome) {
   if (!confirm(`Excluir "${nome}"? Não é possível excluir se houver cautelas em aberto.`)) return;
 
   if (!navigator.onLine) {
-    await IDB.enqueue({ type: 'table', table: 'ferramentas_cautela', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+    try {
+      await IDB.enqueue({ type: 'table', table: 'ferramentas_cautela', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+    } catch (e) {
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
     _ferramentas_cautela = _ferramentas_cautela.filter(f => f.id !== id);
     renderCautela(); updateTabIndicators();
     await updateSyncBadge();
@@ -2778,7 +2786,11 @@ async function excluirColaborador(id, nome) {
   if (!confirm(`Excluir colaborador "${nome}"?`)) return;
 
   if (!navigator.onLine) {
-    await IDB.enqueue({ type: 'table', table: 'colaboradores', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+    try {
+      await IDB.enqueue({ type: 'table', table: 'colaboradores', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+    } catch (e) {
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
     _colaboradores = _colaboradores.filter(c => c.id !== id);
     renderCautela();
     await updateSyncBadge();
