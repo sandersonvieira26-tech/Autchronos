@@ -758,6 +758,8 @@ tr:hover td { background: var(--gray-50); }
 .toast { display:flex; align-items:center; gap:0.625rem; padding:0.75rem 1rem; border-radius:var(--radius); box-shadow:var(--shadow-lg); font-size:0.875rem; font-weight:500; pointer-events:all; animation:toast-in 0.25s ease; max-width:320px; }
 .toast-success { background:#ecfdf5; color:#065f46; border-left:4px solid var(--green); }
 .toast-error { background:var(--red-50); color:var(--red); border-left:4px solid var(--red); }
+.toast-info { background:#eff6ff; color:#1e40af; border-left:4px solid #3b82f6; }
+[data-theme="dark"] .toast-info { background:#1e3a5f; color:#bfdbfe; }
 @keyframes toast-in { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
 @keyframes toast-out { to { opacity:0; transform:translateX(20px); } }
 [data-theme="dark"] .toast-success { background:#052e16; }
