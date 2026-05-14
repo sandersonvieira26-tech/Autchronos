@@ -1437,24 +1437,33 @@ function setOfflineMode(isOffline) {
 async function updateSyncBadge() {
   const badge = document.getElementById('sync-badge');
   if (!badge) return;
-  const count = await IDB.countPending();
-  if (count > 0) {
-    badge.textContent = count;
-    badge.style.display = 'inline-block';
-  } else {
-    badge.style.display = 'none';
+  try {
+    const count = await IDB.countPending();
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('updateSyncBadge falhou:', e);
   }
 }
 
 async function showSyncStatus() {
-  const pending = await IDB.getPending();
-  if (pending.length === 0) { showToast('Nenhuma operação pendente.'); return; }
-  const lines = pending.map(op =>
-    op.type === 'rpc'
-      ? `• ${op.rpcName} (${new Date(op.createdAt).toLocaleTimeString()})`
-      : `• ${op.op} ${op.table} (${new Date(op.createdAt).toLocaleTimeString()})`
-  ).join('\n');
-  showToast(`${pending.length} pendente${pending.length>1?'s':''}:\n${lines}`, 'info', 6000);
+  try {
+    const pending = await IDB.getPending();
+    if (pending.length === 0) { showToast('Nenhuma operação pendente.'); return; }
+    const lines = pending.map(op =>
+      op.type === 'rpc'
+        ? `• ${op.rpcName ?? '(rpc)'} (${new Date(op.createdAt).toLocaleTimeString()})`
+        : `• ${op.op ?? '?'} ${op.table ?? '?'} (${new Date(op.createdAt).toLocaleTimeString()})`
+    ).join(' | ');
+    showToast(`${pending.length} pendente${pending.length>1?'s':''}: ${lines}`, 'info', 6000);
+  } catch (e) {
+    console.warn('showSyncStatus falhou:', e);
+    showToast('Erro ao ler fila de sync.', 'error');
+  }
 }
 
 // === SESSION ===
@@ -1528,7 +1537,7 @@ function guardAdmin() {
   return !!(currentSession && currentSession.papel === 'admin');
 }
 
-function showToast(msg, type = 'success') {
+function showToast(msg, type = 'success', duration = 2800) {
   let c = document.getElementById('toast-container');
   if (!c) { c = document.createElement('div'); c.id = 'toast-container'; c.className = 'toast-container'; document.body.appendChild(c); }
   const t = document.createElement('div');
@@ -1538,7 +1547,7 @@ function showToast(msg, type = 'success') {
   setTimeout(() => {
     t.style.animation = 'toast-out 0.3s ease forwards';
     setTimeout(() => t.remove(), 300);
-  }, 2800);
+  }, duration);
 }
 
 function toggleRowMenu(id) {
