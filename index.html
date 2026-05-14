@@ -824,6 +824,34 @@ tr:hover td { background: var(--gray-50); }
 .colab-item-cpf { font-size:0.8rem; color:var(--gray-600); }
 .colab-item-setor { font-size:0.8rem; color:var(--gray-600); }
 .colab-actions { display:flex; gap:0.5rem; }
+/* === OFFLINE SYNC UI === */
+#offline-banner {
+  display: none;
+  width: 100%;
+  background: #f59e0b;
+  color: #1c1917;
+  text-align: center;
+  padding: 0.35rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  position: relative;
+  z-index: 200;
+  letter-spacing: 0.01em;
+}
+[data-theme="dark"] #offline-banner { background: #b45309; color: #fef3c7; }
+#sync-badge {
+  display: none;
+  background: #f97316;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  min-width: 1.2rem;
+  text-align: center;
+  cursor: pointer;
+  line-height: 1.4;
+}
   </style>
 </head>
 <body>
@@ -1401,6 +1429,34 @@ async function loadAllData() {
   if (!cautr.error) _cautelas           = cautr.data.map(normCautela);
 }
 
+function setOfflineMode(isOffline) {
+  const banner = document.getElementById('offline-banner');
+  if (banner) banner.style.display = isOffline ? 'block' : 'none';
+}
+
+async function updateSyncBadge() {
+  const badge = document.getElementById('sync-badge');
+  if (!badge) return;
+  const count = await IDB.countPending();
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function showSyncStatus() {
+  const pending = await IDB.getPending();
+  if (pending.length === 0) { showToast('Nenhuma operação pendente.'); return; }
+  const lines = pending.map(op =>
+    op.type === 'rpc'
+      ? `• ${op.rpcName} (${new Date(op.createdAt).toLocaleTimeString()})`
+      : `• ${op.op} ${op.table} (${new Date(op.createdAt).toLocaleTimeString()})`
+  ).join('\n');
+  showToast(`${pending.length} pendente${pending.length>1?'s':''}:\n${lines}`, 'info', 6000);
+}
+
 // === SESSION ===
 async function getAppSession() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -1875,6 +1931,7 @@ function renderDashboard(session) {
   const isAdmin = session.papel === 'admin';
 
   document.getElementById('screen-dashboard').innerHTML = `
+    <div id="offline-banner">Sem conexão — exibindo dados do último acesso</div>
     <header class="dashboard-header">
       <div class="header-left"><div class="logo-brand">${logoSVG(22)}<div class="logo-tagline">ESVJ - Gestão de Almoxarifado</div></div></div>
       <div class="header-right">
@@ -1890,6 +1947,7 @@ function renderDashboard(session) {
         </div>
         <button class="btn-logout btn-admin-toggle" id="btn-admin-toggle" onclick="toggleAdminMenu()" title="Opções admin">⋮</button>
         ` : ''}
+        <span id="sync-badge" onclick="showSyncStatus()" title="Operações pendentes de sincronização"></span>
         <button class="btn-logout btn-theme" onclick="toggleSaldo()" id="btn-saldo" title="Mostrar/ocultar valores">${getSaldoIcon()}</button>
         <button class="btn-logout btn-theme" onclick="toggleTheme()" id="btn-theme" title="Alternar modo noturno">${getThemeIcon()}</button>
         <button class="btn-logout" onclick="doLogout()">Sair</button>
