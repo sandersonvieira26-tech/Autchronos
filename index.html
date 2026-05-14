@@ -1412,23 +1412,36 @@ async function loadAllData() {
     _sb.from('cautelas').select('*').order('data_retirada', { ascending: false })
   ]);
 
-  // Carrega o que conseguir; loga e exibe qual tabela falhou
   const tableResults = { materiais: mr, categorias: cr, movimentacoes: movr, profiles: pr,
     equipamentos_calibracao: er, colaboradores: colr, ferramentas_cautela: ferr, cautelas: cautr };
   const errs = Object.entries(tableResults).filter(([, r]) => r.error);
   if (errs.length) {
     errs.forEach(([t, r]) => console.error(`loadAllData [${t}]:`, r.error.message));
-    showToast(`Erro ao carregar: ${errs.map(([t]) => t).join(', ')}`, 'error');
+    if (navigator.onLine) showToast(`Erro ao carregar: ${errs.map(([t]) => t).join(', ')}`, 'error');
   }
 
-  if (!mr.error)   _materiais           = mr.data.map(normMaterial);
-  if (!cr.error)   _categorias          = cr.data.map(c => c.nome);
-  if (!movr.error) _movimentacoes       = movr.data.map(normMovimento);
-  if (!pr.error)   _profiles            = pr.data.map(normProfile);
-  if (!er.error)   _equipamentos        = er.data.map(normEquipamento);
-  if (!colr.error) _colaboradores       = colr.data.map(normColaborador);
-  if (!ferr.error) _ferramentas_cautela = ferr.data.map(normFerramentaCautela);
-  if (!cautr.error) _cautelas           = cautr.data.map(normCautela);
+  async function resolve(result, cacheKey) {
+    if (!result.error) { await IDB.setCache(cacheKey, result.data); return result.data; }
+    return (await IDB.getCache(cacheKey)) || [];
+  }
+
+  const [matRows, catRows, movRows, profRows, eqRows, colRows, ferrRows, cauRows] = await Promise.all([
+    resolve(mr, 'materiais'), resolve(cr, 'categorias'), resolve(movr, 'movimentacoes'),
+    resolve(pr, 'profiles'), resolve(er, 'equipamentos_calibracao'),
+    resolve(colr, 'colaboradores'), resolve(ferr, 'ferramentas_cautela'), resolve(cautr, 'cautelas'),
+  ]);
+
+  _materiais           = matRows.map(normMaterial);
+  _categorias          = catRows.map(c => c.nome);
+  _movimentacoes       = movRows.map(normMovimento);
+  _profiles            = profRows.map(normProfile);
+  _equipamentos        = eqRows.map(normEquipamento);
+  _colaboradores       = colRows.map(normColaborador);
+  _ferramentas_cautela = ferrRows.map(normFerramentaCautela);
+  _cautelas            = cauRows.map(normCautela);
+
+  setOfflineMode(!navigator.onLine);
+  await updateSyncBadge();
 }
 
 function setOfflineMode(isOffline) {
@@ -1466,6 +1479,47 @@ async function showSyncStatus() {
     console.warn('showSyncStatus falhou:', e);
     showToast('Erro ao ler fila de sync.', 'error');
   }
+}
+
+async function syncOutbox() {
+  if (!navigator.onLine) return;
+  const pending = await IDB.getPending();
+  if (pending.length === 0) { setOfflineMode(false); return; }
+
+  showToast('Conexão restaurada — sincronizando...');
+  let synced = 0;
+
+  for (const op of pending) {
+    try {
+      let error;
+      if (op.type === 'rpc') {
+        ({ error } = await _sb.rpc(op.rpcName, op.payload));
+      } else if (op.op === 'insert') {
+        ({ error } = await _sb.from(op.table).insert(op.payload));
+      } else if (op.op === 'update') {
+        ({ error } = await _sb.from(op.table).update(op.payload).eq(op.matchKey, op.matchValue));
+      } else if (op.op === 'delete') {
+        ({ error } = await _sb.from(op.table).delete().eq(op.matchKey, op.matchValue));
+      }
+      if (error) {
+        await IDB.markFailed(op.id, error.message);
+        showToast(`Erro ao sincronizar ${op.table || op.rpcName}: ${error.message}`, 'error');
+      } else {
+        await IDB.dequeue(op.id);
+        synced++;
+      }
+    } catch (err) {
+      await IDB.markFailed(op.id, err.message);
+      showToast(`Erro inesperado ao sincronizar: ${err.message}`, 'error');
+    }
+  }
+
+  if (synced > 0) showToast(`✓ ${synced} operaç${synced > 1 ? 'ões sincronizadas' : 'ão sincronizada'}`);
+
+  await loadAllData();
+  refreshAllSections();
+  await updateSyncBadge();
+  setOfflineMode(false);
 }
 
 // === SESSION ===
@@ -5819,6 +5873,10 @@ function addSwipe(el, onDelete) {
 
 // === INIT ===
 window.addEventListener('DOMContentLoaded', async () => {
+  await IDB.open();
+  window.addEventListener('online',  syncOutbox);
+  window.addEventListener('offline', () => setOfflineMode(true));
+
   const session = await getAppSession();
   if (session) {
     await loadAllData();
