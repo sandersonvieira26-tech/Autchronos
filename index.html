@@ -3976,6 +3976,18 @@ async function deleteMaterial(id) {
     'Excluir material',
     `Tem certeza que deseja excluir <span class="confirm-del-name">${esc(material.nome)}</span>? Todo o histórico de movimentações será perdido. Esta ação não pode ser desfeita.`,
     async () => {
+      if (!navigator.onLine) {
+        try {
+          await IDB.enqueue({ type: 'table', table: 'materiais', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+        } catch (e) {
+          showToast('Erro ao salvar localmente.', 'error'); return;
+        }
+        _materiais = _materiais.filter(m => m.id !== id);
+        refreshAllSections();
+        await updateSyncBadge();
+        showToast('Salvo localmente — sincroniza ao reconectar');
+        return;
+      }
       const { error } = await _sb.from('materiais').delete().eq('id', id);
       if (error) { alert('Erro ao excluir: ' + error.message); return; }
       dispararWebhook({
@@ -4026,10 +4038,7 @@ async function saveMaterial() {
 
   const valorStr = valorRaw.trim();
   const valor = valorStr === '' ? 0 : parseDecimal(valorStr);
-  if (!isFinite(valor)) {
-    showFieldError('err-m-valor', 'Informe um valor numérico válido.');
-    valid = false;
-  }
+  if (!isFinite(valor)) { showFieldError('err-m-valor', 'Informe um valor numérico válido.'); valid = false; }
 
   if (!valid) return;
 
@@ -4037,16 +4046,45 @@ async function saveMaterial() {
   const btn = document.querySelector('button[onclick="saveMaterial()"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
 
+  if (!navigator.onLine) {
+    const matPayload = { nome, categoria: cat, quantidade: qtd, unidade, estoque_minimo: min, valor_unitario: valor, localizacao };
+    try {
+      if (editingMaterialId) {
+        const old = getMateriais().find(m => m.id === editingMaterialId);
+        await IDB.enqueue({ type: 'table', table: 'materiais', op: 'update', matchKey: 'id', matchValue: editingMaterialId, payload: matPayload, userId: currentSession?.usuarioId });
+        _materiais = _materiais.map(m => m.id === editingMaterialId
+          ? normMaterial({ id: editingMaterialId, ...matPayload })
+          : m);
+        if (old && qtd !== old.quantidade) {
+          const diff = qtd - old.quantidade;
+          const movPayload = { material_id: editingMaterialId, material_nome: nome, tipo: diff > 0 ? 'entrada' : 'saída', quantidade: Math.abs(diff), registrado_por: currentSession.nomeCompleto, observacao: null };
+          await IDB.enqueue({ type: 'table', table: 'movimentacoes', op: 'insert', payload: movPayload, userId: currentSession?.usuarioId });
+          _movimentacoes = [normMovimento({ ...movPayload, id: -(Date.now()), data: new Date().toISOString(), retirado_por: null, destino: null }), ..._movimentacoes];
+        }
+      } else {
+        await IDB.enqueue({ type: 'table', table: 'materiais', op: 'insert', payload: matPayload, userId: currentSession?.usuarioId });
+        _materiais = [..._materiais, normMaterial({ ...matPayload, id: -(Date.now()) })];
+      }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+    closeMaterialModal();
+    refreshAllSections();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
+
   if (editingMaterialId) {
     const old = getMateriais().find(m => m.id === editingMaterialId);
     if (!old) { alert('Material não encontrado.'); closeMaterialModal(); return; }
-
     const { error } = await _sb.from('materiais').update({
       nome, categoria: cat, quantidade: qtd, unidade,
       estoque_minimo: min, valor_unitario: valor, localizacao
     }).eq('id', editingMaterialId);
     if (error) { alert('Erro ao salvar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } return; }
-
     await recordMovimento(old.id, old.nome, old.quantidade, qtd, currentSession.nomeCompleto);
   } else {
     const { error } = await _sb.from('materiais').insert({
@@ -4055,12 +4093,9 @@ async function saveMaterial() {
     });
     if (error) { alert('Erro ao salvar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } return; }
     dispararWebhook({
-      evento: 'material_criado',
-      nome, categoria: cat, quantidade: qtd, unidade,
-      estoque_minimo: min, valor_unitario: valor,
-      localizacao: localizacao || null,
-      usuario: currentSession.nomeCompleto,
-      data: new Date().toISOString()
+      evento: 'material_criado', nome, categoria: cat, quantidade: qtd, unidade,
+      estoque_minimo: min, valor_unitario: valor, localizacao: localizacao || null,
+      usuario: currentSession.nomeCompleto, data: new Date().toISOString()
     });
   }
 
