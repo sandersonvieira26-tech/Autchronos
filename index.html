@@ -3100,7 +3100,7 @@ async function verificarAtrasosCautela() {
     }
   }
 
-  await Promise.all([_rtCautelas(), _rtColaboradores()]);
+  try { await Promise.all([_rtCautelas(), _rtColaboradores()]); } catch (err) { console.warn('verificarAtrasosCautela: falha ao atualizar dados', err); }
   updateTabIndicators();
   renderCautelaPanel();
 }
