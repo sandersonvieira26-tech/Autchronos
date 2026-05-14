@@ -1225,6 +1225,57 @@ const _sb = window.supabase.createClient(
   { auth: { persistSession: true, autoRefreshToken: true } }
 );
 
+// === INDEXEDDB — OFFLINE CACHE + OUTBOX ===
+const IDB = (() => {
+  const DB_NAME = 'autchronos-db';
+  const DB_VERSION = 1;
+  let _db = null;
+
+  function open() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('cache'))
+          db.createObjectStore('cache');
+        if (!db.objectStoreNames.contains('outbox'))
+          db.createObjectStore('outbox', { keyPath: 'id', autoIncrement: true });
+      };
+      req.onsuccess  = e => { _db = e.target.result; resolve(); };
+      req.onerror    = e => reject(e.target.error);
+    });
+  }
+
+  const _tx   = (store, mode) => _db.transaction(store, mode).objectStore(store);
+  const _get  = (store, key)  => new Promise((res, rej) => { const r = _tx(store,'readonly').get(key); r.onsuccess = e => res(e.target.result ?? null); r.onerror = e => rej(e.target.error); });
+  const _put  = (store, val, key) => new Promise((res, rej) => { const r = key !== undefined ? _tx(store,'readwrite').put(val, key) : _tx(store,'readwrite').put(val); r.onsuccess = e => res(e.target.result); r.onerror = e => rej(e.target.error); });
+  const _del  = (store, key)  => new Promise((res, rej) => { const r = _tx(store,'readwrite').delete(key); r.onsuccess = () => res(); r.onerror = e => rej(e.target.error); });
+  const _all  = (store)       => new Promise((res, rej) => { const r = _tx(store,'readonly').getAll(); r.onsuccess = e => res(e.target.result); r.onerror = e => rej(e.target.error); });
+
+  return {
+    open,
+    setCache:     (table, rows) => _put('cache', rows, table),
+    getCache:     (table)       => _get('cache', table),
+    enqueue:      (op)          => _put('outbox', { ...op, status: 'pending' }),
+    dequeue:      (id)          => _del('outbox', id),
+    getPending:   async ()      => (await _all('outbox')).filter(o => o.status === 'pending').sort((a,b) => a.createdAt - b.createdAt),
+    countPending: async ()      => (await _all('outbox')).filter(o => o.status === 'pending').length,
+    markFailed: (id, msg) => new Promise((res, rej) => {
+      const s = _tx('outbox', 'readwrite');
+      const r = s.get(id);
+      r.onsuccess = e => {
+        const op = e.target.result;
+        if (!op) { res(); return; }
+        op.status = 'failed'; op.errorMessage = msg;
+        const u = s.put(op);
+        u.onsuccess = () => res();
+        u.onerror   = e => rej(e.target.error);
+      };
+      r.onerror = e => rej(e.target.error);
+    }),
+  };
+})();
+
 // === CAUTELA CRYPTO ===
 // SHA-256 sem salt — usado apenas em payloads de webhook, nunca para autenticação
 async function hashCPF(cpf) {
