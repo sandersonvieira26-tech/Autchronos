@@ -3067,6 +3067,11 @@ async function nrConfirmar() {
   const ferramenta = getFerramentasCautela().find(f => f.id === sel?.value);
   if (!ferramenta) { if (errEl) errEl.textContent = 'Ferramenta inválida.'; return; }
 
+  if (!navigator.onLine) {
+    if (errEl) errEl.textContent = 'Retirada requer conexão com a internet.';
+    return;
+  }
+
   if (btn) { btn.disabled = true; btn.textContent = 'Aguarde...'; }
 
   try {
@@ -3251,6 +3256,8 @@ async function devConfirmar() {
   const condicao = document.getElementById('dev-condicao').value;
   const senha = document.getElementById('dev-senha').value;
   if (!senha) { errEl.textContent = 'Informe a senha.'; return; }
+
+  if (!navigator.onLine) { errEl.textContent = 'Devolução requer conexão com a internet.'; return; }
 
   btn.disabled = true; btn.textContent = 'Aguarde...';
 
