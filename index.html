@@ -1421,8 +1421,13 @@ async function loadAllData() {
   }
 
   async function resolve(result, cacheKey) {
-    if (!result.error) { await IDB.setCache(cacheKey, result.data); return result.data; }
-    return (await IDB.getCache(cacheKey)) || [];
+    try {
+      if (!result.error) { await IDB.setCache(cacheKey, result.data); return result.data; }
+      return (await IDB.getCache(cacheKey)) || [];
+    } catch (e) {
+      console.warn(`IDB cache falhou para ${cacheKey}:`, e);
+      return result.data || [];
+    }
   }
 
   const [matRows, catRows, movRows, profRows, eqRows, colRows, ferrRows, cauRows] = await Promise.all([
@@ -1501,7 +1506,10 @@ async function syncOutbox() {
       } else if (op.op === 'delete') {
         ({ error } = await _sb.from(op.table).delete().eq(op.matchKey, op.matchValue));
       }
-      if (error) {
+      if (error === undefined && op.type !== 'rpc' && !['insert','update','delete'].includes(op.op)) {
+        await IDB.markFailed(op.id, 'tipo de operação não reconhecido');
+        console.error('syncOutbox: op desconhecida', op);
+      } else if (error) {
         await IDB.markFailed(op.id, error.message);
         showToast(`Erro ao sincronizar ${op.table || op.rpcName}: ${error.message}`, 'error');
       } else {
@@ -1516,10 +1524,16 @@ async function syncOutbox() {
 
   if (synced > 0) showToast(`✓ ${synced} operaç${synced > 1 ? 'ões sincronizadas' : 'ão sincronizada'}`);
 
-  await loadAllData();
-  refreshAllSections();
-  await updateSyncBadge();
-  setOfflineMode(false);
+  try {
+    await loadAllData();
+    refreshAllSections();
+    await updateSyncBadge();
+  } catch (err) {
+    console.error('syncOutbox: loadAllData falhou', err);
+    showToast('Erro ao recarregar dados após sincronização.', 'error');
+  } finally {
+    setOfflineMode(false);
+  }
 }
 
 // === SESSION ===
@@ -5873,7 +5887,11 @@ function addSwipe(el, onDelete) {
 
 // === INIT ===
 window.addEventListener('DOMContentLoaded', async () => {
-  await IDB.open();
+  try {
+    await IDB.open();
+  } catch (err) {
+    console.warn('IDB.open() falhou — modo sem cache:', err);
+  }
   window.addEventListener('online',  syncOutbox);
   window.addEventListener('offline', () => setOfflineMode(true));
 
