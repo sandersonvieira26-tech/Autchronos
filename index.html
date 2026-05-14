@@ -5460,6 +5460,26 @@ async function saveRenovarCalib() {
 
   // Upload new certificate file if provided
   let certPath = equip.certificadoPath || null;
+  if (!navigator.onLine) {
+    const eqPayload = { data_ultima_calibracao: dataCal, data_proxima_calibracao: dataProxima, numero_certificado: cert, certificado_path: certPath };
+    const histPayload = { equipamento_id: renovarCalibId, equipamento_nome: equip.nome, data_calibracao: dataCal, data_proxima: dataProxima, numero_certificado: cert, certificado_path: certPath, responsavel: equip.responsavel || null, registrado_por: currentSession?.nomeCompleto || 'Sistema' };
+    try {
+      await IDB.enqueue({ type: 'table', table: 'equipamentos_calibracao', op: 'update', matchKey: 'id', matchValue: renovarCalibId, payload: eqPayload, userId: currentSession?.usuarioId });
+      await IDB.enqueue({ type: 'table', table: 'calibracoes_historico', op: 'insert', payload: histPayload, userId: currentSession?.usuarioId });
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirmar Renovação'; }
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
+    _equipamentos = _equipamentos.map(e => e.id === renovarCalibId
+      ? normEquipamento({ id: renovarCalibId, nome: equip.nome, categoria: equip.categoria, identificacao: equip.identificacao || '', validade_meses: equip.validadeMeses, responsavel: equip.responsavel || '', em_calibracao: equip.emCalibracao, numero_certificado: cert, certificado_path: certPath, data_ultima_calibracao: dataCal, data_proxima_calibracao: dataProxima })
+      : e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar Renovação'; }
+    closeRenovarCalibModal();
+    renderEquipamentos(); renderCards(); renderDaySummary();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
   if (certFile) {
     const uploaded = await uploadCertificado(renovarCalibId, certFile);
     if (uploaded) certPath = uploaded;
@@ -5572,6 +5592,29 @@ async function saveEquipamento() {
     responsavel
   };
 
+  if (!navigator.onLine) {
+    if (!editingEquipamentoId) {
+      showToast('Criação de equipamento requer conexão. Edição e renovação funcionam offline.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+      return;
+    }
+    try {
+      await IDB.enqueue({ type: 'table', table: 'equipamentos_calibracao', op: 'update', matchKey: 'id', matchValue: editingEquipamentoId, payload, userId: currentSession?.usuarioId });
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
+    _equipamentos = _equipamentos.map(e => e.id === editingEquipamentoId
+      ? normEquipamento({ ...payload, id: editingEquipamentoId, certificado_path: e.certificadoPath, em_calibracao: e.emCalibracao })
+      : e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+    closeEquipamentoModal();
+    renderEquipamentos(); renderCards(); renderDaySummary(); updateTabIndicators();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
+
   let error, savedId;
   if (editingEquipamentoId) {
     ({ error } = await _sb.from('equipamentos_calibracao').update(payload).eq('id', editingEquipamentoId));
@@ -5642,6 +5685,18 @@ async function deleteEquipamento(id) {
     'Excluir equipamento',
     `Tem certeza que deseja excluir <span class="confirm-del-name">${esc(equip.nome)}</span>? O histórico de calibrações será perdido. Esta ação não pode ser desfeita.`,
     async () => {
+      if (!navigator.onLine) {
+        try {
+          await IDB.enqueue({ type: 'table', table: 'equipamentos_calibracao', op: 'delete', matchKey: 'id', matchValue: id, payload: { id }, userId: currentSession?.usuarioId });
+        } catch (e) {
+          showToast('Erro ao salvar localmente.', 'error'); return;
+        }
+        _equipamentos = _equipamentos.filter(e => e.id !== id);
+        renderEquipamentos(); updateTabIndicators();
+        await updateSyncBadge();
+        showToast('Salvo localmente — sincroniza ao reconectar');
+        return;
+      }
       const { error } = await _sb.from('equipamentos_calibracao').delete().eq('id', id);
       if (error) { alert('Erro ao excluir: ' + error.message); return; }
       dispararWebhook({
