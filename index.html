@@ -3100,7 +3100,7 @@ async function verificarAtrasosCautela() {
     }
   }
 
-  try { await loadAllData(); } catch (err) { console.warn('verificarAtrasosCautela: loadAllData falhou', err); }
+  await Promise.all([_rtCautelas(), _rtColaboradores()]);
   updateTabIndicators();
   renderCautelaPanel();
 }
@@ -4272,9 +4272,8 @@ async function saveAjuste() {
   });
   if (error) { alert('Erro: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; } return; }
 
-  await loadAllData();
+  await Promise.all([_rtMateriais(), _rtMovimentacoes()]);
   closeAjusteModal();
-  refreshAllSections();
 }
 
 // === CONFIRMAR EXCLUSÃO ===
