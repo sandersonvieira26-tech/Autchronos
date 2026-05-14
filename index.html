@@ -3586,6 +3586,34 @@ async function saveMovimento() {
 
   const observacao = (document.getElementById('mov-observacao')?.value || '').trim();
   const delta = tipo === 'entrada' ? qtd : -qtd;
+
+  if (!navigator.onLine) {
+    const rpcParams = {
+      p_material_id: material.id, p_delta: delta, p_tipo: tipo,
+      p_quantidade_movimento: qtd, p_registrado_por: currentSession.nomeCompleto,
+      p_retirado_por: retiradorPor || null, p_destino: destino || null, p_observacao: observacao || null
+    };
+    try {
+      await IDB.enqueue({ type: 'rpc', rpcName: 'registrar_movimentacao', payload: rpcParams, userId: currentSession?.usuarioId });
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; }
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
+    _materiais = _materiais.map(m => m.id === material.id ? { ...m, quantidade: novaQtd } : m);
+    _movimentacoes = [normMovimento({
+      id: -(Date.now()), material_id: material.id, material_nome: material.nome,
+      tipo, quantidade: qtd, data: new Date().toISOString(),
+      registrado_por: currentSession.nomeCompleto, retirado_por: retiradorPor || null,
+      destino: destino || null, observacao: observacao || null
+    }), ..._movimentacoes];
+    if (btn) { btn.disabled = false; btn.textContent = 'Registrar'; }
+    closeMovimentoModal();
+    refreshAllSections();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
+
   const { data: qtdFinal, error } = await _sb.rpc('registrar_movimentacao', {
     p_material_id:          material.id,
     p_delta:                delta,
@@ -4529,6 +4557,29 @@ async function saveAjuste() {
 
   const btn = document.querySelector('button[onclick="saveAjuste()"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Aplicando...'; }
+
+  if (!navigator.onLine) {
+    const rpcParams = { p_material_id: material.id, p_nova_qtd: qtd, p_registrado_por: currentSession.nomeCompleto };
+    try {
+      await IDB.enqueue({ type: 'rpc', rpcName: 'registrar_ajuste_estoque', payload: rpcParams, userId: currentSession?.usuarioId });
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; }
+      showToast('Erro ao salvar localmente.', 'error'); return;
+    }
+    _materiais = _materiais.map(m => m.id === material.id ? { ...m, quantidade: qtd } : m);
+    _movimentacoes = [normMovimento({
+      id: -(Date.now()), material_id: material.id, material_nome: material.nome,
+      tipo: 'ajuste', quantidade: Math.abs(qtd - material.quantidade),
+      data: new Date().toISOString(), registrado_por: currentSession.nomeCompleto,
+      retirado_por: null, destino: null, observacao: 'Ajuste offline'
+    }), ..._movimentacoes];
+    if (btn) { btn.disabled = false; btn.textContent = 'Aplicar Ajuste'; }
+    closeAjusteModal();
+    refreshAllSections();
+    await updateSyncBadge();
+    showToast('Salvo localmente — sincroniza ao reconectar');
+    return;
+  }
 
   const { error } = await _sb.rpc('registrar_ajuste_estoque', {
     p_material_id:    material.id,
